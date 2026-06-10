@@ -1,0 +1,5 @@
+Copyright (c) 2026 Hidden App. All rights reserved.
+
+This source code is made public and shared on a strictly confidential basis exclusively for the review and evaluation of the Google for Startups AI Agents Challenge.
+
+Any reproduction, copying, distribution, or unauthorized commercial use of this material is strictly prohibited under applicable intellectual property and copyright laws.

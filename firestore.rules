@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- 1. ACCESO PARA ROWY Y CONFIGURACIÓN ---
+    // Permite que Rowy gestione su configuración interna siempre que haya un usuario autenticado.
+    match /_rowy_/{doc=**} { allow read, write: if request.auth != null; }
+    match /_rowy_audit/{doc=**} { allow read, write: if request.auth != null; }
+
+    // --- 2. PERFILES DE USUARIO (SEGURIDAD INDIVIDUAL) ---
+    // Cada usuario puede editar sus propios datos (nombre, ubicación, bio, favoritos).
+    // Permitimos lectura pública para que la app pueda mostrar nombres/fotos.
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- 3. REGLA GENERAL DE CONTENIDO ---
+    // Permite lectura pública para que los visitantes vean el contenido (destinos, noticias, etc).
+    // Restringe escritura a usuarios autenticados (Rowy Admins o Usuarios de la App según el caso).
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

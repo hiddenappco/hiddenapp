@@ -1,0 +1,77 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.vault
+*local.env*
+.env.*.local
+agent-worker/.env
+functions/.env
+functions/.env.local
+
+# Local logs, reports & scratch (no subir a GitHub)
+logs.txt
+signing_report.txt
+scratch/
+test_tomorrow.json
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc.local
+.firebase/
+
+# Android — credenciales y artefactos de build (no commitear)
+android/app/google-services.json
+android/.gradle/
+android/local.properties
+android/app/build/
+android/captures/
+android/app/src/main/assets/public/
+
+# Firmas y binarios compilados (nunca publicar)
+*.jks
+*.keystore
+*.apk
+*.aab
+
+# Salida compilada de Cloud Functions (se regenera en cada deploy)
+functions/lib/
+
+# Agent worker — scratch local
+agent-worker/scratch_*.js
+
+# Documentación interna / roadmap / tareas (solo local)
+HACKATHON.txt
+HACKATHON_SUBMISSION.md
+public/unit-economics.html
+roadmap_integraciones.md
+TAREA_*.md
+ANALISIS_FINANCIERO.md
+TECHNICAL_DOCUMENTATION.md
+metadata.json
+fix_imports.cjs

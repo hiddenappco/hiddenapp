@@ -1,0 +1,252 @@
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url('/assets/fonts/material-symbols-outlined.ttf') format('truetype');
+  font-display: block;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-dark: #F8FAFC;
+    --color-surface-dark: #FFFFFF;
+    --color-card-dark: #FFFFFF;
+    --color-nav-bg-dark: #FFFFFF;
+    --color-content: #0F172A;
+    --color-content-secondary: #334155;
+    --color-content-muted: #64748B;
+    --color-content-subtle: #94A3B8;
+    --color-overlay: 15 23 42;
+    --color-border-overlay: 15 23 42;
+    --color-news-bg-dark: #F8FAFC;
+    --color-news-card-dark: #FFFFFF;
+    --color-news-surface-dark: #FFFFFF;
+  }
+
+  .dark {
+    --color-bg-dark: #0D1B2A;
+    --color-surface-dark: #1B263B;
+    --color-card-dark: #112D4A;
+    --color-nav-bg-dark: #0A2540;
+    --color-content: #FFFFFF;
+    --color-content-secondary: #D1D5DB;
+    --color-content-muted: #9CA3AF;
+    --color-content-subtle: #6B7280;
+    --color-overlay: 255 255 255;
+    --color-border-overlay: 27 38 59;
+    --color-news-bg-dark: #0B1120;
+    --color-news-card-dark: #151e2e;
+    --color-news-surface-dark: #1e293b;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden; /* Prevent global scrollbar, handle in components */
+    background-color: var(--color-bg-dark);
+    color: var(--color-content);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  #root {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+@layer utilities {
+  .custom-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: transparent;
+  }
+  
+  /* Universal Scrollbar Hiding */
+  .no-scrollbar::-webkit-scrollbar, 
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar, 
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Material Symbols Config - STRICT SIZING */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Default Preferred Size */
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-flex; /* Fixes alignment issues */
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  
+  /* Variable Font Settings */
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  
+  /* Prevent layout shift */
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+}
+
+.filled-icon {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+/* Override for specific sizes if needed via utility helper classes if they exist, 
+   but basic class should be stable now */
+
+/* Custom Scrollbar for Drawer/Specific areas */
+.drawer-content::-webkit-scrollbar {
+  width: 4px;
+}
+.drawer-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.drawer-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 107, 53, 0.3); /* Primary color opacity */
+  border-radius: 20px;
+}
+
+/* Safe Area for Mobile (Dynamic Notches & Navigation Bars) */
+.pt-safe {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+}
+
+.pt-safe-hero {
+  /* For immersive hero images that have a back button floating on top */
+  padding-top: max(3rem, env(safe-area-inset-top, 3rem));
+}
+
+.pb-safe {
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 2rem));
+}
+
+.top-safe {
+  top: max(1rem, env(safe-area-inset-top));
+}
+
+.bottom-safe {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pb-safe-input {
+  /* For chat inputs and bottom bars */
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+/* Tactical Scanning Animation */
+@keyframes scanline {
+  0% { top: -5%; opacity: 0; }
+  5% { opacity: 0.8; }
+  95% { opacity: 0.8; }
+  100% { top: 105%; opacity: 0; }
+}
+
+.neon-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent 10%, #22c55e 50%, transparent 90%);
+  box-shadow: 0 0 15px #22c55e, 0 0 5px #ffffff;
+  z-index: 10;
+  pointer-events: none;
+  animation: scanline 3s linear infinite;
+}
+
+/* --- MODO ESCRITORIO: Simulador de Celular --- */
+@media (min-width: 768px) {
+  html {
+    background-color: #0b0f19;
+  }
+  
+  body {
+    background-color: #0b0f19; /* Fondo ultra oscuro y elegante para el monitor */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  #root {
+    width: 412px; /* Ancho estándar de un smartphone moderno (ej: Pixel 8/iPhone 15) */
+    height: 892px; /* Alto estándar proporcional */
+    max-height: 95vh; /* Para que no se corte en pantallas pequeñas */
+    overflow-y: auto; /* Habilita scroll interno */
+    overflow-x: hidden;
+    background-color: var(--color-bg-dark); /* Mantiene el color de fondo de la app dentro del celular */
+    transition: background-color 0.3s ease;
+    container-type: inline-size;
+    container-name: phone;
+    
+    /* Bisel metálico elegante de celular flotando */
+    border: 12px solid #1e293b; 
+    border-radius: 48px; 
+    box-shadow: 0px 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    position: relative;
+    /* fixed/sticky se anclan al marco del teléfono, no al monitor completo */
+    transform: translateZ(0);
+  }
+
+  /*
+   * Tailwind sm/md usan el ancho del monitor, no el del marco (412px).
+   * Forzamos una columna en grids marcados con .mobile-single-col.
+   */
+  #root .mobile-single-col {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /*
+   * Tailwind h-screen = 100vh del monitor → desborda el marco y desalinea íconos/cabeceras.
+   * Dentro del simulador usamos la altura del #root (892px / 95vh).
+   */
+  #root .h-screen {
+    height: 100% !important;
+  }
+  #root .min-h-screen {
+    min-height: 100% !important;
+  }
+  #root .max-h-screen {
+    max-height: 100% !important;
+  }
+
+  /* Sin notch en el marco de escritorio: padding predecible (la APK sigue usando env(safe-area-*)) */
+  #root .pt-safe {
+    padding-top: 1rem;
+  }
+  #root .pt-safe-hero {
+    padding-top: 1.5rem;
+  }
+  #root .pb-safe {
+    padding-bottom: 1.25rem;
+  }
+  #root .top-safe {
+    top: 1rem;
+  }
+
+  /* Ocultar barra de scroll nativa para un look premium de pantalla táctil */
+  #root::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+}

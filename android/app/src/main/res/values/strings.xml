@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hidden</string>
+    <string name="title_activity_main">Hidden</string>
+    <string name="package_name">com.hidden.experience</string>
+    <string name="custom_url_scheme">com.hidden.experience</string>
+    <string name="server_client_id">189468820746-pdrjjpe3he0spuak4053qvu47mhhnhqp.apps.googleusercontent.com</string>
+    <string name="web_client_id">189468820746-pdrjjpe3he0spuak4053qvu47mhhnhqp.apps.googleusercontent.com</string>
+    <string name="google_client_id">189468820746-pdrjjpe3he0spuak4053qvu47mhhnhqp.apps.googleusercontent.com</string>
+</resources>

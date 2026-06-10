@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 1. Allow users to upload files (like voice messages or profile pics) to their own directory
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /{allPaths=**} {
+      // 2. Permitir lectura pública
+      // Necesario para que las imágenes y archivos se vean en la App sin necesidad de firma.
+      allow read: if true;
+
+      // 3. Permitir escritura solo a administradores de Rowy en las demás rutas (News, Destinos, etc.)
+      allow write: if request.auth != null && 
+                     request.auth.token.roles != null && 
+                     request.auth.token.roles.size() > 0;
+    }
+  }
+}

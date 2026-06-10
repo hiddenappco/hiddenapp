@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hidden App — Architecture Diagrams</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #334155;
+      background: #1e293b;
+    }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 700; }
+    header p { margin: 0; font-size: 0.9rem; color: #94a3b8; }
+    header a { color: #38bdf8; }
+    .links { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem; font-size: 0.85rem; }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.85rem 1.5rem;
+      border-bottom: 1px solid #334155;
+      background: #15233b;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    nav button {
+      border: 1px solid #334155;
+      background: transparent;
+      color: #cbd5e1;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    nav button:hover { border-color: #38bdf8; color: #e2e8f0; }
+    nav button.active {
+      background: #38bdf8;
+      border-color: #38bdf8;
+      color: #0f172a;
+    }
+    main { padding: 1rem 1rem 2rem; overflow-x: auto; }
+    section { display: none; }
+    section.active { display: block; }
+    section > p.desc {
+      max-width: 880px;
+      margin: 0.25rem auto 1rem;
+      font-size: 0.88rem;
+      color: #94a3b8;
+      text-align: center;
+    }
+    .diagram { display: flex; justify-content: center; min-height: 50vh; }
+    .diagram svg { max-width: 100%; height: auto; }
+    footer {
+      padding: 1rem 1.5rem 2rem;
+      font-size: 0.8rem;
+      color: #64748b;
+      border-top: 1px solid #334155;
+    }
+    .legend {
+      max-width: 880px;
+      margin: 1.5rem auto 0;
+      padding: 0 1rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .legend dt { font-weight: 600; color: #cbd5e1; margin-top: 0.5rem; }
+    .legend dd { margin: 0.15rem 0 0 0; }
+    code { color: #7dd3fc; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hidden App — Architecture Diagrams</h1>
+    <p>Expedition-tech platform for remote tourism in Colombia · PWA, Firebase/GCP, multi-agent AI ecosystem scoped by department</p>
+    <div class="links">
+      <a href="https://gen-lang-client-0040858908.web.app">Production PWA</a>
+      <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">Hackathon demo video</a>
+      <a href="https://github.com/hiddenappco/hiddenapp">Source code</a>
+      <a href="https://github.com/hiddenappco/hiddenapp/blob/main/docs/ARCHITECTURE.md">Architecture (Markdown)</a>
+    </div>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="system" class="active">Full system</button>
+    <button data-tab="chatflow">ADK chat orchestration</button>
+    <button data-tab="expedition">Multi-agent expedition planner</button>
+    <button data-tab="shield">Environmental Shield</button>
+  </nav>
+
+  <main>
+    <section id="system" class="active">
+      <p class="desc">
+        Client (React 19 PWA + Capacitor), Firebase/GCP backend, ADK runtime with persistent sessions,
+        the multi-agent expedition pipeline, MCP catalog server, Cloud Run Live voice worker and external telemetry APIs.
+      </p>
+      <div class="diagram" data-diagram="system"></div>
+    </section>
+
+    <section id="chatflow">
+      <p class="desc">
+        One chat turn: the hyperlocal agent loads its persistent ADK session (Firestore), queries the catalog on demand
+        (MCP / FunctionTools, hermetically scoped to one <code>departmentId</code>), can invoke the Ranger as a tool
+        (<code>getLiveConditions</code>) and checks real routes before answering with validated widgets.
+      </p>
+      <div class="diagram" data-diagram="chatflow"></div>
+    </section>
+
+    <section id="expedition">
+      <p class="desc">
+        "Plan my 3-day expedition" → the chat enqueues an expedition; three specialist ADK agents build the itinerary
+        exclusively from verified catalog data with real Google Routes legs, streaming live progress
+        (<code>queued → curating → routing → writing → ready</code>) to the chat widget via <code>onSnapshot</code>.
+      </p>
+      <div class="diagram" data-diagram="expedition"></div>
+    </section>
+
+    <section id="shield">
+      <p class="desc">
+        One monitored destination: Ranger telemetry analysis every 15 minutes while the app is open,
+        plus cloud cron push alerts for UV, AQI and rain thresholds.
+      </p>
+      <div class="diagram" data-diagram="shield"></div>
+    </section>
+
+    <dl class="legend">
+      <dt>Text agents (ADK)</dt>
+      <dd><code>chatAgent</code> and <code>environmentalAgent</code> run on Google ADK — Agentic RAG, MCP catalog tools, persistent Firestore sessions, structured JSON.</dd>
+      <dt>Multi-agent expedition planner</dt>
+      <dd><code>planExpedition</code> chat tool + <code>onExpeditionCreate</code> trigger: curator → logistics → writer LlmAgents, deterministic data gathering, validated ids, real driving legs.</dd>
+      <dt>Ranger as a tool</dt>
+      <dd><code>getLiveConditions</code> fetches live weather/AQI/marine telemetry and delegates the tactical analysis to the Ranger sub-agent inside the chat turn.</dd>
+      <dt>Live voice</dt>
+      <dd>Cloud Run <code>hidden-agent-worker</code> + LiveKit + Gemini Multimodal Live (separate from the ADK text stack).</dd>
+      <dt>Off-Grid Vault</dt>
+      <dd>Department SQLite packs + local RAG on device — search and offline chat with zero network.</dd>
+    </dl>
+  </main>
+
+  <footer>
+    Interactive diagrams rendered with Mermaid · synced with <a href="https://github.com/hiddenappco/hiddenapp/blob/main/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>
+    · Hackathon video: <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">youtube.com/watch?v=cTfFi36K3qI</a>
+  </footer>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      flowchart: { curve: "basis", padding: 16 },
+      sequence: { actorMargin: 36 },
+      securityLevel: "loose",
+    });
+
+    const diagrams = {
+      system: `flowchart TB
+    subgraph USERS["USERS"]
+        U["Explorer / Tourist\\nPWA browser · Android Capacitor"]
+    end
+
+    subgraph CLIENT["CLIENT — React 19 + Vite + Capacitor 8"]
+        direction TB
+        UI["UI: Home · Destinations · Chat · Live · Monitor\\nProfile · Off-Grid · Trips · Coupons"]
+        EXPW["ExpeditionWidget\\nlive itinerary · onSnapshot"]
+        OFF["Offline: sql.js + department packs"]
+    end
+
+    subgraph FIREBASE["FIREBASE / GCP — gen-lang-client-0040858908 · us-central1"]
+        direction TB
+        HOST["Firebase Hosting\\n.web.app"]
+        AUTH["Firebase Auth"]
+        FS[("Cloud Firestore")]
+        FCM["FCM Push"]
+
+        subgraph CFN["Cloud Functions Gen 2 · Node 22"]
+            CHAT["chatAgent\\nADK · Agentic RAG · MCP"]
+            ENV["environmentalAgent\\nADK Ranger"]
+            EXPD["onExpeditionCreate\\nmulti-agent planner trigger"]
+            PACK["department packs + Rowy triggers"]
+            CRON["scheduledEnvironmentalMonitor"]
+        end
+
+        subgraph ADK["ADK runtime · functions/src/adk"]
+            RUNNER["Runner + FirestoreSessionService\\npersistent multi-turn memory"]
+            CHATAG["LlmAgent · hyperlocal chat"]
+            RANGER["LlmAgent · Ranger\\nalso getLiveConditions tool"]
+            EXPIPE["Expedition pipeline\\ncurator → logistics → writer"]
+            MCP_TS["MCPToolset\\nper-department scoped"]
+        end
+
+        MCP_SRV["MCP stdio server\\nhidden_get_* tools"]
+        RUN["Cloud Run\\nhidden-agent-worker · Live voice"]
+    end
+
+    subgraph DATA["FIRESTORE — core collections"]
+        direction LR
+        D1["users"]
+        D3["destinations · refugios\\nEvents · Coupons · News"]
+        D6["expeditions\\nlive status + itinerary"]
+        D7["adk_sessions\\npersistent chat memory"]
+    end
+
+    subgraph EXTERNAL["EXTERNAL SERVICES"]
+        direction LR
+        GEM["Google Gemini"]
+        LK["LiveKit Cloud WebRTC"]
+        W["AccuWeather · Open-Meteo\\nStormglass · Google Routes"]
+        ROWY["Rowy CMS → content"]
+    end
+
+    U --> UI
+    HOST --> UI
+    UI --> OFF
+    UI --> EXPW
+
+    UI -->|HTTPS| CHAT
+    UI -->|HTTPS| ENV
+    UI -->|WebRTC| LK
+
+    CHAT --> RUNNER
+    ENV --> RUNNER
+    RUNNER --> CHATAG
+    RUNNER --> RANGER
+    RUNNER --> D7
+    CHATAG --> MCP_TS
+    CHATAG -->|getLiveConditions| RANGER
+    CHATAG -->|planExpedition| D6
+    D6 --> EXPD
+    EXPD --> EXPIPE
+    EXPIPE --> D6
+    EXPIPE --> GEM
+    EXPIPE --> W
+    D6 -.->|onSnapshot| EXPW
+    MCP_TS --> MCP_SRV
+    MCP_SRV --> FS
+    CHAT --> FS
+    ENV --> FS
+    PACK --> FS
+    CRON --> FCM
+    CRON --> W
+
+    CHAT --> GEM
+    ENV --> GEM
+    ENV --> W
+    LK --> RUN
+    RUN --> GEM
+    RUN --> FS
+
+    ROWY --> FS
+    FS --> D1 & D3
+    FCM --> U`,
+
+      chatflow: `sequenceDiagram
+    participant PWA as PWA Chat
+    participant HTTP as chatAgent
+    participant SESS as FirestoreSessionService
+    participant ADK as ADK LlmAgent
+    participant MCP as MCP stdio (dept-scoped)
+    participant RNG as Ranger sub-agent
+    participant Maps as Google Routes
+
+    PWA->>HTTP: message + departmentId + GPS
+    HTTP->>SESS: load session (chatId)
+    SESS-->>ADK: multi-turn memory
+    ADK->>MCP: hidden_get_destinations
+    MCP-->>ADK: catalog JSON (media-stripped)
+    opt live conditions
+        ADK->>RNG: getLiveConditions(destination)
+        RNG-->>ADK: telemetry + tactical analysis
+    end
+    opt routes
+        ADK->>Maps: checkRouteStatus
+        Maps-->>ADK: traffic / tolls / ETA
+    end
+    ADK-->>HTTP: structured JSON + widgets
+    HTTP->>SESS: append events
+    HTTP-->>PWA: message + validated widgets`,
+
+      expedition: `flowchart TB
+    ASK["Explorer in chat:\\n'Plan my 3-day expedition'"] --> TOOL["planExpedition tool\\ndays · origin · interests · budget"]
+    TOOL --> DOC[("expeditions/{id}\\nstatus: queued")]
+    DOC -.->|onSnapshot| WIDGET["Live chat widget\\nprogress per agent"]
+    DOC --> TRG["onExpeditionCreate\\nCloud Function trigger · 540s"]
+    TRG --> GATHER["Deterministic catalog gathering\\ndestinations · refugios · coupons · events\\n(no LLM — zero hallucination surface)"]
+    GATHER --> CUR["CURATOR LlmAgent\\nselects destinations\\ncatalog honesty: NOT_FEASIBLE if short"]
+    CUR --> VAL1{"ids validated\\nvs catalog"}
+    VAL1 --> LOG["LOGISTICS LlmAgent\\nhaversine matrix · day assignment\\novernight refugios by destinationId"]
+    LOG --> ROUTES["Google Routes API\\nreal driving legs (max 10)\\ninjected by code, not the model"]
+    ROUTES --> WRT["WRITER LlmAgent\\nfinal itinerary in app language\\nactivities · pricing · packing from fichas"]
+    WRT --> READY[("status: ready\\nday-by-day itinerary")]
+    READY -.->|onSnapshot| WIDGET
+
+    style CUR fill:#1d3450,stroke:#38bdf8
+    style LOG fill:#1d3450,stroke:#38bdf8
+    style WRT fill:#1d3450,stroke:#38bdf8`,
+
+      shield: `flowchart LR
+    S1["Destination + coords"] --> S2["SHIELD ON\\nactiveMonitor"]
+    S2 --> S3["Ranger every 15 min\\nwhile app open"]
+    S2 --> S4["Cron every 15 min\\npush UV / AQI / rain"]
+    S3 --> S5["Tactical Q&A\\nseparate thread UI"]
+    S3 --> S6["getLiveConditions\\nsame Ranger, callable from chat"]`,
+    };
+
+    const rendered = {};
+    async function show(tab) {
+      document.querySelectorAll("nav button").forEach((b) =>
+        b.classList.toggle("active", b.dataset.tab === tab)
+      );
+      document.querySelectorAll("main section").forEach((s) =>
+        s.classList.toggle("active", s.id === tab)
+      );
+      if (!rendered[tab]) {
+        const host = document.querySelector(`[data-diagram="${tab}"]`);
+        const { svg } = await mermaid.render(`d-${tab}`, diagrams[tab]);
+        host.innerHTML = svg;
+        rendered[tab] = true;
+      }
+    }
+
+    document.getElementById("tabs").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (btn) show(btn.dataset.tab);
+    });
+
+    show("system");
+  </script>
+</body>
+</html>

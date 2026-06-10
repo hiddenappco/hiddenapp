@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' data: gap: blob: capacitor: http://localhost:* https://ssl.gstatic.com https://www.gstatic.com https://*.google.com https://google.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com https://*.firebasestorage.googleapis.com https://*.appspot.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://*.google.com https://google.com https://*.gstatic.com https://www.gstatic.com https://gstatic.com https://apis.google.com https://accounts.google.com https://www.googletagmanager.com https://*.googletagmanager.com; connect-src 'self' https://*.livekit.cloud wss://*.livekit.cloud ws://localhost:* ws://127.0.0.1:* https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.firebasestorage.googleapis.com https://*.appspot.com https://accounts.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://*.google.com https://*.a.run.app; img-src 'self' data: blob: capacitor: https://* https://*.googleusercontent.com https://*.firebasestorage.googleapis.com https://*.appspot.com https://images.unsplash.com https://*.google-analytics.com https://*.googletagmanager.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://content.googleapis.com https://*.google.com;">
+  <title>Hidden</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+    rel="stylesheet" />
+
+
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('app_theme');
+        var isDark = theme !== 'light';
+        if (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+          isDark = false;
+        }
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+
+<body
+  class="bg-background-dark font-display text-content antialiased overflow-hidden selection:bg-primary selection:text-white">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

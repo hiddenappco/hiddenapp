@@ -1,0 +1,8 @@
+# .gcloudignore
+node_modules/
+dist/
+.env
+.git
+.idea
+.vscode
+*.log

@@ -1,0 +1,52 @@
+{
+  "name": "hidden",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.0.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/haptics": "^8.0.1",
+    "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
+    "@livekit/components-react": "^2.9.21",
+    "@mediapipe/tasks-genai": "^0.10.27",
+    "@revenuecat/purchases-capacitor": "^12.2.0",
+    "axios": "^1.16.1",
+    "firebase": "^12.7.0",
+    "framer-motion": "^12.24.7",
+    "get-orientation": "^1.1.2",
+    "livekit-client": "^2.19.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-easy-crop": "^5.5.6",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.11.0",
+    "react-zoom-pan-pinch": "^4.0.3",
+    "remark-gfm": "^4.0.1",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.2",
+    "@types/node": "^22.14.0",
+    "@types/sql.js": "^1.4.11",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.2",
+    "vite": "^6.4.1"
+  }
+}

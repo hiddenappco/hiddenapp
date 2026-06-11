@@ -11,6 +11,7 @@ import {
     getFirestore
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { getAuthHeaders } from '../services/authHeaders';
 import { getAssistantDocId, resolveEffectiveDepartmentId } from '../utils/departmentIds';
 
 export const useAssistant = (id: string | undefined) => {
@@ -104,7 +105,7 @@ export const sendMessageToAgent = async (
 
         const response = await fetch(CLOUD_FUNCTION_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await getAuthHeaders(),
             body: JSON.stringify({
                 userId,
                 departmentId: agentDepartmentId,

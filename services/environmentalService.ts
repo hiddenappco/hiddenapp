@@ -1,5 +1,6 @@
 
 import { db } from './firebase';
+import { getAuthHeaders } from './authHeaders';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const MONITOR_AGENT_URL = 'https://environmentalagent-gyrowwrjfq-uc.a.run.app';
@@ -181,7 +182,7 @@ export const fetchEnvironmentalData = async (
 
         const response = await fetch(MONITOR_AGENT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await getAuthHeaders(),
             body: JSON.stringify({
                 userId,
                 departmentId,

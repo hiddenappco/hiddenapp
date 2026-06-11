@@ -30,6 +30,7 @@ import {
     localizeNewsArticle,
     localizeRefugio,
 } from "../lib/localizeCatalog";
+import { AuthError, requireAuthUid } from "../lib/verifyAuth";
 
 let genAIInstance: GoogleGenerativeAI | null = null;
 const getGenAI = () => {
@@ -73,7 +74,18 @@ export const environmentalAgent = onRequest({
     try {
         res.set('Access-Control-Allow-Origin', '*');
 
-        const { destinationId, destinationName, coordinates, userQuery, cachedTelemetry, userId, language: uiLanguage } = req.body;
+        let userId: string;
+        try {
+            userId = await requireAuthUid(req);
+        } catch (err) {
+            if (err instanceof AuthError) {
+                res.status(401).json({ error: 'Unauthorized' });
+                return;
+            }
+            throw err;
+        }
+
+        const { destinationId, destinationName, coordinates, userQuery, cachedTelemetry, language: uiLanguage } = req.body;
         const outputLang = uiLanguage === 'en' ? 'en' : 'es';
         console.log(`[environmentalAgent] Incoming request for: ${destinationName || destinationId} | Query: ${userQuery ? 'YES' : 'NO'}`);
 
@@ -356,11 +368,22 @@ export const chatAgent = onRequest({
     secrets: ["GOOGLE_MAPS_API_KEY", "GEMINI_API_KEY", "ACCUWEATHER_API_KEY", "STORMGLASS_API_KEY"]
 }, async (req, res) => {
     try {
-        const { userId, message, departmentId, chatId: reqChatId, coordinates, language: uiLanguage } = req.body as any;
+        let userId: string;
+        try {
+            userId = await requireAuthUid(req);
+        } catch (err) {
+            if (err instanceof AuthError) {
+                res.status(401).json({ error: 'Unauthorized' });
+                return;
+            }
+            throw err;
+        }
+
+        const { message, departmentId, chatId: reqChatId, coordinates, language: uiLanguage } = req.body as any;
         const appLanguage: 'es' | 'en' = uiLanguage === 'en' ? 'en' : 'es';
 
-        if (!message || !departmentId || !userId) {
-            res.status(400).json({ error: "Missing message, departmentId or userId" });
+        if (!message || !departmentId) {
+            res.status(400).json({ error: "Missing message or departmentId" });
             return;
         }
 

@@ -7,6 +7,7 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
+import { RichTextContent } from './ui/RichTextContent';
 
 interface RefugioDetailProps {
   language: Language;
@@ -256,10 +257,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
 
       <div className="px-4 py-1 shrink-0">
         <h3 className="text-lg font-bold text-content mb-2">{t('refugio.about')}</h3>
-        <div 
-          className="text-content-secondary text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: displayDescription }}
-        />
+        <RichTextContent content={displayDescription} compact />
       </div>
 
       {refugio.amenities && refugio.amenities.length > 0 && (
@@ -463,10 +461,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
         <div className="px-4 py-3 shrink-0">
           <h3 className="text-lg font-bold text-content mb-2">{t('refugio.booking')}</h3>
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
-            <div 
-              className="text-xs text-content-secondary leading-relaxed font-medium"
-              dangerouslySetInnerHTML={{ __html: displayHowToBook }}
-            />
+            <RichTextContent content={displayHowToBook} compact className="text-xs font-medium" />
           </div>
         </div>
       )}

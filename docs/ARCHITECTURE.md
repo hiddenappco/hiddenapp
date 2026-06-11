@@ -6,9 +6,10 @@ Expedition-tech platform for remote tourism in Colombia — PWA, Capacitor Andro
 |----------|-----|
 | **Production PWA** | https://gen-lang-client-0040858908.web.app |
 | **Architecture diagrams (standalone web)** | https://gen-lang-client-0040858908.web.app/architecture.html |
+| **Architecture diagrams (source)** | [`public/architecture.html`](../public/architecture.html) |
 | **Hackathon demo video** | https://www.youtube.com/watch?v=cTfFi36K3qI |
 | **Source code** | https://github.com/hiddenappco/hiddenapp |
-| **Full technical dossier (ES)** | [`TECHNICAL_DOCUMENTATION.md`](../TECHNICAL_DOCUMENTATION.md) |
+| **README** | [`README.md`](../README.md) |
 
 ---
 
@@ -331,6 +332,8 @@ functions/src/api/expeditions.ts  ← onExpeditionCreate trigger
 ## Security
 
 API keys (Gemini, Maps, weather providers, LiveKit) are **not** in the public repository. They are configured via Firebase Secrets and local `.env` files excluded by `.gitignore`. The PWA bundle only includes public Firebase web client configuration.
+
+`chatAgent` and `environmentalAgent` verify a Firebase ID token on every request; the authenticated UID from the token is used for Firestore access — not a client-supplied `userId`.
 
 ---
 

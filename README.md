@@ -23,18 +23,21 @@ Hidden App connects adventurers with remote destinations that mainstream platfor
 | **Expedition Planner** | Multi-agent pipeline (curator → logistics → writer) that builds day-by-day itineraries from verified catalog data with real Google Routes legs |
 | **Modo Live** | Full-duplex voice via LiveKit + Gemini Multimodal Live |
 | **Off-Grid Vault** | Downloadable department packs (SQLite) for offline search and chat |
-| **Trips & PDF** | Expense log and expedition summary export |
+| **Trips & PDF** | Expense log and trip summary export via backend (`generateTripPdf`); destination PDF button temporarily disabled in UI |
 | **i18n** | Spanish / English UI and bilingual Firestore content (`*_en` fields) |
 
 ---
 
 ## Architecture
 
-- **Architecture diagrams (dedicated web):** https://gen-lang-client-0040858908.web.app/architecture.html  
-- **Demo video:** https://www.youtube.com/watch?v=cTfFi36K3qI  
-- **System architecture:** [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)  
-- **Technical dossier (ES):** [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)  
-- **Integration roadmap (ES):** [roadmap_integraciones.md](./roadmap_integraciones.md)
+Public documentation in this repository and on Hosting:
+
+| Resource | Link |
+|----------|------|
+| **Architecture diagrams (web)** | https://gen-lang-client-0040858908.web.app/architecture.html |
+| **Architecture diagrams (source)** | [public/architecture.html](./public/architecture.html) |
+| **Demo video** | https://www.youtube.com/watch?v=cTfFi36K3qI |
+| **System architecture (markdown)** | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
 
 ```mermaid
 flowchart LR
@@ -116,6 +119,8 @@ Live voice uses **Cloud Run** (`hidden-agent-worker`) with LiveKit — separate 
 
 API keys are stored in **Firebase Secrets** and local `.env` files (not committed to the repository).
 
+`chatAgent` and `environmentalAgent` require a valid **Firebase ID token** (`Authorization: Bearer …`); the client never trusts a spoofed `userId` in the request body.
+
 ---
 
 ## Getting started
@@ -180,15 +185,16 @@ gcloud run deploy hidden-agent-worker --source . --region us-central1
 
 ---
 
-## Documentation map
+## Documentation in this repository
 
 | Document | Content |
 |----------|---------|
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Diagrams, ADK orchestration, deployment |
-| [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md) | Full engineering dossier (Spanish) |
-| [docs/TAREA_2_ARQUITECTURA_BILINGUE.md](./docs/TAREA_2_ARQUITECTURA_BILINGUE.md) | Bilingual architecture guide |
-| [TAREA_4_ARQUITECTURA_OFFLINE_DUAL.md](./TAREA_4_ARQUITECTURA_OFFLINE_DUAL.md) | Off-Grid dual-mode architecture |
-| [roadmap_integraciones.md](./roadmap_integraciones.md) | Product integration roadmap |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System diagrams, ADK orchestration, agents, deployment |
+| [public/architecture.html](./public/architecture.html) | Standalone architecture page (also deployed on Hosting) |
+| [LICENSE](./LICENSE) | License terms |
+| [COPYRIGHT.txt](./COPYRIGHT.txt) | Copyright notice |
+
+Additional internal dossiers and product roadmaps are maintained outside the public repository.
 
 ---
 

@@ -6,6 +6,8 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 import { EnvironmentalHeader } from './environmental/EnvironmentalHeader';
 import { IntelligenceAdvice } from './environmental/IntelligenceAdvice';
@@ -35,7 +37,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     const { data: selectedDestination } = useDestination(selectedId || undefined);
 
     const filteredDestinations = destinations.filter((d) =>
-        d.title.toLowerCase().includes(searchTerm.toLowerCase())
+        matchesLocalizedSearch(d as Record<string, unknown>, searchTerm, [...DESTINATION_SEARCH_FIELDS])
     );
 
     useEffect(() => {

@@ -47,7 +47,10 @@ export async function buildHyperlocalChatAgent(
     const routeTool = createCheckRouteStatusTool(ctx.route);
     const liveConditionsTool = createLiveConditionsTool(ctx.liveConditions);
     const expeditionTool = createPlanExpeditionTool(ctx.expedition);
-    const mcpToolset = await getCatalogMcpToolset(ctx.catalog.departmentId);
+    const mcpToolset = await getCatalogMcpToolset(
+        ctx.catalog.departmentId,
+        ctx.catalog.appLanguage ?? 'es'
+    );
 
     if (mcpToolset) {
         return createHyperlocalChatAgent(

@@ -19,6 +19,17 @@ function scopedDepartmentId(requested: string): string {
     return process.env.HIDDEN_MCP_DEPARTMENT || requested;
 }
 
+function scopedAppLanguage(): 'es' | 'en' {
+    return process.env.HIDDEN_MCP_LANGUAGE === 'en' ? 'en' : 'es';
+}
+
+function catalogScope(departmentId: string) {
+    return {
+        departmentId: scopedDepartmentId(departmentId),
+        appLanguage: scopedAppLanguage(),
+    };
+}
+
 /** Registers Hidden App catalog tools on an MCP server (shared by stdio transport). */
 export function registerHiddenCatalogTools(server: McpServer): void {
     server.registerTool(
@@ -29,7 +40,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
             inputSchema: { departmentId },
         },
         async ({ departmentId: deptId }) => {
-            const department = await getDepartmentKnowledge({ departmentId: scopedDepartmentId(deptId) });
+            const department = await getDepartmentKnowledge(catalogScope(deptId));
             if (!department) {
                 return {
                     content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Department not found' }) }],
@@ -54,7 +65,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
         },
         async ({ departmentId: deptId, searchQuery, limit }) => {
             const destinations = await getDestinationsKnowledge(
-                { departmentId: scopedDepartmentId(deptId) },
+                catalogScope(deptId),
                 { searchQuery, limit }
             );
             return {
@@ -80,7 +91,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
         },
         async ({ departmentId: deptId, destinationId, limit }) => {
             const refugios = await getRefugiosKnowledge(
-                { departmentId: scopedDepartmentId(deptId) },
+                catalogScope(deptId),
                 { destinationId, limit }
             );
             return {
@@ -101,7 +112,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
             },
         },
         async ({ departmentId: deptId, limit }) => {
-            const coupons = await getCouponsKnowledge({ departmentId: scopedDepartmentId(deptId) }, { limit });
+            const coupons = await getCouponsKnowledge(catalogScope(deptId), { limit });
             return {
                 content: [
                     { type: 'text' as const, text: JSON.stringify({ count: coupons.length, coupons }) },
@@ -120,7 +131,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
             },
         },
         async ({ departmentId: deptId, limit }) => {
-            const events = await getEventsKnowledge({ departmentId: scopedDepartmentId(deptId) }, { limit });
+            const events = await getEventsKnowledge(catalogScope(deptId), { limit });
             return {
                 content: [
                     { type: 'text' as const, text: JSON.stringify({ count: events.length, events }) },
@@ -139,7 +150,7 @@ export function registerHiddenCatalogTools(server: McpServer): void {
             },
         },
         async ({ departmentId: deptId, limit }) => {
-            const news = await getNewsKnowledge({ departmentId: scopedDepartmentId(deptId) }, { limit });
+            const news = await getNewsKnowledge(catalogScope(deptId), { limit });
             return {
                 content: [
                     { type: 'text' as const, text: JSON.stringify({ count: news.length, news }) },

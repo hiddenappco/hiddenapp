@@ -5,7 +5,6 @@ import { useEvent, useIsFavorite, toggleFavorite, useEvents, useDestinations, us
 import { useAuth } from './layout/AuthProvider';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { pickLocalized } from '../utils/localizedContent';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 
@@ -19,7 +18,7 @@ export const FairDetail: React.FC<FairDetailProps> = ({
   onBack,
   fairId: propId
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const finalId = propId || id;
 
@@ -77,10 +76,8 @@ export const FairDetail: React.FC<FairDetailProps> = ({
 
     try {
       setFavLoading(true);
-      const eventDoc = event as Record<string, unknown>;
-      const favName = pickLocalized(eventDoc, 'name', language) || event.name;
       await toggleFavorite(user.uid, finalId, 'fair', {
-        name: favName,
+        name: event.name,
         image: event.image,
         location: event.location,
         date: event.date
@@ -95,14 +92,11 @@ export const FairDetail: React.FC<FairDetailProps> = ({
 
   const handleShare = async () => {
     if (!event) return;
-    const eventDoc = event as Record<string, unknown>;
-    const shareName = pickLocalized(eventDoc, 'name', language) || event.name;
-    const shareDescription = pickLocalized(eventDoc, 'description', language) || event.description;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: shareName,
-          text: shareDescription,
+          title: event.name,
+          text: event.description,
           url: window.location.href,
         });
       } catch (err) {
@@ -117,11 +111,10 @@ export const FairDetail: React.FC<FairDetailProps> = ({
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('fair.loading')}</div>;
   if (!event) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('fair.notFound')}</div>;
 
-  const eventDoc = event as Record<string, unknown>;
-  const displayName = pickLocalized(eventDoc, 'name', language) || event.name;
-  const displaySubtitle = pickLocalized(eventDoc, 'subtitle', language) || event.subtitle;
-  const displayDescription = pickLocalized(eventDoc, 'description', language) || event.description;
-  const displayTips = pickLocalized(eventDoc, 'tips', language) || event.tips;
+  const displayName = event.name;
+  const displaySubtitle = event.subtitle;
+  const displayDescription = event.description;
+  const displayTips = event.tips;
 
   return (
     <div className="relative flex h-screen w-full flex-col bg-background-dark font-display text-content antialiased overflow-y-auto overflow-x-hidden no-scrollbar">

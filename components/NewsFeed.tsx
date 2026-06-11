@@ -4,6 +4,8 @@ import { NewsArticle } from '../types/content';
 import { useNews } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { NEWS_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 interface NewsFeedProps {
   language: Language;
@@ -55,14 +57,9 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
 
     // Search Filter
     if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      const matchesTitle = item.title?.toLowerCase().includes(search);
-      const matchesSummary = item.summary?.toLowerCase().includes(search);
-      const matchesCategory = item.category?.toLowerCase().includes(search);
-      // Assuming news might have a department or location field based on user request
-      const matchesExtra = (item as any).department?.toLowerCase().includes(search) || (item as any).location?.toLowerCase().includes(search);
-
-      if (!matchesTitle && !matchesSummary && !matchesCategory && !matchesExtra) return false;
+      if (!matchesLocalizedSearch(item as Record<string, unknown>, searchTerm, [...NEWS_SEARCH_FIELDS])) {
+        return false;
+      }
     }
 
     return true;

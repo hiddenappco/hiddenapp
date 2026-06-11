@@ -13,7 +13,10 @@ import {
   buildEventSearchSQL,
   buildRagContext,
   type EngineStatus,
-  type LlmResponse
+  type LlmResponse,
+  toPackLang,
+  searchVaultLocalCatalog,
+  type VaultLocalSearchResult,
 } from '@/services/localLlmService';
 import { Language } from '@/types/core';
 
@@ -581,7 +584,7 @@ export const useOffGrid = () => {
     userQuery: string,
     language: Language = Language.Spanish
   ): Promise<LlmResponse> => {
-    const packLang: 'es' | 'en' = language === Language.English ? 'en' : 'es';
+    const packLang = toPackLang(language);
 
     // 1. Search protocols
     const protocolSQL = buildProtocolSearchSQL(userQuery, packLang);
@@ -634,7 +637,8 @@ export const useOffGrid = () => {
       destResults,
       refugioResults,
       couponResults,
-      eventResults
+      eventResults,
+      language
     );
 
     // 5. Generate response via the active engine
@@ -642,6 +646,36 @@ export const useOffGrid = () => {
 
     return response;
   };
+
+  /**
+   * Paso 2 — bilingual local search across all tables in downloaded packs.
+   */
+  const searchLocalVault = useCallback(
+    async (
+      userQuery: string,
+      language: Language,
+      deptNames: Record<string, string>
+    ): Promise<Array<VaultLocalSearchResult & { deptId: string; deptName: string }>> => {
+      const downloadedDepts = Object.keys(downloadedPacks);
+      const merged: Array<VaultLocalSearchResult & { deptId: string; deptName: string }> = [];
+
+      for (const deptId of downloadedDepts) {
+        const rows = await searchVaultLocalCatalog(userQuery, language, (sql, params) =>
+          queryOffline(deptId, sql, params)
+        );
+        for (const row of rows) {
+          merged.push({
+            ...row,
+            deptId,
+            deptName: deptNames[deptId] || deptId,
+          });
+        }
+      }
+
+      return merged;
+    },
+    [downloadedPacks, queryOffline]
+  );
 
   /**
    * Get the current engine status for UI indicators.
@@ -676,6 +710,7 @@ export const useOffGrid = () => {
     updateStorageEstimate,
     packsMetadata,
     executeOfflineRag,
+    searchLocalVault,
     getEngineStatus,
     initializeEngine
   };

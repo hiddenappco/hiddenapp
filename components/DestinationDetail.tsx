@@ -7,7 +7,6 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { Browser } from '@capacitor/browser';
 import { Language } from '../types/core';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
-import { pickLocalized, pickLocalizedStringArray, pickLocalizedObjectArray } from '../utils/localizedContent';
 import type { GettingThereItem, PricingItem } from '../types/content';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -20,7 +19,6 @@ import { DestinationActivities } from './destination/DestinationActivities';
 import { DestinationGallery } from './destination/DestinationGallery';
 import { DestinationPricing } from './destination/DestinationPricing';
 import { DestinationPacking } from './destination/DestinationPacking';
-import { pickLocalizedPackingGuide } from '../utils/packingGuide';
 
 interface DestinationDetailProps {
   language: Language;
@@ -32,7 +30,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   onBack,
   destinationId: propId
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const finalId = id || propId;
 
@@ -98,13 +96,10 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     if (!finalId || !destination) return;
     try {
       setFavLoading(true);
-      const destDoc = destination as Record<string, unknown>;
-      const favTitle = pickLocalized(destDoc, 'title', language) || destination.title;
-      const favLocation = pickLocalized(destDoc, 'location', language) || destination.location;
       await toggleFavorite(user.uid, finalId, 'destination', {
-        title: favTitle,
+        title: destination.title,
         heroImage: destination.heroImage,
-        location: favLocation
+        location: destination.location
       });
     } catch (err) {
       console.error("Error toggling favorite:", err);
@@ -113,14 +108,9 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     }
   };
 
-  const destDoc = destination ? (destination as Record<string, unknown>) : null;
-  const localizedDescription = destDoc ? pickLocalized(destDoc, 'description', language) : '';
-  const localizedTitle = destDoc
-    ? pickLocalized(destDoc, 'title', language) || destination!.title
-    : '';
-  const localizedLocation = destDoc
-    ? pickLocalized(destDoc, 'location', language) || destination!.location
-    : '';
+  const localizedDescription = destination?.description || '';
+  const localizedTitle = destination?.title || '';
+  const localizedLocation = destination?.location || '';
 
   const handleShare = async () => {
     if (navigator.share && destination) {
@@ -160,6 +150,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     verified: t('destination.verified'),
     downloadPdf: t('destination.downloadPdf'),
     downloadPremium: t('destination.downloadPremium'),
+    pdfLocked: t('destination.pdfLocked'),
     loading: t('destination.loading'),
     notFound: t('destination.notFound'),
     aboutTitle: t('destination.about'),
@@ -181,32 +172,17 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.loading}</div>;
   if (!destination) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.notFound}</div>;
 
-  const localizedAiTip = destDoc ? pickLocalized(destDoc, 'aiTip', language) : '';
-  const localizedActivities = destDoc ? pickLocalizedStringArray(destDoc, 'activities', language) : [];
-  const localizedGettingThere = destDoc
-    ? (pickLocalizedObjectArray(destDoc, 'gettingThere', language) as GettingThereItem[])
-    : [];
-  const localizedPricingGuide = destDoc
-    ? (pickLocalizedObjectArray(destDoc, 'pricingGuide', language) as PricingItem[])
-    : [];
-  const localizedPackingGuide = destDoc
-    ? pickLocalizedPackingGuide(
-        {
-          ...destDoc,
-          packingGuide:
-            destDoc.packingGuide ??
-            destDoc.packingGuige ??
-            (destination as Record<string, unknown>).packingGuide,
-          packingGuide_en:
-            destDoc.packingGuide_en ??
-            destDoc.packingGuige_en ??
-            (destination as Record<string, unknown>).packingGuide_en,
-          packingSummary: destDoc.packingSummary ?? (destination as Record<string, unknown>).packingSummary,
-          packingSummary_en: destDoc.packingSummary_en ?? (destination as Record<string, unknown>).packingSummary_en,
-        },
-        language
-      )
-    : null;
+  const localizedAiTip = destination?.aiTip || '';
+  const localizedActivities = destination?.activities || [];
+  const localizedGettingThere = (destination?.gettingThere || []) as GettingThereItem[];
+  const localizedPricingGuide = (destination?.pricingGuide || []) as PricingItem[];
+  const localizedPackingGuide =
+    destination?.packingSummary || (Array.isArray(destination?.packingGuide) && destination.packingGuide.length)
+      ? {
+          summary: destination.packingSummary || '',
+          categories: Array.isArray(destination.packingGuide) ? destination.packingGuide : [],
+        }
+      : null;
 
   const galleryImages = destination.galleryImages?.map(img => normalizeImage(img)) || [];
 

@@ -13,6 +13,7 @@ import {
 export interface CatalogToolContext {
     departmentId: string;
     kbIds: string[];
+    appLanguage?: 'es' | 'en';
 }
 
 /**
@@ -22,7 +23,11 @@ export interface CatalogToolContext {
  * The model cannot pass a departmentId — every tool is hard-wired to the session scope.
  */
 export function createCatalogRagTools(ctx: CatalogToolContext): FunctionTool[] {
-    const scope: CatalogScope = { departmentId: ctx.departmentId, kbIds: ctx.kbIds };
+    const scope: CatalogScope = {
+        departmentId: ctx.departmentId,
+        kbIds: ctx.kbIds,
+        appLanguage: ctx.appLanguage,
+    };
 
     return [
         new FunctionTool({

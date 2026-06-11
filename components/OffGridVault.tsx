@@ -6,11 +6,20 @@ import { useTranslation } from '../hooks/useTranslation';
 import { OfflineChat } from './OfflineChat';
 import { OffGridManual } from './OffGridManual';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
+import type { VaultLocalSearchSource } from '../services/localLlmService';
 
 interface OffGridVaultProps {
   language: Language;
   onMenuClick: () => void;
 }
+
+const VAULT_SOURCE_LABEL_KEYS: Record<VaultLocalSearchSource, string> = {
+  protocol: 'vault.sourceProtocol',
+  destination: 'vault.sourceDestination',
+  refugio: 'vault.sourceRefugio',
+  coupon: 'vault.sourceCoupon',
+  event: 'vault.sourceEvent',
+};
 
 export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClick }) => {
   const { t } = useTranslation();
@@ -30,14 +39,18 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     uninstallGemma,
     downloadPack,
     deletePack,
-    queryOffline,
+    searchLocalVault,
     packsMetadata
   } = useOffGrid();
 
   const { data: departments, loading: deptsLoading } = useDepartments();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedDeptTest, setSelectedDeptTest] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{
+    source: VaultLocalSearchSource;
+    title: string;
+    details: string;
+    deptName: string;
+  }>>([]);
   const [searchError, setSearchError] = useState('');
 
   const hasDownloadedPacks = Object.keys(downloadedPacks).length > 0;
@@ -82,47 +95,24 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     setSearchResults([]);
 
     try {
-      const allResults: any[] = [];
-      const downloadedDepts = Object.keys(downloadedPacks);
-
-      if (downloadedDepts.length === 0) {
+      if (Object.keys(downloadedPacks).length === 0) {
         setSearchError(t('vault.downloadPackToTest'));
         return;
       }
 
-      for (const deptId of downloadedDepts) {
-        const deptObj = departments.find(d => (d.departmentId || d.id) === deptId);
-        const deptName = deptObj ? deptObj.name : deptId;
-
-        const sql = `
-          SELECT 'Protocolo' as source, title, content as details FROM survival_protocols 
-          WHERE title LIKE ? OR keywords LIKE ? OR content LIKE ?
-          UNION ALL
-          SELECT 'Destino' as source, title, description as details FROM destinations
-          WHERE title LIKE ? OR description LIKE ?
-          UNION ALL
-          SELECT 'Refugio' as source, name as title, description as details FROM refugios
-          WHERE name LIKE ? OR tagline LIKE ? OR description LIKE ? OR location LIKE ?;
-        `;
-        const queryParam = `%${searchTerm.trim()}%`;
-        const res = await queryOffline(deptId, sql, [
-          queryParam, queryParam, queryParam,
-          queryParam, queryParam,
-          queryParam, queryParam, queryParam, queryParam
-        ]);
-
-        const mapped = res.map((item: any) => ({
-          ...item,
-          deptName
-        }));
-        allResults.push(...mapped);
+      const deptNames: Record<string, string> = {};
+      for (const deptId of Object.keys(downloadedPacks)) {
+        const deptObj = departments.find((d) => (d.departmentId || d.id) === deptId);
+        deptNames[deptId] = deptObj?.name || deptId;
       }
-      
+
+      const allResults = await searchLocalVault(searchTerm.trim(), language, deptNames);
       setSearchResults(allResults);
+
       if (allResults.length === 0) {
         setSearchError(t('vault.noLocalMatches'));
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setSearchError(t('vault.localQueryError'));
     }
@@ -405,20 +395,23 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
               <label className="text-[9px] text-content/40 uppercase font-bold block mb-1">
                 {t('vault.quickSearchLabel')}
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 min-w-0 w-full">
                 <input
                   type="text"
                   placeholder={t('vault.queryPlaceholder')}
-                  className="flex-1 h-10 border border-overlay/10 bg-overlay/5 dark:bg-black/20 text-sm text-content rounded-[14px] px-3.5 outline-none placeholder-content-subtle focus:border-emerald-500/50 transition-colors"
+                  className="min-w-0 flex-1 h-10 border border-overlay/10 bg-overlay/5 dark:bg-black/20 text-sm text-content rounded-[14px] px-3.5 outline-none placeholder-content-subtle focus:border-emerald-500/50 transition-colors"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleTestQuery()}
                 />
                 <button
+                  type="button"
                   onClick={handleTestQuery}
-                  className="px-5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase rounded-[14px] transition-all active:scale-[0.98]"
+                  aria-label={t('vault.search')}
+                  className="shrink-0 h-10 min-w-10 px-3 sm:px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase rounded-[14px] transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                 >
-                  {t('vault.search')}
+                  <span className="material-symbols-outlined text-[18px] sm:hidden">search</span>
+                  <span className="hidden sm:inline">{t('vault.search')}</span>
                 </button>
               </div>
             </div>
@@ -438,20 +431,20 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
                 <div className="flex flex-col gap-2.5 max-h-56 overflow-y-auto no-scrollbar">
                   {searchResults.map((result, idx) => (
                     <div key={idx} className="p-3.5 border border-overlay/10 bg-overlay/5 dark:bg-black/20 rounded-2xl flex flex-col gap-2">
-                      <div className="flex justify-between items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[6px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-                            {result.source}
-                          </span>
-                          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-[6px] bg-overlay/5 text-content-secondary uppercase">
-                            {result.deptName}
-                          </span>
-                        </div>
-                        <span className="text-content font-bold text-xs">{result.title}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[6px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                          {t(VAULT_SOURCE_LABEL_KEYS[result.source])}
+                        </span>
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-[6px] bg-overlay/5 text-content-secondary uppercase">
+                          {result.deptName}
+                        </span>
                       </div>
-                      <p className="text-content/70 leading-relaxed whitespace-pre-line text-xs">
-                        {result.details}
-                      </p>
+                      <h4 className="text-content font-bold text-sm leading-snug">{result.title}</h4>
+                      {result.details ? (
+                        <p className="text-content/70 leading-relaxed whitespace-pre-line text-xs">
+                          {result.details}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>

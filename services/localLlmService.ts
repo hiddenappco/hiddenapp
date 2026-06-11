@@ -22,6 +22,11 @@ import type { TranslationType } from '../locales/es';
 const getLocale = (language: Language): TranslationType =>
   language === Language.English ? en : es;
 
+/** Maps app UI language to SQLite pack column resolution (`field` vs `field_en`). */
+export function toPackLang(language: Language): 'es' | 'en' {
+  return language === Language.English ? 'en' : 'es';
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type EngineMode = 'gemma' | 'fallback';
@@ -58,6 +63,7 @@ export interface RagEvent {
   description?: string;
   location?: string;
   date?: string;
+  tips?: string;
 }
 
 export interface RagContext {
@@ -80,13 +86,13 @@ export interface LlmResponse {
 const MAX_CONTEXT_CHARS = 2000;
 const SQL_RESULT_LIMIT = 3;
 
-/**
- * The system prompt for the smart tourist guide personality.
- * Used by both the Gemma engine and the fallback structured responder.
- */
-const TACTICAL_SYSTEM_PROMPT = `Eres el Guía Local Inteligente de Hidden App, un experto acompañante de viajes. Tu misión es ayudar al turista a descubrir destinos mágicos, aprovechar cupones, conocer eventos locales y resolver cualquier duda de su viaje usando la base de datos proporcionada. Tu tono es cálido, natural, directo y muy resolutivo. 
-
-Si el usuario se encuentra en una situación de incomodidad, urgencia o pide consejos prácticos (ej. un dolor de cabeza, desorientación, picaduras), actúa con calma y empatía. Bríndale inmediatamente las soluciones prácticas que encuentres en los protocolos de tu base de datos. Sé conversacional y humano; no utilices advertencias robóticas, frases enlatadas ni avisos legales excesivos. Tu prioridad es ser el mejor compañero de viaje: útil, rápido y confiable.`;
+/** Resolves `field_en` when pack language is English, else the Spanish base column. */
+function localizedColumn(field: string, lang: 'es' | 'en'): string {
+  if (lang === 'en') {
+    return `COALESCE(NULLIF(${field}_en, ''), ${field})`;
+  }
+  return field;
+}
 
 // ─── SQL Queries for RAG ────────────────────────────────────────────────────
 
@@ -200,25 +206,45 @@ export function buildRefugioSearchSQL(
   const descExpr = lang === 'en'
     ? `COALESCE(NULLIF(description_en, ''), description)`
     : 'description';
+  const locExpr = lang === 'en'
+    ? `COALESCE(NULLIF(location_en, ''), location)`
+    : 'location';
+  const howToBookExpr = lang === 'en'
+    ? `COALESCE(NULLIF(howToBook_en, ''), howToBook)`
+    : 'howToBook';
+  const amenitiesExpr = lang === 'en'
+    ? `COALESCE(NULLIF(amenities_en, ''), amenities)`
+    : 'amenities';
+  const typeExpr = lang === 'en'
+    ? `COALESCE(NULLIF(type_en, ''), type)`
+    : 'type';
+  const pricingExpr = lang === 'en'
+    ? `COALESCE(NULLIF(pricingGuide_en, ''), pricingGuide)`
+    : 'pricingGuide';
+  const activitiesExpr = lang === 'en'
+    ? `COALESCE(NULLIF(activities_en, ''), activities)`
+    : 'activities';
+
+  const selectCols = `${nameExpr} AS name, ${taglineExpr} AS tagline, ${descExpr} AS description, ${locExpr} AS location, ${howToBookExpr} AS howToBook, ${amenitiesExpr} AS amenities, ${typeExpr} AS type, ${pricingExpr} AS pricingGuide, ${activitiesExpr} AS activities`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
     return {
-      sql: `SELECT ${nameExpr} AS name, ${taglineExpr} AS tagline, ${descExpr} AS description, location FROM refugios LIMIT ${SQL_RESULT_LIMIT}`,
+      sql: `SELECT ${selectCols} FROM refugios LIMIT ${SQL_RESULT_LIMIT}`,
       params: []
     };
   }
 
   const conditions = terms.map(() =>
-    `(name LIKE ? OR name_en LIKE ? OR tagline LIKE ? OR tagline_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ? OR amenities LIKE ?)`
+    `(name LIKE ? OR name_en LIKE ? OR tagline LIKE ? OR tagline_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ? OR location_en LIKE ? OR amenities LIKE ? OR amenities_en LIKE ? OR type LIKE ? OR type_en LIKE ? OR howToBook LIKE ? OR howToBook_en LIKE ?)`
   ).join(' OR ');
   const params = terms.flatMap(t => {
     const like = `%${t}%`;
-    return [like, like, like, like, like, like, like, like];
+    return [like, like, like, like, like, like, like, like, like, like, like, like, like, like];
   });
 
   return {
-    sql: `SELECT ${nameExpr} AS name, ${taglineExpr} AS tagline, ${descExpr} AS description, location FROM refugios WHERE ${conditions} LIMIT ${SQL_RESULT_LIMIT}`,
+    sql: `SELECT ${selectCols} FROM refugios WHERE ${conditions} LIMIT ${SQL_RESULT_LIMIT}`,
     params
   };
 }
@@ -227,14 +253,13 @@ export function buildCouponSearchSQL(
   userQuery: string,
   lang: 'es' | 'en' = 'es'
 ): { sql: string; params: string[] } {
-  const titleExpr = lang === 'en'
-    ? `COALESCE(NULLIF(title_en, ''), title)`
-    : 'title';
-  const descExpr = lang === 'en'
-    ? `COALESCE(NULLIF(description_en, ''), description)`
-    : 'description';
+  const titleExpr = localizedColumn('title', lang);
+  const descExpr = localizedColumn('description', lang);
+  const discountExpr = localizedColumn('discount', lang);
+  const locExpr = localizedColumn('location', lang);
+  const validityExpr = localizedColumn('validity', lang);
 
-  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, discount, location, validity`;
+  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${discountExpr} AS discount, ${locExpr} AS location, ${validityExpr} AS validity`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -245,11 +270,11 @@ export function buildCouponSearchSQL(
   }
 
   const conditions = terms.map(() =>
-    `(title LIKE ? OR title_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR discount LIKE ? OR location LIKE ?)`
+    `(title LIKE ? OR title_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR discount LIKE ? OR discount_en LIKE ? OR location LIKE ? OR location_en LIKE ? OR validity LIKE ? OR validity_en LIKE ?)`
   ).join(' OR ');
   const params = terms.flatMap(t => {
     const like = `%${t}%`;
-    return [like, like, like, like, like, like];
+    return [like, like, like, like, like, like, like, like, like, like];
   });
 
   return {
@@ -262,17 +287,13 @@ export function buildEventSearchSQL(
   userQuery: string,
   lang: 'es' | 'en' = 'es'
 ): { sql: string; params: string[] } {
-  const nameExpr = lang === 'en'
-    ? `COALESCE(NULLIF(name_en, ''), name)`
-    : 'name';
-  const subtitleExpr = lang === 'en'
-    ? `COALESCE(NULLIF(subtitle_en, ''), subtitle)`
-    : 'subtitle';
-  const descExpr = lang === 'en'
-    ? `COALESCE(NULLIF(description_en, ''), description)`
-    : 'description';
+  const nameExpr = localizedColumn('name', lang);
+  const subtitleExpr = localizedColumn('subtitle', lang);
+  const descExpr = localizedColumn('description', lang);
+  const locExpr = localizedColumn('location', lang);
+  const tipsExpr = localizedColumn('tips', lang);
 
-  const selectCols = `${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, location, date`;
+  const selectCols = `${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, ${locExpr} AS location, ${tipsExpr} AS tips, date`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -283,17 +304,159 @@ export function buildEventSearchSQL(
   }
 
   const conditions = terms.map(() =>
-    `(name LIKE ? OR name_en LIKE ? OR subtitle LIKE ? OR subtitle_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ?)`
+    `(name LIKE ? OR name_en LIKE ? OR subtitle LIKE ? OR subtitle_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ? OR location_en LIKE ? OR tips LIKE ? OR tips_en LIKE ?)`
   ).join(' OR ');
   const params = terms.flatMap(t => {
     const like = `%${t}%`;
-    return [like, like, like, like, like, like, like];
+    return [like, like, like, like, like, like, like, like, like, like];
   });
 
   return {
     sql: `SELECT ${selectCols} FROM events WHERE ${conditions} LIMIT ${SQL_RESULT_LIMIT}`,
     params
   };
+}
+
+// ─── Vault local search (Paso 2 UI) ─────────────────────────────────────────
+
+export type VaultLocalSearchSource = 'protocol' | 'destination' | 'refugio' | 'coupon' | 'event';
+
+export interface VaultLocalSearchResult {
+  source: VaultLocalSearchSource;
+  title: string;
+  details: string;
+}
+
+async function runVaultSearchQuery(
+  userQuery: string,
+  packLang: 'es' | 'en',
+  builder: (query: string, lang: 'es' | 'en') => { sql: string; params: string[] },
+  queryFn: (sql: string, params: string[]) => Promise<Record<string, unknown>[]>
+): Promise<Record<string, unknown>[]> {
+  try {
+    const { sql, params } = builder(userQuery, packLang);
+    return await queryFn(sql, params);
+  } catch (err) {
+    if (packLang === 'en') {
+      try {
+        const { sql, params } = builder(userQuery, 'es');
+        return await queryFn(sql, params);
+      } catch {
+        return [];
+      }
+    }
+    console.warn('[VaultLocalSearch] Query failed:', err);
+    return [];
+  }
+}
+
+function joinDetailParts(parts: Array<string | undefined | null>): string {
+  return parts
+    .map((p) => sanitizeRichText(p))
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * Bilingual local catalog search for the Off-Grid Vault (Paso 2).
+ * Reuses the same SQL builders as offline chat RAG — word-split matching + `_en` columns.
+ */
+export async function searchVaultLocalCatalog(
+  userQuery: string,
+  language: Language,
+  queryFn: (sql: string, params: string[]) => Promise<Record<string, unknown>[]>
+): Promise<VaultLocalSearchResult[]> {
+  const packLang = toPackLang(language);
+  const results: VaultLocalSearchResult[] = [];
+
+  const protocolRows = await runVaultSearchQuery(
+    userQuery,
+    packLang,
+    buildProtocolSearchSQL,
+    queryFn
+  );
+  for (const row of protocolRows) {
+    results.push({
+      source: 'protocol',
+      title: sanitizeRichText(String(row.title || '')),
+      details: sanitizeRichText(String(row.content || '')),
+    });
+  }
+
+  const destRows = await runVaultSearchQuery(
+    userQuery,
+    packLang,
+    buildDestinationSearchSQL,
+    queryFn
+  );
+  for (const row of destRows) {
+    const activities = parseActivities(row.activities).map(sanitizeRichText).filter(Boolean);
+    const extra = activities.length > 0 ? `\n${activities.join(', ')}` : '';
+    results.push({
+      source: 'destination',
+      title: sanitizeRichText(String(row.title || '')),
+      details: sanitizeRichText(String(row.description || '')) + extra,
+    });
+  }
+
+  const refugioRows = await runVaultSearchQuery(
+    userQuery,
+    packLang,
+    buildRefugioSearchSQL,
+    queryFn
+  );
+  for (const row of refugioRows) {
+    results.push({
+      source: 'refugio',
+      title: sanitizeRichText(String(row.name || '')),
+      details: joinDetailParts([
+        row.tagline ? String(row.tagline) : undefined,
+        row.description ? String(row.description) : undefined,
+        row.location ? String(row.location) : undefined,
+      ]),
+    });
+  }
+
+  const couponRows = await runVaultSearchQuery(
+    userQuery,
+    packLang,
+    buildCouponSearchSQL,
+    queryFn
+  );
+  for (const row of couponRows) {
+    results.push({
+      source: 'coupon',
+      title: sanitizeRichText(String(row.title || '')),
+      details: joinDetailParts([
+        row.description ? String(row.description) : undefined,
+        row.discount ? String(row.discount) : undefined,
+        row.location ? String(row.location) : undefined,
+        row.validity ? String(row.validity) : undefined,
+      ]),
+    });
+  }
+
+  const eventRows = await runVaultSearchQuery(
+    userQuery,
+    packLang,
+    buildEventSearchSQL,
+    queryFn
+  );
+  for (const row of eventRows) {
+    results.push({
+      source: 'event',
+      title: sanitizeRichText(String(row.name || '')),
+      details: joinDetailParts([
+        row.subtitle ? String(row.subtitle) : undefined,
+        row.description ? String(row.description) : undefined,
+        row.location ? String(row.location) : undefined,
+        row.date ? String(row.date) : undefined,
+        row.tips ? String(row.tips) : undefined,
+      ]),
+    });
+  }
+
+  return results;
 }
 
 // ─── Rich Text Sanitizer ────────────────────────────────────────────────────
@@ -449,8 +612,10 @@ export function buildRagContext(
   }>,
   refugioResults: Array<{ name: string; tagline?: string; description: string; location?: string }> = [],
   couponResults: Array<{ title: string; description?: string; discount?: string; location?: string; validity?: string }> = [],
-  eventResults: Array<{ name: string; subtitle?: string; description?: string; location?: string; date?: string }> = []
+  eventResults: Array<{ name: string; subtitle?: string; description?: string; location?: string; date?: string; tips?: string }> = [],
+  language: Language = Language.Spanish
 ): RagContext {
+  const ctx = getLocale(language).vault.llm;
   const protocols = protocolResults.map((p) => ({
     title: sanitizeRichText(p.title),
     content: sanitizeRichText(p.content),
@@ -491,66 +656,68 @@ export function buildRagContext(
     description: e.description ? sanitizeRichText(e.description) : undefined,
     location: e.location ? sanitizeRichText(e.location) : undefined,
     date: e.date ? sanitizeRichText(e.date) : undefined,
+    tips: e.tips ? sanitizeRichText(e.tips) : undefined,
   }));
 
   let rawText = '';
 
   if (protocols.length > 0) {
-    rawText += '=== PROTOCOLOS DE SUPERVIVENCIA ===\n';
+    rawText += `${ctx.contextProtocols}\n`;
     for (const p of protocols) {
       rawText += `\n📋 ${p.title}${p.category ? ` [${p.category}]` : ''}\n${p.content}\n`;
     }
   }
 
   if (destinations.length > 0) {
-    rawText += '\n=== DESTINOS RELEVANTES ===\n';
+    rawText += `\n${ctx.contextDestinations}\n`;
     for (const d of destinations) {
       rawText += `\n📍 ${d.title}${d.location ? ` — ${d.location}` : ''}\n${d.description}\n`;
       if (d.activities && d.activities.length > 0) {
-        rawText += `Actividades: ${d.activities.join(', ')}\n`;
+        rawText += `${ctx.contextActivities} ${d.activities.join(', ')}\n`;
       }
       if (d.pricing && d.pricing.length > 0) {
-        rawText += `Precios: ${d.pricing.join('; ')}\n`;
+        rawText += `${ctx.contextPricing} ${d.pricing.join('; ')}\n`;
       }
       if (d.gettingThere && d.gettingThere.length > 0) {
-        rawText += `Cómo llegar: ${d.gettingThere.join('; ')}\n`;
+        rawText += `${ctx.contextGettingThere} ${d.gettingThere.join('; ')}\n`;
       }
       if (d.packingSummary) {
-        rawText += `Qué llevar: ${d.packingSummary}\n`;
+        rawText += `${ctx.contextPacking} ${d.packingSummary}\n`;
       }
       if (d.aiTip) {
-        rawText += `Consejo: ${d.aiTip}\n`;
+        rawText += `${ctx.contextTip} ${d.aiTip}\n`;
       }
     }
   }
 
   if (refugios.length > 0) {
-    rawText += '\n=== REFUGIOS Y HOSPEDAJES ===\n';
+    rawText += `\n${ctx.contextRefugios}\n`;
     for (const r of refugios) {
       rawText += `\n🏠 ${r.name}${r.tagline ? ` — ${r.tagline}` : ''}${r.location ? ` (${r.location})` : ''}\n${r.description}\n`;
     }
   }
 
   if (coupons.length > 0) {
-    rawText += '\n=== CUPONES Y DESCUENTOS ===\n';
+    rawText += `\n${ctx.contextCoupons}\n`;
     for (const c of coupons) {
       rawText += `\n🎟️ ${c.title}${c.discount ? ` — ${c.discount}` : ''}${c.location ? ` (${c.location})` : ''}\n`;
       if (c.description) rawText += `${c.description}\n`;
-      if (c.validity) rawText += `Vigencia: ${c.validity}\n`;
+      if (c.validity) rawText += `${ctx.contextValidity} ${c.validity}\n`;
     }
   }
 
   if (events.length > 0) {
-    rawText += '\n=== EVENTOS, FERIAS Y FESTIVALES ===\n';
+    rawText += `\n${ctx.contextEvents}\n`;
     for (const e of events) {
       rawText += `\n🎉 ${e.name}${e.subtitle ? ` — ${e.subtitle}` : ''}${e.date ? ` [${e.date}]` : ''}${e.location ? ` (${e.location})` : ''}\n`;
       if (e.description) rawText += `${e.description}\n`;
+      if (e.tips) rawText += `${ctx.contextTip} ${e.tips}\n`;
     }
   }
 
   // Truncate to respect context window limits
   if (rawText.length > MAX_CONTEXT_CHARS) {
-    rawText = rawText.substring(0, MAX_CONTEXT_CHARS) + '\n\n[... contexto truncado por límite de seguridad ...]';
+    rawText = rawText.substring(0, MAX_CONTEXT_CHARS) + `\n\n${ctx.contextTruncated}`;
   }
 
   return {
@@ -569,13 +736,24 @@ export function buildRagContext(
  * Constructs the full prompt for Gemma 4 inference,
  * injecting the RAG context into the system instructions.
  */
-export function assemblePrompt(userMessage: string, ragContext: RagContext | null): string {
-  let systemBlock = TACTICAL_SYSTEM_PROMPT;
+export function assemblePrompt(
+  userMessage: string,
+  ragContext: RagContext | null,
+  language: Language = Language.Spanish
+): string {
+  const llm = getLocale(language).vault.llm;
+  let systemBlock = llm.systemPrompt;
 
   if (ragContext && ragContext.rawText.length > 0) {
-    systemBlock += `\n\nCONTEXTO LOCAL DE BASE DE DATOS (usa esta información para responder):\n${ragContext.rawText}`;
+    const contextLabel = language === Language.English
+      ? 'LOCAL DATABASE CONTEXT (use this information to answer):'
+      : 'CONTEXTO LOCAL DE BASE DE DATOS (usa esta información para responder):';
+    systemBlock += `\n\n${contextLabel}\n${ragContext.rawText}`;
   } else {
-    systemBlock += '\n\nNo se encontró contexto relevante en la base de datos local para esta consulta.';
+    const emptyLabel = language === Language.English
+      ? 'No relevant context was found in the local database for this query.'
+      : 'No se encontró contexto relevante en la base de datos local para esta consulta.';
+    systemBlock += `\n\n${emptyLabel}`;
   }
 
   return `<start_of_turn>system\n${systemBlock}<end_of_turn>\n<start_of_turn>user\n${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
@@ -695,6 +873,7 @@ export function generateFallbackResponse(
     for (const e of ragContext.events) {
       response += `**${e.name}**${e.subtitle ? ` — _${e.subtitle}_` : ''}${e.date ? ` · ${e.date}` : ''}${e.location ? ` · ${e.location}` : ''}\n`;
       if (e.description) response += `${e.description}\n`;
+      if (e.tips) response += `${llm.aiTipLabel} ${e.tips}\n`;
       response += `\n`;
     }
   }
@@ -767,7 +946,7 @@ export class LocalLlmService {
     if (this.engineMode === 'gemma') {
       try {
         // Assemble the full prompt with RAG context
-        const prompt = assemblePrompt(userMessage, ragContext);
+        const prompt = assemblePrompt(userMessage, ragContext, language);
         
         // In production, this would call the MediaPipe/WebLLM inference API:
         // const result = await this.llmSession.generateResponse(prompt);

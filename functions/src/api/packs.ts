@@ -84,9 +84,12 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       description TEXT,
       description_en TEXT,
       discount TEXT,
+      discount_en TEXT,
       location TEXT,
+      location_en TEXT,
       coupon_code TEXT,
       validity TEXT,
+      validity_en TEXT,
       redemptionInstructions TEXT,
       redemptionInstructions_en TEXT
     );
@@ -100,6 +103,7 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       subtitle TEXT,
       subtitle_en TEXT,
       location TEXT,
+      location_en TEXT,
       date TEXT,
       description TEXT,
       description_en TEXT,
@@ -128,12 +132,22 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       tagline TEXT,
       tagline_en TEXT,
       location TEXT,
+      location_en TEXT,
       description TEXT,
       description_en TEXT,
       destinationId TEXT,
       type TEXT,
+      type_en TEXT,
       amenities TEXT,
+      amenities_en TEXT,
       pricingGuide TEXT,
+      pricingGuide_en TEXT,
+      activities TEXT,
+      activities_en TEXT,
+      restrictions TEXT,
+      restrictions_en TEXT,
+      checkInCheckOut TEXT,
+      checkInCheckOut_en TEXT,
       howToBook TEXT,
       howToBook_en TEXT,
       bookingLink TEXT,
@@ -190,8 +204,8 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
 
   // Coupons
   const couponStmt = sqliteDb.prepare(`
-    INSERT INTO coupons (id, title, title_en, description, description_en, discount, location, coupon_code, validity, redemptionInstructions, redemptionInstructions_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO coupons (id, title, title_en, description, description_en, discount, discount_en, location, location_en, coupon_code, validity, validity_en, redemptionInstructions, redemptionInstructions_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of coupons) {
     couponStmt.run([
@@ -201,9 +215,12 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       item.description || "",
       item.description_en || "",
       item.discount || "",
+      item.discount_en || "",
       item.location || "",
+      item.location_en || "",
       item.coupon_code || item.couponCode || "",
       item.validity || "",
+      item.validity_en || "",
       item.redemptionInstructions || "",
       item.redemptionInstructions_en || ""
     ]);
@@ -212,8 +229,8 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
 
   // Events
   const eventStmt = sqliteDb.prepare(`
-    INSERT INTO events (id, name, name_en, subtitle, subtitle_en, location, date, description, description_en, tips, tips_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO events (id, name, name_en, subtitle, subtitle_en, location, location_en, date, description, description_en, tips, tips_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of events) {
     let dateStr = "";
@@ -229,6 +246,7 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       item.subtitle || "",
       item.subtitle_en || "",
       item.location || "",
+      item.location_en || "",
       dateStr,
       item.description || "",
       item.description_en || "",
@@ -260,10 +278,12 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
   // Refugios (hospedajes verificados — sin imágenes para mantener el pack ligero)
   const refugioStmt = sqliteDb.prepare(`
     INSERT INTO refugios (
-      id, name, name_en, tagline, tagline_en, location, description, description_en,
-      destinationId, type, amenities, pricingGuide, howToBook, howToBook_en, bookingLink, whatsapp, hasCoupon
+      id, name, name_en, tagline, tagline_en, location, location_en, description, description_en,
+      destinationId, type, type_en, amenities, amenities_en, pricingGuide, pricingGuide_en,
+      activities, activities_en, restrictions, restrictions_en, checkInCheckOut, checkInCheckOut_en,
+      howToBook, howToBook_en, bookingLink, whatsapp, hasCoupon
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of refugios) {
     const destIds = Array.isArray(item.destinationId)
@@ -272,11 +292,14 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
         ? [item.destinationId]
         : [];
     const types = Array.isArray(item.type) ? item.type : item.type ? [item.type] : [];
+    const typesEn = Array.isArray(item.type_en) ? item.type_en : item.type_en ? [item.type_en] : [];
     const amenities = Array.isArray(item.amenities) ? item.amenities : [];
-    const pricingGuide =
-      item.pricingGuide && typeof item.pricingGuide === "object"
-        ? JSON.stringify(item.pricingGuide)
-        : String(item.pricingGuide || "");
+    const amenitiesEn = Array.isArray(item.amenities_en) ? item.amenities_en : [];
+    const serializeJsonField = (raw: unknown): string => {
+      if (raw == null || raw === "") return "";
+      if (typeof raw === "string") return raw;
+      return JSON.stringify(raw);
+    };
     refugioStmt.run([
       item.id,
       item.name || "",
@@ -284,12 +307,22 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       item.tagline || "",
       item.tagline_en || "",
       item.location || "",
+      item.location_en || "",
       item.description || "",
       item.description_en || "",
       JSON.stringify(destIds),
       JSON.stringify(types),
+      JSON.stringify(typesEn),
       JSON.stringify(amenities),
-      pricingGuide,
+      JSON.stringify(amenitiesEn),
+      serializeJsonField(item.pricingGuide),
+      serializeJsonField(item.pricingGuide_en),
+      serializeJsonField(item.activities),
+      serializeJsonField(item.activities_en),
+      serializeJsonField(item.restrictions),
+      serializeJsonField(item.restrictions_en),
+      serializeJsonField(item.checkInCheckOut),
+      serializeJsonField(item.checkInCheckOut_en),
       item.howToBook || "",
       item.howToBook_en || "",
       item.bookingLink || "",

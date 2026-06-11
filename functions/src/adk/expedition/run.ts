@@ -110,7 +110,7 @@ export async function runExpeditionPipeline(expeditionId: string): Promise<void>
         // 1. Deterministic catalog gathering (no LLM, no hallucination surface)
         await setStatus('curating');
 
-        const scope = { departmentId };
+        const scope = { departmentId, appLanguage: language };
         const [destinations, refugios, coupons, events] = await Promise.all([
             getDestinationsKnowledge(scope, { limit: 40 }),
             getRefugiosKnowledge(scope, { limit: 40 }),

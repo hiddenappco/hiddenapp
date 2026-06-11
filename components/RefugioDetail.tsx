@@ -5,7 +5,6 @@ import { useRefugio, useIsFavorite, toggleFavorite, useCoupons, useDestinations,
 import { useAuth } from './layout/AuthProvider';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { pickLocalized } from '../utils/localizedContent';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 
@@ -19,7 +18,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
   onBack,
   refugioId: propId
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const finalId = id || propId;
   const navigate = useNavigate();
@@ -84,14 +83,11 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
     if (!finalId || !refugio) return;
     try {
       setFavLoading(true);
-      const refugioDoc = refugio as Record<string, unknown>;
-      const favName = pickLocalized(refugioDoc, 'name', language) || refugio.name;
-      const favTagline = pickLocalized(refugioDoc, 'tagline', language) || refugio.tagline;
       await toggleFavorite(user.uid, finalId, 'refugio', {
-        name: favName,
+        name: refugio.name,
         heroImage: refugio.heroImage,
         location: refugio.location,
-        tagline: favTagline,
+        tagline: refugio.tagline,
         type: refugio.type
       });
     } catch (err) {
@@ -103,13 +99,10 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
 
   const handleShare = async () => {
     if (navigator.share && refugio) {
-      const refugioDoc = refugio as Record<string, unknown>;
-      const shareName = pickLocalized(refugioDoc, 'name', language) || refugio.name;
-      const shareTagline = pickLocalized(refugioDoc, 'tagline', language) || refugio.tagline;
       try {
         await navigator.share({
-          title: shareName,
-          text: shareTagline,
+          title: refugio.name,
+          text: refugio.tagline,
           url: window.location.href,
         });
       } catch (error) {
@@ -182,11 +175,10 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('refugio.loading')}</div>;
   if (!refugio) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('refugio.notFound')}</div>;
 
-  const refugioDoc = refugio as Record<string, unknown>;
-  const displayName = pickLocalized(refugioDoc, 'name', language) || refugio.name;
-  const displayTagline = pickLocalized(refugioDoc, 'tagline', language) || refugio.tagline;
-  const displayDescription = pickLocalized(refugioDoc, 'description', language) || refugio.description || '';
-  const displayHowToBook = pickLocalized(refugioDoc, 'howToBook', language) || refugio.howToBook || '';
+  const displayName = refugio.name;
+  const displayTagline = refugio.tagline;
+  const displayDescription = refugio.description || '';
+  const displayHowToBook = refugio.howToBook || '';
 
   const galleryImages = refugio.gallery?.map(img => normalizeImage(img)) || [];
   const heroImage = normalizeImage(refugio.heroImage);

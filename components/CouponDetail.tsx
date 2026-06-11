@@ -5,7 +5,6 @@ import { useCoupon, useIsFavorite, toggleFavorite, useCoupons, useDestinations, 
 import { useAuth } from './layout/AuthProvider';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { pickLocalized } from '../utils/localizedContent';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 
@@ -16,7 +15,7 @@ interface CouponDetailProps {
 }
 
 export const CouponDetail: React.FC<CouponDetailProps> = ({ onBack, couponId: propId }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const finalId = propId || id;
 
@@ -71,10 +70,8 @@ export const CouponDetail: React.FC<CouponDetailProps> = ({ onBack, couponId: pr
 
     try {
       setFavLoading(true);
-      const couponDoc = coupon as Record<string, unknown>;
-      const favTitle = pickLocalized(couponDoc, 'title', language) || coupon.title;
       await toggleFavorite(user.uid, finalId, 'coupon', {
-        title: favTitle,
+        title: coupon.title,
         image: coupon.image,
         location: coupon.location,
         discount: coupon.discount,
@@ -91,10 +88,9 @@ export const CouponDetail: React.FC<CouponDetailProps> = ({ onBack, couponId: pr
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('coupon.loading')}</div>;
   if (!coupon) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('coupon.notFound')}</div>;
 
-  const couponDoc = coupon as Record<string, unknown>;
-  const displayTitle = pickLocalized(couponDoc, 'title', language) || coupon.title;
-  const displayDescription = pickLocalized(couponDoc, 'description', language) || coupon.description;
-  const displayRedemption = pickLocalized(couponDoc, 'redemptionInstructions', language) || coupon.redemptionInstructions || '';
+  const displayTitle = coupon.title;
+  const displayDescription = coupon.description;
+  const displayRedemption = coupon.redemptionInstructions || '';
 
   const heroImage = normalizeImage(coupon.image);
 

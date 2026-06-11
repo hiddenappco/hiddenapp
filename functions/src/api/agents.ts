@@ -22,6 +22,14 @@ import { runRangerAdk } from "../adk/ranger/run";
 import { runChatAdk } from "../adk/chat/run";
 import { buildChatSessionBriefing, buildChatAgentInstruction, buildLanguageDirective } from "../adk/chat/briefing";
 import { parseAgentJsonResponse } from "../adk/parseJson";
+import {
+    localizeCoupon,
+    localizeDepartment,
+    localizeDestination,
+    localizeEvent,
+    localizeNewsArticle,
+    localizeRefugio,
+} from "../lib/localizeCatalog";
 
 let genAIInstance: GoogleGenerativeAI | null = null;
 const getGenAI = () => {
@@ -407,18 +415,23 @@ export const chatAgent = onRequest({
             firstName = uName.split(' ')[0];
         }
 
-        if (departmentProfile) {
-            console.log(`[chatAgent] Department profile loaded: ${(departmentProfile as { name?: string }).name || canonicalId}`);
+        const localizedDepartmentProfile = departmentProfile
+            ? localizeDepartment(departmentProfile as Record<string, unknown>, appLanguage)
+            : null;
+
+        if (localizedDepartmentProfile) {
+            console.log(`[chatAgent] Department profile loaded: ${(localizedDepartmentProfile as { name?: string }).name || canonicalId}`);
         } else {
             console.warn(`[chatAgent] No department profile found for: ${incomingDepartmentId} (canonical: ${canonicalId})`);
         }
 
-        const destinationsForAgent = destSnap.docs.map(doc =>
-            mapDestinationForAgent(doc.id, doc.data() as Record<string, unknown>)
-        );
+        const destinationsForAgent = destSnap.docs.map((doc) => {
+            const raw = mapDestinationForAgent(doc.id, doc.data() as Record<string, unknown>);
+            return localizeDestination(raw, appLanguage) as typeof raw;
+        });
 
         const context = {
-            department: departmentProfile,
+            department: localizedDepartmentProfile,
             destinations: destinationsForAgent,
             refugios: refugiosSnap.docs.map(doc => {
                 const data = doc.data();
@@ -426,11 +439,18 @@ export const chatAgent = onRequest({
                 delete data.galleryImages;
                 delete data.images;
                 delete data.heroImage;
-                return { id: doc.id, ...data };
+                const raw = { id: doc.id, ...data };
+                return localizeRefugio(raw, appLanguage);
             }).filter((r: any) => r.status === 'Activo' || r.status === true),
-            news: newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-            coupons: couponSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-            events: eventSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            news: newsSnap.docs.map(doc =>
+                localizeNewsArticle({ id: doc.id, ...(doc.data() as Record<string, unknown>) }, appLanguage)
+            ),
+            coupons: couponSnap.docs.map(doc =>
+                localizeCoupon({ id: doc.id, ...(doc.data() as Record<string, unknown>) }, appLanguage)
+            ),
+            events: eventSnap.docs.map(doc =>
+                localizeEvent({ id: doc.id, ...(doc.data() as Record<string, unknown>) }, appLanguage)
+            )
         };
 
         const historyRows = historySnap.docs.map(doc => doc.data()).reverse();
@@ -508,6 +528,7 @@ export const chatAgent = onRequest({
                     catalog: {
                         departmentId: canonicalId,
                         kbIds,
+                        appLanguage,
                     },
                     liveConditions: {
                         destinations: destinationsForAgent,

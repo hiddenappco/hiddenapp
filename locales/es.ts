@@ -289,6 +289,7 @@ export const es = {
         verified: "Verificado",
         downloadPdf: "Descargar Guía PDF",
         downloadPremium: "Guía PDF (Premium)",
+        pdfLocked: "Próximamente",
         loading: "Cargando destino...",
         notFound: "Destino no encontrado",
         about: "Sobre este lugar",
@@ -631,7 +632,7 @@ export const es = {
         download: "Descargar",
         downloadingStream: "Descargando...",
         testCenter: "Búsqueda local",
-        testCenterDesc: "Consulta directa en protocolos y destinos de tus packs. Ligera, sin IA generativa — ideal para cualquier celular.",
+        testCenterDesc: "Consulta directa en protocolos, destinos, refugios, cupones y eventos de tus packs. Ligera, sin IA generativa — ideal para cualquier celular.",
         quickSearchLabel: "BÚSQUEDA RÁPIDA (EJ: SERPIENTE, AGUA)",
         queryPlaceholder: "Ingresa tu consulta...",
         search: "Consultar",
@@ -640,6 +641,11 @@ export const es = {
         noLocalMatches: "No se encontraron coincidencias en tus paquetes locales.",
         localQueryError: "Error al realizar la consulta local.",
         localResults: "RESULTADOS DE BÚSQUEDA LOCAL:",
+        sourceProtocol: "Protocolo",
+        sourceDestination: "Destino",
+        sourceRefugio: "Refugio",
+        sourceCoupon: "Cupón",
+        sourceEvent: "Evento",
         offlineChatTitle: "Asistente de Viaje Offline",
         startingEngine: "Iniciando motor...",
         gemmaBrainOffline: "Cerebro Gemma 4 (Offline)",
@@ -730,7 +736,20 @@ export const es = {
             pricingLabel: "**Precios de referencia:**",
             gettingThereLabel: "**Cómo llegar:**",
             aiTipLabel: "💡 **Consejo:**",
-            quickSearchFooter: "\n> ⚡ _Respuesta generada en Modo Búsqueda Rápida (sin IA generativa). Instala el motor completo de Gemma 4 para respuestas conversacionales._"
+            quickSearchFooter: "\n> ⚡ _Respuesta generada en Modo Búsqueda Rápida (sin IA generativa). Instala el motor completo de Gemma 4 para respuestas conversacionales._",
+            systemPrompt: "Eres el Guía Local Inteligente de Hidden App, un experto acompañante de viajes. Tu misión es ayudar al turista a descubrir destinos mágicos, aprovechar cupones, conocer eventos locales y resolver cualquier duda de su viaje usando la base de datos proporcionada. Tu tono es cálido, natural, directo y muy resolutivo.\n\nSi el usuario se encuentra en una situación de incomodidad, urgencia o pide consejos prácticos (ej. un dolor de cabeza, desorientación, picaduras), actúa con calma y empatía. Bríndale inmediatamente las soluciones prácticas que encuentres en los protocolos de tu base de datos. Sé conversacional y humano; no utilices advertencias robóticas, frases enlatadas ni avisos legales excesivos. Tu prioridad es ser el mejor compañero de viaje: útil, rápido y confiable.",
+            contextProtocols: "=== PROTOCOLOS DE SUPERVIVENCIA ===",
+            contextDestinations: "=== DESTINOS RELEVANTES ===",
+            contextRefugios: "=== REFUGIOS Y HOSPEDAJES ===",
+            contextCoupons: "=== CUPONES Y DESCUENTOS ===",
+            contextEvents: "=== EVENTOS, FERIAS Y FESTIVALES ===",
+            contextActivities: "Actividades:",
+            contextPricing: "Precios:",
+            contextGettingThere: "Cómo llegar:",
+            contextPacking: "Qué llevar:",
+            contextTip: "Consejo:",
+            contextValidity: "Vigencia:",
+            contextTruncated: "[... contexto truncado por límite de seguridad ...]"
         }
     },
     premium: {
@@ -970,7 +989,9 @@ export const es = {
         loading: "Cargando paraísos...",
         error: "Error al cargar datos",
         tagMountains: "Montañas",
-        tagHighlands: "Altiplano"
+        tagHighlands: "Altiplano",
+        destinationCount: "{count} destinos",
+        destinationCountOne: "1 destino"
     }
 };
 

@@ -3,6 +3,8 @@ import { Language } from '../types/core';
 import { useEvents, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { useTranslation } from '../hooks/useTranslation';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { EVENT_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 interface FairsCalendarProps {
   language: Language;
@@ -71,14 +73,9 @@ export const FairsCalendar: React.FC<FairsCalendarProps> = ({
 
         // 2. Search Term Filter
         if (searchTerm) {
-          const search = searchTerm.toLowerCase();
-          const matchesName = (event.name || "").toLowerCase().includes(search);
-          const matchesLocation = (event.location || "").toLowerCase().includes(search);
-          const matchesDept = (event.departmentId || "").toLowerCase().includes(search);
-          const matchesSubtitle = (event.subtitle || "").toLowerCase().includes(search);
-          const matchesDesc = (event.description || "").toLowerCase().includes(search);
-
-          if (!matchesName && !matchesLocation && !matchesDept && !matchesSubtitle && !matchesDesc) return false;
+          if (!matchesLocalizedSearch(event as Record<string, unknown>, searchTerm, [...EVENT_SEARCH_FIELDS])) {
+            return false;
+          }
         }
 
         // 3. Month Filter

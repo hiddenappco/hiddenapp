@@ -5,6 +5,8 @@ import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { useTranslation } from '../hooks/useTranslation';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { COUPON_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 interface CouponsProps {
   language: Language;
@@ -62,15 +64,9 @@ export const Coupons: React.FC<CouponsProps> = ({
 
       // 2. Search Filter
       if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const matchesTitle = (c.title?.toLowerCase() || "").includes(term);
-        const matchesDesc = (c.description?.toLowerCase() || "").includes(term);
-        const matchesLoc = (c.location?.toLowerCase() || "").includes(term);
-        const matchesCat = (c.category?.toLowerCase() || "").includes(term);
-        const matchesCode = (c.coupon_code?.toLowerCase() || "").includes(term);
-        const matchesDiscount = (c.discount?.toLowerCase() || "").includes(term);
-
-        if (!matchesTitle && !matchesDesc && !matchesLoc && !matchesCat && !matchesCode && !matchesDiscount) return false;
+        if (!matchesLocalizedSearch(c as Record<string, unknown>, searchTerm, [...COUPON_SEARCH_FIELDS])) {
+          return false;
+        }
       }
 
       return true;

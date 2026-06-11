@@ -2,8 +2,9 @@ import React from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { useOutletContext } from 'react-router-dom';
-import { useDepartments } from '../hooks/useFirestore';
+import { useDepartments, useDestinationCounts, resolveDestinationCount } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
+import { formatDepartmentStatValue } from '../utils/departmentIdentity';
 
 interface HomeProps {
   language: Language;
@@ -18,6 +19,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
 
   // Real Data Hook
   const { data: departments, loading, error } = useDepartments();
+  const { counts: destinationCounts, loading: countsLoading } = useDestinationCounts();
 
   const texts = {
     title: t('home.title'),
@@ -108,6 +110,9 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
           {displayDepartments.map((dept: any) => {
             // Check status (mock property for coming soon logic)
             const isAvailable = dept.status !== 'coming_soon';
+            const destinationCount = isAvailable && !dept.id.endsWith('-decorative')
+              ? resolveDestinationCount(destinationCounts, dept)
+              : null;
 
             // Normalize image from Rowy/Firestore
             const bgImage = normalizeImage(dept.heroImage);
@@ -135,6 +140,29 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
 
                 {/* Overlays */}
                 <div className={`absolute inset-0 bg-gradient-to-t ${isAvailable ? 'from-black/90 via-black/20 to-transparent' : 'from-black/80 to-black/40'}`}></div>
+
+                {/* Live destination count — active departments only */}
+                {isAvailable && destinationCount !== null && (
+                  <div className="absolute top-4 left-4 z-20 max-w-[calc(100%-2rem)]">
+                    <span
+                      className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-white uppercase tracking-wider bg-black/45 backdrop-blur-md border border-white/20 shadow-sm leading-none ${countsLoading ? 'animate-pulse' : ''}`}
+                      aria-label={
+                        destinationCount === 1
+                          ? t('home.destinationCountOne')
+                          : t('home.destinationCount', { count: destinationCount })
+                      }
+                    >
+                      <span className="material-symbols-outlined text-[11px] leading-none">map</span>
+                      <span className="truncate">
+                        {countsLoading
+                          ? '…'
+                          : destinationCount === 1
+                            ? t('home.destinationCountOne')
+                            : t('home.destinationCount', { count: destinationCount })}
+                      </span>
+                    </span>
+                  </div>
+                )}
 
                 {/* Coming Soon Overlay */}
                 {!isAvailable && (
@@ -165,7 +193,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
                       <div className="flex flex-col gap-1 items-end mb-1">
                         <div className="flex items-center gap-1 text-white/90 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg">
                           <span className="material-symbols-outlined text-[14px]">thermostat</span>
-                          <span className="text-xs font-bold">{dept.temp}</span>
+                          <span className="text-xs font-bold">{formatDepartmentStatValue(dept.temp)}</span>
                         </div>
                       </div>
                     )}

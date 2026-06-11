@@ -291,6 +291,7 @@ export const en: TranslationType = {
         verified: "Verified",
         downloadPdf: "Download PDF Guide",
         downloadPremium: "PDF Guide (Premium)",
+        pdfLocked: "Coming soon",
         loading: "Loading destination...",
         notFound: "Destination not found",
         about: "About this place",
@@ -633,7 +634,7 @@ export const en: TranslationType = {
         download: "Download",
         downloadingStream: "Downloading...",
         testCenter: "Local search",
-        testCenterDesc: "Direct lookup in protocols and destinations from your packs. Lightweight, no generative AI — works on most phones.",
+        testCenterDesc: "Direct lookup in protocols, destinations, refugios, coupons and events from your packs. Lightweight, no generative AI — works on most phones.",
         quickSearchLabel: "QUICK SEARCH (E.G. SNAKE, WATER)",
         queryPlaceholder: "Enter your query...",
         search: "Search",
@@ -642,6 +643,11 @@ export const en: TranslationType = {
         noLocalMatches: "No matches found in your local packs.",
         localQueryError: "Error performing local query.",
         localResults: "LOCAL SEARCH RESULTS:",
+        sourceProtocol: "Protocol",
+        sourceDestination: "Destination",
+        sourceRefugio: "Refugio",
+        sourceCoupon: "Coupon",
+        sourceEvent: "Event",
         offlineChatTitle: "Offline Travel Assistant",
         startingEngine: "Starting engine...",
         gemmaBrainOffline: "Gemma 4 Brain (Offline)",
@@ -732,7 +738,20 @@ export const en: TranslationType = {
             pricingLabel: "**Reference prices:**",
             gettingThereLabel: "**How to get there:**",
             aiTipLabel: "💡 **Tip:**",
-            quickSearchFooter: "\n> ⚡ _Response generated in Quick Search Mode (no generative AI). Install the full Gemma 4 engine for conversational responses._"
+            quickSearchFooter: "\n> ⚡ _Response generated in Quick Search Mode (no generative AI). Install the full Gemma 4 engine for conversational responses._",
+            systemPrompt: "You are Hidden App's Smart Local Guide, an expert travel companion. Your mission is to help the traveler discover magical destinations, use coupons, learn about local events, and answer any trip questions using the database provided. Your tone is warm, natural, direct, and very helpful.\n\nIf the user is uncomfortable, in an urgent situation, or asks for practical advice (e.g. a headache, feeling lost, insect bites), stay calm and empathetic. Give them practical solutions from the protocols in your database. Be conversational and human; avoid robotic warnings, canned phrases, or excessive legal disclaimers. Your priority is to be the best travel companion: useful, fast, and reliable.",
+            contextProtocols: "=== SURVIVAL PROTOCOLS ===",
+            contextDestinations: "=== RELATED DESTINATIONS ===",
+            contextRefugios: "=== LODGINGS & REFUGIOS ===",
+            contextCoupons: "=== COUPONS & DISCOUNTS ===",
+            contextEvents: "=== FAIRS, FESTIVALS & EVENTS ===",
+            contextActivities: "Activities:",
+            contextPricing: "Prices:",
+            contextGettingThere: "How to get there:",
+            contextPacking: "What to pack:",
+            contextTip: "Tip:",
+            contextValidity: "Valid:",
+            contextTruncated: "[... context truncated for safety limit ...]"
         }
     },
     premium: {
@@ -972,6 +991,8 @@ export const en: TranslationType = {
         loading: "Loading paradises...",
         error: "Error loading data",
         tagMountains: "Mountains",
-        tagHighlands: "Highlands"
+        tagHighlands: "Highlands",
+        destinationCount: "{count} destinations",
+        destinationCountOne: "1 destination"
     }
 };

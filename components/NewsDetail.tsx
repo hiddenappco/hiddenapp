@@ -1,5 +1,4 @@
 import React from 'react';
-import { pickLocalized } from '../utils/localizedContent';
 import { NewsArticle } from '../types/content';
 import { useParams } from 'react-router-dom';
 import { useNewsArticle } from '../hooks/useFirestore';
@@ -14,7 +13,7 @@ interface NewsDetailProps {
 }
 
 export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, onBack }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
 
   const finalId = id || propArticle?.id;
@@ -26,10 +25,9 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
 
   if (!article) return null;
 
-  const articleDoc = article as NewsArticle & Record<string, unknown>;
-  const displayTitle = pickLocalized(articleDoc, 'title', language) || article.title;
-  const displaySummary = pickLocalized(articleDoc, 'summary', language) || article.summary;
-  const displayContent = pickLocalized(articleDoc, 'content', language) || article.content;
+  const displayTitle = article.title;
+  const displaySummary = article.summary;
+  const displayContent = article.content;
 
   const heroImage = normalizeImage(article.image);
   const authorAvatar = article.authorAvatar ? normalizeImage(article.authorAvatar) : "https://lh3.googleusercontent.com/aida-public/AB6AXuAdlLljB1eOaRnjIqYZS4qkCHY5a567jiuPs8BMOmFttgd7terA8JNHBsj-svM2ewJ5J81NoFCqhxJluob40gwzgeyvIsegFAtzoenWPjaQLL30T6yqOxpmgVKUNd7oTe2OFC6qTDZsupeEoW5DxCYj1XABHpky2omnRZ87w4N5huMSgbc2Ua4vHKn96ozSnDh1e-Avhp_IRIIG0WYS81TixgMxr5Ow7p_PIT1fH_sQOUFuzYPyXK66X-IMlOihwLrqq6_jYM_RdoTH";

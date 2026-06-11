@@ -2,19 +2,26 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { db } from '../../config/firebase';
 import { expandDepartmentKbIds, fetchDepartmentProfile } from '../../lib/departmentProfile';
 import { mapDestinationForAgent } from '../../lib/geo';
+import {
+    localizeCatalogDocument,
+    DESTINATION_SEARCH_FIELDS,
+} from '../../lib/localizeCatalog';
+import { matchesLocalizedSearch, type AppLanguage } from '../../lib/localizedContent';
 
 export interface CatalogScope {
     departmentId: string;
     kbIds?: string[];
+    appLanguage?: AppLanguage;
+}
+
+function resolveLang(scope: CatalogScope): AppLanguage {
+    return scope.appLanguage === 'en' ? 'en' : 'es';
 }
 
 export function resolveKbIds(departmentId: string, kbIds?: string[]): string[] {
     const base = kbIds?.length ? kbIds : expandDepartmentKbIds(departmentId);
     return [...new Set(base)];
 }
-
-const normalizeText = (s: string) =>
-    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 /**
  * Removes media/binary fields before injecting catalog rows into the model context.
@@ -40,18 +47,12 @@ function stripHeavyMediaFields(data: Record<string, unknown>): Record<string, un
     return copy;
 }
 
-function matchesSearch(row: Record<string, unknown>, query: string): boolean {
-    const q = normalizeText(query);
-    const haystack = [
-        row.title,
-        row.name,
-        row.description,
-        row.location,
-        row.tag,
-    ]
-        .filter((v) => typeof v === 'string')
-        .join(' ');
-    return normalizeText(haystack).includes(q);
+function localizeRow(
+    collection: Parameters<typeof localizeCatalogDocument>[0],
+    row: Record<string, unknown>,
+    lang: AppLanguage
+): Record<string, unknown> {
+    return localizeCatalogDocument(collection, row, lang);
 }
 
 export async function getDepartmentKnowledge(
@@ -59,7 +60,9 @@ export async function getDepartmentKnowledge(
     firestore: Firestore = db
 ): Promise<Record<string, unknown> | null> {
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
-    return fetchDepartmentProfile(firestore, kbIds[0] || scope.departmentId);
+    const profile = await fetchDepartmentProfile(firestore, kbIds[0] || scope.departmentId);
+    if (!profile) return null;
+    return localizeRow('departments', profile, resolveLang(scope));
 }
 
 export async function getDestinationsKnowledge(
@@ -67,6 +70,7 @@ export async function getDestinationsKnowledge(
     opts?: { searchQuery?: string; limit?: number },
     firestore: Firestore = db
 ): Promise<Array<Record<string, unknown>>> {
+    const lang = resolveLang(scope);
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
     const limit = Math.min(opts?.limit ?? 40, 80);
     const snap = await firestore
@@ -75,14 +79,15 @@ export async function getDestinationsKnowledge(
         .limit(500)
         .get();
 
-    let rows = snap.docs.map((doc) =>
-        stripHeavyMediaFields(
-            mapDestinationForAgent(doc.id, doc.data() as Record<string, unknown>)
-        )
-    );
+    let rows = snap.docs.map((doc) => {
+        const raw = mapDestinationForAgent(doc.id, doc.data() as Record<string, unknown>);
+        return localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+    });
 
     if (opts?.searchQuery?.trim()) {
-        rows = rows.filter((r) => matchesSearch(r, opts.searchQuery!.trim()));
+        rows = rows.filter((r) =>
+            matchesLocalizedSearch(r, opts.searchQuery!.trim(), [...DESTINATION_SEARCH_FIELDS])
+        );
     }
 
     return rows.slice(0, limit);
@@ -93,6 +98,7 @@ export async function getRefugiosKnowledge(
     opts?: { destinationId?: string; limit?: number },
     firestore: Firestore = db
 ): Promise<Array<Record<string, unknown>>> {
+    const lang = resolveLang(scope);
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
     const limit = Math.min(opts?.limit ?? 30, 60);
     const snap = await firestore
@@ -101,9 +107,12 @@ export async function getRefugiosKnowledge(
         .limit(500)
         .get();
 
+    const normalizeText = (s: string) =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
     let rows: Array<Record<string, unknown>> = snap.docs.map((doc) => {
-        const data = stripHeavyMediaFields(doc.data() as Record<string, unknown>);
-        return { id: doc.id, ...data } as Record<string, unknown>;
+        const raw = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
+        return localizeRow('refugios', stripHeavyMediaFields(raw), lang);
     });
     rows = rows.filter((r) => r.status === 'Activo' || r.status === true);
 
@@ -127,6 +136,7 @@ export async function getCouponsKnowledge(
     opts?: { limit?: number },
     firestore: Firestore = db
 ): Promise<Array<Record<string, unknown>>> {
+    const lang = resolveLang(scope);
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
     const limit = Math.min(opts?.limit ?? 30, 60);
     const snap = await firestore
@@ -135,7 +145,10 @@ export async function getCouponsKnowledge(
         .limit(500)
         .get();
     return snap.docs
-        .map((doc) => ({ id: doc.id, ...stripHeavyMediaFields(doc.data() as Record<string, unknown>) }))
+        .map((doc) => {
+            const raw = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
+            return localizeRow('Coupons', stripHeavyMediaFields(raw), lang);
+        })
         .slice(0, limit);
 }
 
@@ -144,6 +157,7 @@ export async function getEventsKnowledge(
     opts?: { limit?: number },
     firestore: Firestore = db
 ): Promise<Array<Record<string, unknown>>> {
+    const lang = resolveLang(scope);
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
     const limit = Math.min(opts?.limit ?? 30, 60);
     const snap = await firestore
@@ -152,7 +166,10 @@ export async function getEventsKnowledge(
         .limit(500)
         .get();
     return snap.docs
-        .map((doc) => ({ id: doc.id, ...stripHeavyMediaFields(doc.data() as Record<string, unknown>) }))
+        .map((doc) => {
+            const raw = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
+            return localizeRow('Events', stripHeavyMediaFields(raw), lang);
+        })
         .slice(0, limit);
 }
 
@@ -161,6 +178,7 @@ export async function getNewsKnowledge(
     opts?: { limit?: number },
     firestore: Firestore = db
 ): Promise<Array<Record<string, unknown>>> {
+    const lang = resolveLang(scope);
     const kbIds = resolveKbIds(scope.departmentId, scope.kbIds);
     const limit = Math.min(opts?.limit ?? 20, 40);
     const snap = await firestore
@@ -169,6 +187,9 @@ export async function getNewsKnowledge(
         .limit(500)
         .get();
     return snap.docs
-        .map((doc) => ({ id: doc.id, ...stripHeavyMediaFields(doc.data() as Record<string, unknown>) }))
+        .map((doc) => {
+            const raw = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
+            return localizeRow('News', stripHeavyMediaFields(raw), lang);
+        })
         .slice(0, limit);
 }

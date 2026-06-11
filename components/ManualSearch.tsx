@@ -4,6 +4,8 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useDestinations, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 interface ManualSearchProps {
   language: Language;
@@ -25,19 +27,9 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
 
     const term = searchTerm.toLowerCase();
 
-    return destinations.filter((item) => {
-      const title = (item.title || '').toLowerCase();
-      const loc = (item.location || '').toLowerCase();
-      const desc = (item.description || '').toLowerCase();
-      const aiTip = (item.aiTip || '').toLowerCase();
-
-      return (
-        title.includes(term) ||
-        loc.includes(term) ||
-        desc.includes(term) ||
-        aiTip.includes(term)
-      );
-    });
+    return destinations.filter((item) =>
+      matchesLocalizedSearch(item as Record<string, unknown>, term, [...DESTINATION_SEARCH_FIELDS])
+    );
   }, [destinations, searchTerm]);
 
   return (

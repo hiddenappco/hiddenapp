@@ -5,7 +5,7 @@ import { useDepartment, useDestinations, useIsFavorite, toggleFavorite } from '.
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { normalizeListValue } from '../utils/departmentContent';
-import { pickLocalized, pickLocalizedListSource } from '../utils/localizedContent';
+import { formatDepartmentStatValue } from '../utils/departmentIdentity';
 import { useTranslation } from '../hooks/useTranslation';
 import { RichTextContent } from './ui/RichTextContent';
 
@@ -23,7 +23,7 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
   onDestinationClick,
   departmentId: propId
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const finalId = propId || id;
@@ -35,22 +35,17 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
   const heroImage = data ? normalizeImage(data.heroImage) : '';
 
   const ecosystemItems = useMemo(
-    () => (data ? normalizeListValue(pickLocalizedListSource(data, 'ecosystems', language)) : []),
-    [data, language]
+    () => (data?.ecosystems ? normalizeListValue(data.ecosystems) : []),
+    [data]
   );
   const gastronomyItems = useMemo(
-    () => (data ? normalizeListValue(pickLocalizedListSource(data, 'mustTryGastronomy', language)) : []),
-    [data, language]
+    () => (data?.mustTryGastronomy ? normalizeListValue(data.mustTryGastronomy) : []),
+    [data]
   );
   const tipItems = useMemo(
-    () => (data ? normalizeListValue(pickLocalizedListSource(data, 'tips', language)) : []),
-    [data, language]
+    () => (data?.tips ? normalizeListValue(data.tips) : []),
+    [data]
   );
-
-  const deptDescription = data ? pickLocalized(data, 'description', language) : '';
-  const deptSafetyNote = data ? pickLocalized(data, 'safetyNote', language) : '';
-  const deptLogistics = data ? pickLocalized(data, 'logistics', language) : '';
-  const deptSeasonality = data ? pickLocalized(data, 'seasonality', language) : '';
 
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('department.loading')}</div>;
   if (!data) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('department.notFound')}</div>;
@@ -91,56 +86,64 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
       </div>
 
       <div className="relative z-10 -mt-6 rounded-t-3xl bg-background-dark px-6 pt-8 pb-32">
-        {deptDescription && (
+        {data.description && (
           <div className="mb-8">
-            <RichTextContent content={deptDescription} />
+            <RichTextContent content={data.description} />
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          <div className="flex flex-col gap-1 rounded-2xl border border-overlay/10 bg-surface-dark p-4 shadow-sm">
-            <span className="material-symbols-outlined text-primary text-[28px] mb-1">thermostat</span>
-            <p className="text-2xl font-bold text-content">{data.temp}</p>
-            <p className="text-sm text-content-muted">{t('common.average')}</p>
+        <div className="grid grid-cols-2 gap-2 mb-6">
+          <div className="flex items-center gap-2.5 rounded-xl border border-overlay/10 bg-surface-dark px-3 py-2.5 shadow-sm">
+            <span className="material-symbols-outlined text-primary text-[20px] shrink-0">thermostat</span>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-content leading-tight truncate">
+                {formatDepartmentStatValue(data.temp)}
+              </p>
+              <p className="text-[11px] text-content-muted leading-tight">{t('common.average')}</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-1 rounded-2xl border border-overlay/10 bg-surface-dark p-4 shadow-sm">
-            <span className="material-symbols-outlined text-primary text-[28px] mb-1">water_drop</span>
-            <p className="text-2xl font-bold text-content">{data.humidity}</p>
-            <p className="text-sm text-content-muted">{t('common.humidity')}</p>
+          <div className="flex items-center gap-2.5 rounded-xl border border-overlay/10 bg-surface-dark px-3 py-2.5 shadow-sm">
+            <span className="material-symbols-outlined text-primary text-[20px] shrink-0">water_drop</span>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-content leading-tight truncate">
+                {formatDepartmentStatValue(data.humidity)}
+              </p>
+              <p className="text-[11px] text-content-muted leading-tight">{t('common.humidity')}</p>
+            </div>
           </div>
         </div>
 
-        {deptSafetyNote && (
+        {data.safetyNote && (
           <div className="mb-8 p-4 rounded-xl bg-blue-500/10 dark:bg-blue-900/20 border border-blue-500/20 flex gap-4">
             <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 shrink-0">health_and_safety</span>
             <div>
               <h4 className="text-blue-800 dark:text-blue-200 font-bold text-sm mb-1">{t('department.safety')}</h4>
-              <RichTextContent content={deptSafetyNote} compact />
+              <RichTextContent content={data.safetyNote} compact />
             </div>
           </div>
         )}
 
-        {(deptLogistics || deptSeasonality) && (
+        {(data.logistics || data.seasonality) && (
           <div className="flex flex-col gap-4 mb-8 mobile-single-col">
-            {deptLogistics && (
+            {data.logistics && (
               <div className="min-w-0 p-5 rounded-2xl bg-surface-dark border border-overlay/10 shadow-sm flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-orange-500 dark:text-orange-400">
                   <span className="material-symbols-outlined shrink-0">route</span>
                   <h4 className="font-bold leading-snug">{t('department.logistics')}</h4>
                 </div>
                 <div className="min-w-0 break-words">
-                  <RichTextContent content={deptLogistics} compact />
+                  <RichTextContent content={data.logistics} compact />
                 </div>
               </div>
             )}
-            {deptSeasonality && (
+            {data.seasonality && (
               <div className="min-w-0 p-5 rounded-2xl bg-surface-dark border border-overlay/10 shadow-sm flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
                   <span className="material-symbols-outlined shrink-0">calendar_month</span>
                   <h4 className="font-bold leading-snug">{t('department.seasonality')}</h4>
                 </div>
                 <div className="min-w-0 break-words">
-                  <RichTextContent content={deptSeasonality} compact />
+                  <RichTextContent content={data.seasonality} compact />
                 </div>
               </div>
             )}

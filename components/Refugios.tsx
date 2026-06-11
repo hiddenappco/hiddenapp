@@ -4,6 +4,8 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useRefugios, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
+import { matchesLocalizedSearch } from '../utils/localizedContent';
+import { REFUGIO_SEARCH_FIELDS } from '../utils/localizeCatalog';
 
 interface RefugiosProps {
   language: Language;
@@ -41,33 +43,8 @@ export const Refugios: React.FC<RefugiosProps> = ({
     [refugios]
   );
 
-  const matchesSearchTerm = (ref: (typeof refugios)[0], term: string) => {
-    const nameMatch = ref.name?.toLowerCase().includes(term);
-    const taglineMatch = ref.tagline?.toLowerCase().includes(term);
-    const descMatch = ref.description?.toLowerCase().includes(term);
-    const locMatch = ref.location?.toLowerCase().includes(term);
-    const howToBookMatch = ref.howToBook?.toLowerCase().includes(term);
-    const amenitiesMatch = ref.amenities?.some(a => a.toLowerCase().includes(term));
-    const typeMatch = ref.type?.some(t => t.toLowerCase().includes(term));
-    const activitiesMatch = Array.isArray(ref.activities)
-      ? ref.activities.some(a => String(a).toLowerCase().includes(term))
-      : String(ref.activities || '').toLowerCase().includes(term);
-    const restrictionsMatch = Array.isArray(ref.restrictions)
-      ? ref.restrictions.some(r => String(r).toLowerCase().includes(term))
-      : String(ref.restrictions || '').toLowerCase().includes(term);
-
-    return !!(
-      nameMatch ||
-      taglineMatch ||
-      descMatch ||
-      locMatch ||
-      howToBookMatch ||
-      amenitiesMatch ||
-      typeMatch ||
-      activitiesMatch ||
-      restrictionsMatch
-    );
-  };
+  const matchesSearchTerm = (ref: (typeof refugios)[0], term: string) =>
+    matchesLocalizedSearch(ref as Record<string, unknown>, term, [...REFUGIO_SEARCH_FIELDS]);
 
   const matchesType = (ref: (typeof refugios)[0]) => {
     if (selectedType === 'all') return true;

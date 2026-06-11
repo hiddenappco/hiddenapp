@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     collection,
     getDocs,
@@ -7,15 +7,50 @@ import {
     doc,
     getDoc,
     limit,
+    onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Department, Destination, AppEvent, Coupon, NewsArticle, Refugio } from '../types/content';
+import { useLanguage } from '../contexts/LanguageContext';
+import { Language } from '../types/core';
+import { canonicalDepartmentId } from '../utils/departmentIdentity';
+import {
+    localizeCoupon,
+    localizeDepartment,
+    localizeDestination,
+    localizeEvent,
+    localizeNewsArticle,
+    localizeRefugio,
+} from '../utils/localizeCatalog';
+
+function useLocalizedArray<T>(
+    raw: T[],
+    localizeFn: (row: Record<string, unknown>, lang: Language) => T
+): T[] {
+    const { currentLanguage } = useLanguage();
+    return useMemo(
+        () => raw.map((item) => localizeFn(item as Record<string, unknown>, currentLanguage)),
+        [raw, currentLanguage, localizeFn]
+    );
+}
+
+function useLocalizedItem<T>(
+    raw: T | null,
+    localizeFn: (row: Record<string, unknown>, lang: Language) => T
+): T | null {
+    const { currentLanguage } = useLanguage();
+    return useMemo(
+        () => (raw ? localizeFn(raw as Record<string, unknown>, currentLanguage) : null),
+        [raw, currentLanguage, localizeFn]
+    );
+}
 
 // --- DEPARTMENTS ---
 export const useDepartments = () => {
-    const [data, setData] = useState<Department[]>([]);
+    const [rawData, setRawData] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+    const data = useLocalizedArray(rawData, localizeDepartment);
 
     useEffect(() => {
         const fetchDepartments = async () => {
@@ -26,11 +61,11 @@ export const useDepartments = () => {
                     id: doc.id
                 } as Department));
 
-                setData(depts);
+                setRawData(depts);
             } catch (err: any) {
                 console.error('Error fetching departments:', err);
                 setError(err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -42,14 +77,49 @@ export const useDepartments = () => {
     return { data, loading, error };
 };
 
-export const useDepartment = (id: string | undefined) => {
-    const [data, setData] = useState<Department | null>(null);
+/** Live destination counts per department (updates as Firestore docs change). */
+export const useDestinationCounts = () => {
+    const [counts, setCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(
+            collection(db, 'destinations'),
+            (snapshot) => {
+                const next: Record<string, number> = {};
+                snapshot.docs.forEach((docSnap) => {
+                    const rawDeptId = docSnap.data().departmentId;
+                    if (typeof rawDeptId !== 'string' || !rawDeptId.trim()) return;
+                    const key = canonicalDepartmentId(rawDeptId.trim());
+                    next[key] = (next[key] ?? 0) + 1;
+                });
+                setCounts(next);
+                setLoading(false);
+            },
+            (err) => {
+                console.error('Error listening to destination counts:', err);
+                setCounts({});
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, []);
+
+    return { counts, loading };
+};
+
+export { resolveDestinationCount } from '../utils/departmentIdentity';
+
+export const useDepartment = (id: string | undefined) => {
+    const [rawData, setRawData] = useState<Department | null>(null);
+    const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeDepartment);
 
     useEffect(() => {
         const fetchDepartment = async () => {
             if (!id) {
-                setData(null);
+                setRawData(null);
                 setLoading(false);
                 return;
             }
@@ -58,23 +128,22 @@ export const useDepartment = (id: string | undefined) => {
                 const docSnap = await getDoc(doc(db, 'departments', id));
 
                 if (docSnap.exists()) {
-                    setData({ id: docSnap.id, ...docSnap.data() } as Department);
+                    setRawData({ id: docSnap.id, ...docSnap.data() } as Department);
                     return;
                 }
 
-                // Fallback: id may be a slug (e.g. valle-del-cauca) rather than Firestore doc id
                 const bySlug = await getDocs(
                     query(collection(db, 'departments'), where('departmentId', '==', id), limit(1))
                 );
                 if (!bySlug.empty) {
                     const found = bySlug.docs[0];
-                    setData({ id: found.id, ...found.data() } as Department);
+                    setRawData({ id: found.id, ...found.data() } as Department);
                 } else {
-                    setData(null);
+                    setRawData(null);
                 }
             } catch (err) {
                 console.error(err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }
@@ -87,8 +156,9 @@ export const useDepartment = (id: string | undefined) => {
 
 // --- DESTINATIONS ---
 export const useDestinations = (departmentId?: string) => {
-    const [data, setData] = useState<Destination[]>([]);
+    const [rawData, setRawData] = useState<Destination[]>([]);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedArray(rawData, localizeDestination);
 
     useEffect(() => {
         const fetchDestinations = async () => {
@@ -144,7 +214,7 @@ export const useDestinations = (departmentId?: string) => {
                             activities: data.activities || []
                         } as any as Destination;
                     });
-                    setData(dests);
+                    setRawData(dests);
                 } else {
                     const snapshot = await getDocs(q);
                     const dests = snapshot.docs.map(doc => {
@@ -174,12 +244,12 @@ export const useDestinations = (departmentId?: string) => {
                             activities: data.activities || []
                         } as any as Destination;
                     });
-                    setData(dests);
+                    setRawData(dests);
                 }
 
             } catch (err) {
                 console.error(err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -192,12 +262,13 @@ export const useDestinations = (departmentId?: string) => {
 };
 
 export const useDestination = (id: string | undefined) => {
-    const [data, setData] = useState<Destination | null>(null);
+    const [rawData, setRawData] = useState<Destination | null>(null);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeDestination);
 
     useEffect(() => {
         if (!id) {
-            setData(null);
+            setRawData(null);
             setLoading(false);
             return;
         }
@@ -261,7 +332,7 @@ export const useDestination = (id: string | undefined) => {
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setData(mapDestinationDoc(docSnap.id, docSnap.data() as Record<string, unknown>));
+                    setRawData(mapDestinationDoc(docSnap.id, docSnap.data() as Record<string, unknown>));
                     return;
                 }
 
@@ -270,14 +341,14 @@ export const useDestination = (id: string | undefined) => {
                 );
                 if (!byCustomId.empty) {
                     const found = byCustomId.docs[0];
-                    setData(mapDestinationDoc(found.id, found.data() as Record<string, unknown>));
+                    setRawData(mapDestinationDoc(found.id, found.data() as Record<string, unknown>));
                     return;
                 }
 
-                setData(null);
+                setRawData(null);
             } catch (err) {
                 console.error(err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }
@@ -290,8 +361,9 @@ export const useDestination = (id: string | undefined) => {
 
 // --- EVENTS ---
 export const useEvents = () => {
-    const [data, setData] = useState<AppEvent[]>([]);
+    const [rawData, setRawData] = useState<AppEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedArray(rawData, localizeEvent);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -367,10 +439,10 @@ export const useEvents = () => {
                         tips: data.tips || ''
                     } as any as AppEvent;
                 });
-                setData(events);
+                setRawData(events);
             } catch (err) {
                 console.error(err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -382,8 +454,9 @@ export const useEvents = () => {
 };
 
 export const useEvent = (id: string | undefined) => {
-    const [data, setData] = useState<AppEvent | null>(null);
+    const [rawData, setRawData] = useState<AppEvent | null>(null);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeEvent);
 
     useEffect(() => {
         const fetchEvent = async () => {
@@ -442,7 +515,7 @@ export const useEvent = (id: string | undefined) => {
 
                     if (!begDateStr) begDateStr = dateStr;
 
-                    setData({
+                    setRawData({
                         ...data,
                         id: docSnap.id,
                         name: data.name || 'Sin nombre',
@@ -460,11 +533,11 @@ export const useEvent = (id: string | undefined) => {
                         tips: data.tips || ''
                     } as any as AppEvent);
                 } else {
-                    setData(null);
+                    setRawData(null);
                 }
             } catch (err) {
                 console.error(err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }
@@ -477,8 +550,9 @@ export const useEvent = (id: string | undefined) => {
 
 // --- COUPONS ---
 export const useCoupons = () => {
-    const [data, setData] = useState<Coupon[]>([]);
+    const [rawData, setRawData] = useState<Coupon[]>([]);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedArray(rawData, localizeCoupon);
 
     useEffect(() => {
         const fetchCoupons = async () => {
@@ -501,10 +575,10 @@ export const useCoupons = () => {
                         coordinates: coords
                     } as Coupon;
                 });
-                setData(coupons);
+                setRawData(coupons);
             } catch (err) {
                 console.error(err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -516,8 +590,9 @@ export const useCoupons = () => {
 };
 
 export const useCoupon = (id: string | undefined) => {
-    const [data, setData] = useState<Coupon | null>(null);
+    const [rawData, setRawData] = useState<Coupon | null>(null);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeCoupon);
 
     useEffect(() => {
         const fetchCoupon = async () => {
@@ -531,7 +606,7 @@ export const useCoupon = (id: string | undefined) => {
                     const cat = Array.isArray(data.category) ? data.category[0] : data.category;
                     const coords = data.coordinates ? { lat: data.coordinates.latitude, lng: data.coordinates.longitude } : data.coordinates;
 
-                    setData({
+                    setRawData({
                         ...data,
                         id: docSnap.id,
                         title: data.title || '',
@@ -542,11 +617,11 @@ export const useCoupon = (id: string | undefined) => {
                         coordinates: coords
                     } as Coupon);
                 } else {
-                    setData(null);
+                    setRawData(null);
                 }
             } catch (err) {
                 console.error(err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }
@@ -559,8 +634,9 @@ export const useCoupon = (id: string | undefined) => {
 
 // --- NEWS ---
 export const useNews = () => {
-    const [data, setData] = useState<NewsArticle[]>([]);
+    const [rawData, setRawData] = useState<NewsArticle[]>([]);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedArray(rawData, localizeNewsArticle);
 
     useEffect(() => {
         const fetchNews = async () => {
@@ -586,10 +662,10 @@ export const useNews = () => {
                         id: doc.id
                     } as NewsArticle;
                 });
-                setData(news);
+                setRawData(news);
             } catch (err) {
                 console.error(err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -601,8 +677,9 @@ export const useNews = () => {
 };
 
 export const useNewsArticle = (id: string | undefined) => {
-    const [data, setData] = useState<NewsArticle | null>(null);
+    const [rawData, setRawData] = useState<NewsArticle | null>(null);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeNewsArticle);
 
     useEffect(() => {
         const fetchNewsArticle = async () => {
@@ -619,7 +696,7 @@ export const useNewsArticle = (id: string | undefined) => {
                         dateStr = data.date;
                     }
                     const images = Array.isArray(data.images) ? data.images.map((img: any) => img.downloadURL || img) : [];
-                    setData({
+                    setRawData({
                         ...data,
                         id: docSnap.id,
                         title: data.title || '',
@@ -628,11 +705,11 @@ export const useNewsArticle = (id: string | undefined) => {
                         image: data.image || images[0] || ''
                     } as NewsArticle);
                 } else {
-                    setData(null);
+                    setRawData(null);
                 }
             } catch (err) {
                 console.error(err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }
@@ -645,8 +722,9 @@ export const useNewsArticle = (id: string | undefined) => {
 
 // --- REFUGIOS ---
 export const useRefugios = (departmentId?: string, destinationId?: string) => {
-    const [data, setData] = useState<Refugio[]>([]);
+    const [rawData, setRawData] = useState<Refugio[]>([]);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedArray(rawData, localizeRefugio);
 
     useEffect(() => {
         const fetchRefugios = async () => {
@@ -713,10 +791,10 @@ export const useRefugios = (departmentId?: string, destinationId?: string) => {
                     } as any as Refugio;
                 });
 
-                setData(refugios);
+                setRawData(refugios);
             } catch (err) {
                 console.error('Error fetching refugios:', err);
-                setData([]);
+                setRawData([]);
             } finally {
                 setLoading(false);
             }
@@ -729,8 +807,9 @@ export const useRefugios = (departmentId?: string, destinationId?: string) => {
 };
 
 export const useRefugio = (id: string | undefined) => {
-    const [data, setData] = useState<Refugio | null>(null);
+    const [rawData, setRawData] = useState<Refugio | null>(null);
     const [loading, setLoading] = useState(true);
+    const data = useLocalizedItem(rawData, localizeRefugio);
 
     useEffect(() => {
         const fetchRefugio = async () => {
@@ -766,7 +845,7 @@ export const useRefugio = (id: string | undefined) => {
                     const hero = getUrl(data.heroImage) || images[0] || '';
                     const coords = data.coordinates ? { lat: data.coordinates.latitude, lng: data.coordinates.longitude } : null;
 
-                    setData({
+                    setRawData({
                         ...data,
                         id: docSnap.id,
                         name: data.name || 'Sin nombre',
@@ -791,11 +870,11 @@ export const useRefugio = (id: string | undefined) => {
                         checkInCheckOut: data.checkInCheckOut || data.checheckInCheckOut || {}
                     } as any as Refugio);
                 } else {
-                    setData(null);
+                    setRawData(null);
                 }
             } catch (err) {
                 console.error('Error fetching refugio:', err);
-                setData(null);
+                setRawData(null);
             } finally {
                 setLoading(false);
             }

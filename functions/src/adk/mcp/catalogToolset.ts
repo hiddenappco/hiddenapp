@@ -22,10 +22,14 @@ function stdioServerEntryPath(): string {
  * The child server receives HIDDEN_MCP_DEPARTMENT and clamps every tool call to it,
  * so the model cannot query data outside the session's department.
  */
-export async function getCatalogMcpToolset(departmentId: string): Promise<MCPToolset | null> {
+export async function getCatalogMcpToolset(
+    departmentId: string,
+    appLanguage: 'es' | 'en' = 'es'
+): Promise<MCPToolset | null> {
     if (mcpAvailable === false) return null;
 
-    const cached = cachedToolsets.get(departmentId);
+    const cacheKey = `${departmentId}:${appLanguage}`;
+    const cached = cachedToolsets.get(cacheKey);
     if (cached) return cached;
 
     try {
@@ -38,6 +42,7 @@ export async function getCatalogMcpToolset(departmentId: string): Promise<MCPToo
                     env: {
                         ...process.env,
                         HIDDEN_MCP_DEPARTMENT: departmentId,
+                        HIDDEN_MCP_LANGUAGE: appLanguage,
                     } as Record<string, string>,
                 },
                 timeout: 30_000,
@@ -47,9 +52,9 @@ export async function getCatalogMcpToolset(departmentId: string): Promise<MCPToo
         );
 
         await toolset.getTools();
-        cachedToolsets.set(departmentId, toolset);
+        cachedToolsets.set(cacheKey, toolset);
         mcpAvailable = true;
-        console.log(`[ADK] MCP catalog toolset connected (stdio, scope: ${departmentId})`);
+        console.log(`[ADK] MCP catalog toolset connected (stdio, scope: ${departmentId}, lang: ${appLanguage})`);
         return toolset;
     } catch (err) {
         mcpAvailable = false;

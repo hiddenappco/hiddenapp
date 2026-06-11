@@ -109,3 +109,53 @@ export function pickLocalizedListSource(
     }
     return doc[field];
 }
+
+/**
+ * Resolves any Firestore field (string, array, or JSON object) for the active language.
+ * English: `field_en` when present, else Spanish `field`.
+ */
+export function pickLocalizedRawField(
+    doc: LocalizableDoc,
+    field: string,
+    lang: Language
+): unknown {
+    if (!doc) return undefined;
+    if (lang === Language.English) {
+        const en = doc[`${field}_en`];
+        if (en != null && en !== '') return en;
+    }
+    return doc[field];
+}
+
+function collectSearchTexts(value: unknown): string[] {
+    if (value == null) return [];
+    if (typeof value === 'string') return value.trim() ? [value] : [];
+    if (typeof value === 'number' || typeof value === 'boolean') return [String(value)];
+    if (Array.isArray(value)) return value.flatMap(collectSearchTexts);
+    if (typeof value === 'object') {
+        return Object.values(value as Record<string, unknown>).flatMap(collectSearchTexts);
+    }
+    return [];
+}
+
+/**
+ * Case-insensitive search across Spanish and English variants of catalog text fields.
+ */
+export function matchesLocalizedSearch(
+    doc: LocalizableDoc,
+    term: string,
+    fields: string[]
+): boolean {
+    const q = term.trim().toLowerCase();
+    if (!q) return true;
+    if (!doc) return false;
+
+    for (const field of fields) {
+        for (const key of [field, `${field}_en`]) {
+            for (const text of collectSearchTexts(doc[key])) {
+                if (text.toLowerCase().includes(q)) return true;
+            }
+        }
+    }
+    return false;
+}

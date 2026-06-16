@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Language, Theme } from '../types/core';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -9,6 +10,10 @@ import { uploadProfilePicture } from '../services/storageService';
 import { COLOMBIA_LOCATIONS, COUNTRIES } from '../utils/locations';
 import { ImageCropper } from './ui/ImageCropper';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
+import {
+  dismissPackLanguageAlert,
+  shouldShowPackLanguageAlert,
+} from '../utils/offgridPackLanguageAlert';
 
 interface ProfileSettingsProps {
   language: Language;
@@ -17,12 +22,31 @@ interface ProfileSettingsProps {
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: propLanguage, onBack, onLogout }) => {
+  const navigate = useNavigate();
   const { currentLanguage, setLanguage } = useLanguage();
   const { t } = useTranslation();
   const language = currentLanguage;
   const { theme, setTheme } = useTheme();
   const { user, logout, updateUserProfile: updateAuthProfile } = useAuth();
   const { data: profile, loading: profileLoading } = useUserProfile(user?.uid);
+  const [packAlertTick, setPackAlertTick] = useState(0);
+
+  useEffect(() => {
+    setPackAlertTick((n) => n + 1);
+  }, [currentLanguage]);
+
+  const downloadedPacks = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('offgrid_downloaded_packs') || '{}') as Record<
+        string,
+        { downloadedAt: string }
+      >;
+    } catch {
+      return {};
+    }
+  }, [packAlertTick]);
+
+  const packLanguageAlert = shouldShowPackLanguageAlert(downloadedPacks);
 
   const [formData, setFormData] = useState({
     displayName: '',
@@ -364,6 +388,33 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: prop
                   <span>English</span>
                 </button>
               </div>
+
+              {packLanguageAlert && (
+                <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 flex flex-col gap-2">
+                  <p className="text-xs text-amber-100/90 leading-relaxed">
+                    {t('vault.languagePackAlertSettings')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/offgrid-vault')}
+                      className="min-h-[44px] px-3 py-2 rounded-lg bg-amber-500 text-amber-950 text-[11px] font-bold uppercase tracking-wide"
+                    >
+                      {t('vault.languagePackAlertAction')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissPackLanguageAlert();
+                        setPackAlertTick((n) => n + 1);
+                      }}
+                      className="min-h-[44px] px-3 py-2 rounded-lg border border-amber-500/30 text-amber-200 text-[11px] font-semibold"
+                    >
+                      {t('vault.languagePackAlertDismiss')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-4 mt-4">

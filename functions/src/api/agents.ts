@@ -22,6 +22,7 @@ import { runRangerAdk } from "../adk/ranger/run";
 import { runChatAdk } from "../adk/chat/run";
 import { buildChatSessionBriefing, buildChatAgentInstruction, buildLanguageDirective } from "../adk/chat/briefing";
 import { parseAgentJsonResponse } from "../adk/parseJson";
+import { stripHeavyMediaFields } from "../adk/chat/knowledge";
 import {
     localizeCoupon,
     localizeDepartment,
@@ -94,11 +95,15 @@ export const environmentalAgent = onRequest({
             return;
         }
 
-        let destinationData = null;
+        let destinationData: Record<string, unknown> | null = null;
         if (destinationId) {
             const destDoc = await db.collection('destinations').doc(destinationId).get();
             if (destDoc.exists) {
-                destinationData = destDoc.data();
+                const raw = mapDestinationForAgent(
+                    destDoc.id,
+                    destDoc.data() as Record<string, unknown>
+                );
+                destinationData = stripHeavyMediaFields(localizeDestination(raw, outputLang));
             }
         }
 
@@ -543,6 +548,7 @@ export const chatAgent = onRequest({
                 sessionId: chatId,
                 buildContext: {
                     instruction: adkInstruction,
+                    departmentId: canonicalId,
                     route: {
                         destinations: destinationsForAgent,
                         userCoordinates: coordinates,
@@ -556,12 +562,6 @@ export const chatAgent = onRequest({
                     liveConditions: {
                         destinations: destinationsForAgent,
                         appLanguage,
-                    },
-                    expedition: {
-                        userId,
-                        departmentId: canonicalId,
-                        appLanguage,
-                        userCoordinates: coordinates,
                     },
                 },
             });

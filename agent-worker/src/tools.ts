@@ -69,7 +69,7 @@ export function createDepartmentTools(departmentId: string, routeCtx?: RouteSess
 
     // ─── getDestinations ─────────────────────────────────────────────────
     const getDestinations = llm.tool({
-        description: 'Obtiene la lista completa de destinos registrados para el departamento de la sesión actual de Colombia en Hidden App. Devuelve información crítica como nombre, descripción, actividades, precio, y telemetría. Úsalo SIEMPRE que el usuario pregunte por lugares, atractivos, o a dónde ir.',
+        description: 'Obtiene la lista completa de destinos registrados para el departamento de la sesión actual de Colombia en Hidden App. Devuelve nombre, descripción, actividades, precios, telemetría y planningNotes (logística editorial: duración, acceso, horarios, combinaciones). Úsalo SIEMPRE que el usuario pregunte por lugares, atractivos, cómo visitar o a dónde ir.',
         parameters: z.object({}),
         execute: async () => {
             try {

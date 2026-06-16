@@ -8,13 +8,16 @@ import { useState } from 'react';
 import { Share } from '@capacitor/share';
 import { Browser } from '@capacitor/browser';
 import { useTranslation } from '../hooks/useTranslation';
+import { EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
+import { TripBalances } from './trips/TripBalances';
+import type { ExpenseCategory, Trip } from '../types/trips';
 
 interface TripHistoryDetailProps {
   language: Language;
   onBack: () => void;
 }
 
-export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) => {
+export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, onBack }) => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -25,23 +28,8 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) 
   if (loadingTrip) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('common.loading')}</div>;
   if (!trip) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('trips.tripNotFound')}</div>;
 
-  const categoryKeys = {
-    food: 'trips.categoryFood',
-    transport: 'trips.categoryTransport',
-    lodging: 'trips.categoryLodging',
-    tours: 'trips.categoryTours',
-    misc: 'trips.categoryMisc'
-  } as const;
-
-  const getCategoryLabel = (category: keyof typeof categoryKeys) => t(categoryKeys[category]);
-
-  const categoriesConfig = {
-    food: { icon: 'restaurant', color: 'text-orange-400', barColor: 'bg-orange-500', bg: 'bg-orange-500/10' },
-    transport: { icon: 'directions_bus', color: 'text-blue-400', barColor: 'bg-blue-500', bg: 'bg-blue-500/10' },
-    lodging: { icon: 'hotel', color: 'text-indigo-400', barColor: 'bg-indigo-500', bg: 'bg-indigo-500/10' },
-    tours: { icon: 'hiking', color: 'text-green-400', barColor: 'bg-green-500', bg: 'bg-green-500/10' },
-    misc: { icon: 'receipt_long', color: 'text-content-muted', barColor: 'bg-gray-500', bg: 'bg-gray-500/10' }
-  };
+  const getCategoryLabel = (category: ExpenseCategory) => t(EXPENSE_CATEGORY_KEYS[category]);
+  const categoriesConfig = EXPENSE_CATEGORIES_CONFIG;
 
   const totalSpent = firestoreExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -69,7 +57,8 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) 
     if (!id || !user || isExporting) return;
     setIsExporting(true);
     try {
-        await exportTripToPdf(id, user.uid, trip.name);
+        const pdfLang = language === Language.English ? 'en' : 'es';
+        await exportTripToPdf(id, user.uid, pdfLang);
         // We do not set the trip explicitly because useTrip hook listens to real-time updates!
         // It will re-render automatically once the Cloud Function updates the document.
     } catch (error) {
@@ -150,7 +139,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) 
               stat.percent > 0 && (
                 <div key={stat.key} className="flex items-center gap-1.5">
                   <div className={`w-2 h-2 rounded-full ${categoriesConfig[stat.key as keyof typeof categoriesConfig].barColor}`}></div>
-                  <span className="text-xs font-bold text-gray-600">{getCategoryLabel(stat.key as keyof typeof categoryKeys)}</span>
+                  <span className="text-xs font-bold text-gray-600">{getCategoryLabel(stat.key as ExpenseCategory)}</span>
                   <span className="text-xs text-content-muted">{Math.round(stat.percent)}%</span>
                 </div>
               )
@@ -172,7 +161,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) 
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
                   <p className="font-bold text-content text-base truncate pr-2 group-hover:text-budget-primary transition-colors">{expense.note}</p>
-                  <p className="text-[11px] text-content/20 font-bold uppercase tracking-wide mt-0.5">{getCategoryLabel(expense.category as keyof typeof categoryKeys)} • {expense.time || expense.date}</p>
+                  <p className="text-[11px] text-content/20 font-bold uppercase tracking-wide mt-0.5">{getCategoryLabel(expense.category as ExpenseCategory)} • {expense.time || expense.date}</p>
                 </div>
                 <p className="font-black text-content text-base whitespace-nowrap tracking-tight">{formatCurrency(expense.amount)}</p>
               </div>
@@ -184,6 +173,10 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ onBack }) 
             </div>
           )}
         </div>
+
+        {trip.type === 'group' && (
+          <TripBalances trip={trip as Trip} expenses={firestoreExpenses} currentUid={user?.uid} />
+        )}
 
         {/* Export Button Section */}
         <div className="mt-8 mb-10 px-8">

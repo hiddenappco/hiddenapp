@@ -6,6 +6,7 @@ import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 
 interface ManualSearchProps {
   language: Language;
@@ -81,7 +82,7 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
       </div>
 
       {/* Results List */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 no-scrollbar pb-32">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
         {loading ? (
           <div className="flex justify-center p-10 text-content/40"><p>{t('explore.searching')}</p></div>

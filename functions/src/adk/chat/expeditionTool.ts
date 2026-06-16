@@ -2,6 +2,7 @@ import { FunctionTool } from '@google/adk';
 import { z } from 'zod';
 import { db, admin } from '../../config/firebase';
 import type { AppLanguage } from './briefing';
+import { GROUND_MOBILITY_VALUES, type GroundMobility } from '../expedition/types';
 
 export interface ExpeditionToolContext {
     userId: string;
@@ -9,6 +10,8 @@ export interface ExpeditionToolContext {
     appLanguage: AppLanguage;
     userCoordinates?: { lat: number; lng: number } | null;
 }
+
+const GROUND_MOBILITY_SCHEMA = z.enum(['private_vehicle', 'public_transport', 'mixed']);
 
 /**
  * Chat entry point for the multi-agent expedition planner. Enqueues an
@@ -19,9 +22,14 @@ export function createPlanExpeditionTool(ctx: ExpeditionToolContext): FunctionTo
     return new FunctionTool({
         name: 'planExpedition',
         description:
-            'Use when the user asks to plan a trip, expedition or itinerary of one or more days (e.g. "plan me 3 days", "arma mi expedición"). Starts the multi-agent planner in the background. Ask for the number of days first if the user did not specify it.',
+            'Use when the user asks to plan a trip, expedition or itinerary of one or more days (e.g. "plan me 3 days", "arma mi expedición"). ' +
+            'Before calling: confirm number of days, starting city, AND ground transport (private vehicle, public buses/colectivos, or mixed). ' +
+            'Starts the multi-agent planner in the background.',
         parameters: z.object({
             days: z.number().int().min(1).max(10).describe('Number of travel days requested.'),
+            groundMobility: GROUND_MOBILITY_SCHEMA.describe(
+                'Required. private_vehicle = car/moto; public_transport = buses/colectivos with fixed schedules; mixed = own vehicle to a hub then public/local legs.'
+            ),
             originLabel: z
                 .string()
                 .optional()
@@ -32,25 +40,41 @@ export function createPlanExpeditionTool(ctx: ExpeditionToolContext): FunctionTo
                 .describe('Traveler interests mentioned: rivers, sea, hiking, gastronomy, wildlife...'),
             budget: z.string().optional().describe('Approximate budget if the user mentioned one.'),
         }),
-        execute: async ({ days, originLabel, interests, budget }) => {
+        execute: async ({ days, groundMobility, originLabel, interests, budget }) => {
+            const mobility: GroundMobility = GROUND_MOBILITY_VALUES.includes(groundMobility)
+                ? groundMobility
+                : 'private_vehicle';
+
             const docRef = await db.collection('expeditions').add({
                 userId: ctx.userId,
                 departmentId: ctx.departmentId,
                 language: ctx.appLanguage,
                 request: {
                     days,
+                    groundMobility: mobility,
+                    origin: {
+                        label: originLabel || '',
+                        lat: ctx.userCoordinates?.lat ?? null,
+                        lng: ctx.userCoordinates?.lng ?? null,
+                    },
                     originLabel: originLabel || '',
                     originLat: ctx.userCoordinates?.lat ?? null,
                     originLng: ctx.userCoordinates?.lng ?? null,
-                    interests: interests || [],
-                    budget: budget || '',
+                    interests: interests?.length ? interests : ['general'],
+                    budgetMode: budget ? 'fixed' : 'open',
+                    budget: budget ? { amountCOP: parseInt(String(budget).replace(/\D/g, ''), 10) || null } : {},
+                    budget_legacy: budget || '',
+                    pace: 'balanced',
+                    travelerProfile: 'solo',
                 },
                 status: 'queued',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            console.log(`[planExpedition] Enqueued ${docRef.id} | ${ctx.departmentId} | ${days} days`);
+            console.log(
+                `[planExpedition] Enqueued ${docRef.id} | ${ctx.departmentId} | ${days} days | ${mobility}`
+            );
 
             return {
                 expeditionId: docRef.id,

@@ -1,6 +1,5 @@
 import { LlmAgent, type ToolUnion } from '@google/adk';
 import { getCatalogMcpToolset } from '../mcp/catalogToolset';
-import { createPlanExpeditionTool, type ExpeditionToolContext } from './expeditionTool';
 import { createCatalogRagTools, type CatalogToolContext } from './ragTools';
 import { createLiveConditionsTool, type LiveConditionsToolContext } from './rangerTool';
 import { createCheckRouteStatusTool, type RouteToolContext } from './tools';
@@ -9,8 +8,8 @@ export interface HyperlocalChatBuildContext {
     route: RouteToolContext;
     catalog: CatalogToolContext;
     liveConditions: LiveConditionsToolContext;
-    expedition: ExpeditionToolContext;
-    /** Session-scoped briefing: personality, rules, catalog access, output format. */
+    /** Canonical department id — used for planner deep links in instructions. */
+    departmentId: string;
     instruction: string;
 }
 
@@ -21,9 +20,13 @@ CATALOG ACCESS (Agentic RAG):
 - Otherwise use getDepartment, getDestinations, getRefugios, getCoupons, getEvents, getNews FunctionTools.
 - Use checkRouteStatus for travel, traffic, routes, tolls, or "how to get there".
 - Use getLiveConditions for CURRENT weather, live conditions, tides, air quality or environmental safety at a destination.
-- Use planExpedition when the user asks to plan a multi-day trip, expedition or itinerary. It runs in the background: reply that the plan is being prepared and include the expedition widget exactly as the tool instructs.
+
+MULTI-DAY / MULTI-DESTINATION TRIPS:
+- You do NOT run the full expedition planner. If the user wants an itinerary across SEVERAL destinations or several days touring the region, warmly direct them to the dedicated Hidden Trip Planner at /expedition/plan/{departmentId}. Offer to help with questions while they plan.
+- For ONE destination only: you MAY suggest a day plan (activities, timing) using getDestinations and the destination checklist — keep it tactical and grounded in catalog data.
 
 Never invent prices, routes, weather, or catalog entries. Always fetch real data via tools before citing fichas.
+When a destination includes planningNotes (editorial logistics: duration, access, schedules, combinations), use it before improvising from description alone.
 Widget ids must come from tool results.`;
 
 function createHyperlocalChatAgent(tools: ToolUnion[], sessionInstruction: string): LlmAgent {
@@ -37,16 +40,11 @@ function createHyperlocalChatAgent(tools: ToolUnion[], sessionInstruction: strin
     });
 }
 
-/**
- * Builds chat agent with MCP catalog toolset (pilot) + FunctionTool RAG fallback
- * + route analysis + live environmental conditions (Ranger as a tool).
- */
 export async function buildHyperlocalChatAgent(
     ctx: HyperlocalChatBuildContext
 ): Promise<LlmAgent> {
     const routeTool = createCheckRouteStatusTool(ctx.route);
     const liveConditionsTool = createLiveConditionsTool(ctx.liveConditions);
-    const expeditionTool = createPlanExpeditionTool(ctx.expedition);
     const mcpToolset = await getCatalogMcpToolset(
         ctx.catalog.departmentId,
         ctx.catalog.appLanguage ?? 'es'
@@ -54,14 +52,11 @@ export async function buildHyperlocalChatAgent(
 
     if (mcpToolset) {
         return createHyperlocalChatAgent(
-            [mcpToolset, routeTool, liveConditionsTool, expeditionTool],
+            [mcpToolset, routeTool, liveConditionsTool],
             ctx.instruction
         );
     }
 
     const ragTools = createCatalogRagTools(ctx.catalog);
-    return createHyperlocalChatAgent(
-        [...ragTools, routeTool, liveConditionsTool, expeditionTool],
-        ctx.instruction
-    );
+    return createHyperlocalChatAgent([...ragTools, routeTool, liveConditionsTool], ctx.instruction);
 }

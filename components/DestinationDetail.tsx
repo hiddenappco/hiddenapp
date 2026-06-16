@@ -5,6 +5,7 @@ import { useAuth } from './layout/AuthProvider';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { Browser } from '@capacitor/browser';
+import { exportDestinationToPdf } from '../services/pdfExportService';
 import { Language } from '../types/core';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { GettingThereItem, PricingItem } from '../types/content';
@@ -30,13 +31,14 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   onBack,
   destinationId: propId
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const finalId = id || propId;
 
   const { data: destination, loading } = useDestination(finalId);
   const { user } = useAuth();
   const { isSaved } = useIsFavorite(user?.uid, finalId, 'destination');
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const { data: userProfile } = useUserProfile(user?.uid);
   const completedActivities = userProfile?.completedActivities?.[finalId || ''] || [];
@@ -138,10 +140,27 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   };
 
   const handleDownloadPdf = async () => {
-    if (destination?.pdfFile) {
-      await Browser.open({ url: destination.pdfFile });
-    } else {
-      alert(t('common.premiumGuideOnly'));
+    if (!finalId || !user) {
+      navigate('/login');
+      return;
+    }
+    if (!isPremium) {
+      navigate('/premium');
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const url = await exportDestinationToPdf(finalId, language === Language.English ? 'en' : 'es');
+      await Browser.open({ url });
+    } catch (err) {
+      const code = String((err as Error).message || '');
+      if (code.includes('PREMIUM_REQUIRED')) {
+        navigate('/premium');
+      } else {
+        alert(t('destination.pdfError'));
+      }
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -151,6 +170,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     downloadPdf: t('destination.downloadPdf'),
     downloadPremium: t('destination.downloadPremium'),
     pdfLocked: t('destination.pdfLocked'),
+    pdfGenerating: t('destination.pdfGenerating'),
     loading: t('destination.loading'),
     notFound: t('destination.notFound'),
     aboutTitle: t('destination.about'),
@@ -209,7 +229,8 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
         <DestinationActions
           onDownloadPdf={handleDownloadPdf}
           onOpenMap={handleOpenMap}
-          pdfFile={destination.pdfFile}
+          isPremium={isPremium}
+          pdfLoading={pdfLoading}
           texts={texts}
         />
 

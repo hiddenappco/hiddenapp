@@ -5,6 +5,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useDepartments, useDestinationCounts, resolveDestinationCount } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { formatDepartmentStatValue } from '../utils/departmentIdentity';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 
 interface HomeProps {
   language: Language;
@@ -93,7 +94,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full overflow-y-auto no-scrollbar pt-3 pb-8 z-10">
+      <main className={`flex-1 w-full overflow-y-auto no-scrollbar pt-3 z-10 ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
         {/* Intro */}
         <div className="px-6 mb-6 text-center">

@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 
 import { EnvironmentalHeader } from './environmental/EnvironmentalHeader';
 import { IntelligenceAdvice } from './environmental/IntelligenceAdvice';
@@ -155,7 +156,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     }
 
     return (
-        <div className="bg-background-dark text-content-secondary font-display antialiased overflow-x-hidden h-screen overflow-y-auto pb-[calc(7rem+env(safe-area-inset-bottom,1.5rem))] flex flex-col">
+        <div className={`bg-background-dark text-content-secondary font-display antialiased overflow-x-hidden h-screen overflow-y-auto flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
             <EnvironmentalHeader
                 isMonitoring={isMonitoring}
                 envData={envData}

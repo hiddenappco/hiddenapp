@@ -1,17 +1,24 @@
 import fetch from "node-fetch";
 import { ENV } from "../config/env";
 
-export async function getRouteAnalysis(originLat: number, originLng: number, destLat: number, destLng: number) {
+export async function getRouteAnalysis(
+    originLat: number,
+    originLng: number,
+    destLat: number,
+    destLng: number,
+    opts?: { languageCode?: string }
+) {
     try {
         const url = 'https://routes.googleapis.com/directions/v2:computeRoutes';
         const apiKey = String(process.env.GOOGLE_MAPS_API_KEY || ENV.GOOGLE_MAPS_API_KEY).trim();
+        const languageCode = opts?.languageCode === 'en' ? 'en-US' : 'es-CO';
         const requestBody = {
             origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
             destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
             travelMode: 'DRIVE',
             routingPreference: 'TRAFFIC_AWARE',
             computeAlternativeRoutes: true,
-            languageCode: 'es-CO',
+            languageCode,
             units: 'METRIC',
             extraComputations: ['TOLLS']
         };

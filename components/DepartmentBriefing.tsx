@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Language } from '../types/core';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useDepartment, useDestinations, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
@@ -8,6 +8,8 @@ import { normalizeListValue } from '../utils/departmentContent';
 import { formatDepartmentStatValue } from '../utils/departmentIdentity';
 import { useTranslation } from '../hooks/useTranslation';
 import { RichTextContent } from './ui/RichTextContent';
+import { setLastDepartmentId } from '../utils/lastDepartment';
+import { isExpeditionPlannerLocked } from '../utils/expeditionPlanner';
 
 interface DepartmentBriefingProps {
   language: Language;
@@ -25,6 +27,7 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const finalId = propId || id;
 
@@ -32,7 +35,12 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
   const effectiveDeptId = data?.departmentId || finalId;
   const { data: destinations } = useDestinations(effectiveDeptId);
 
+  useEffect(() => {
+    if (effectiveDeptId) setLastDepartmentId(effectiveDeptId);
+  }, [effectiveDeptId]);
+
   const heroImage = data ? normalizeImage(data.heroImage) : '';
+  const plannerLocked = isExpeditionPlannerLocked(effectiveDeptId, data);
 
   const ecosystemItems = useMemo(
     () => (data?.ecosystems ? normalizeListValue(data.ecosystems) : []),
@@ -85,7 +93,7 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
         </div>
       </div>
 
-      <div className="relative z-10 -mt-6 rounded-t-3xl bg-background-dark px-6 pt-8 pb-32">
+      <div className="relative z-10 -mt-6 rounded-t-3xl bg-background-dark px-6 pt-8 pb-24">
         {data.description && (
           <div className="mb-8">
             <RichTextContent content={data.description} />
@@ -272,14 +280,36 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background-dark via-background-dark to-transparent pt-12 pb-safe z-30">
-        <button
-          onClick={() => onMoreInfo(effectiveDeptId || '')}
-          className="w-full bg-gradient-to-r from-primary to-[#E05D2B] hover:opacity-90 active:scale-[0.98] transition-all text-white font-bold text-lg py-4 px-6 rounded-xl shadow-xl shadow-primary/30 flex items-center justify-center gap-2"
-        >
-          <span className="material-symbols-outlined filled-icon">support_agent</span>
-          {t('department.cta')}
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-safe pt-4 bg-gradient-to-t from-background-dark via-background-dark/90 to-transparent">
+        <div className="mx-auto flex max-w-md overflow-hidden rounded-xl glass-surface">
+          <button
+            type="button"
+            disabled={plannerLocked}
+            onClick={() => !plannerLocked && navigate(`/expedition/plan/${effectiveDeptId}`)}
+            className={`flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-r border-overlay/10 px-2 py-2 transition-colors sm:flex-row sm:gap-1.5 sm:px-3 ${
+              plannerLocked
+                ? 'cursor-not-allowed text-content-muted'
+                : 'text-primary hover:bg-primary/5 active:bg-primary/10'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px] shrink-0">
+              {plannerLocked ? 'lock' : 'explore'}
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight sm:text-xs">
+              {plannerLocked ? t('expedition.plannerComingSoon') : t('department.plannerCta')}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoreInfo(effectiveDeptId || '')}
+            className="flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 bg-primary px-2 py-2 text-white transition-colors hover:bg-primary/90 active:bg-primary/80 sm:flex-row sm:gap-1.5 sm:px-3"
+          >
+            <span className="material-symbols-outlined filled-icon text-[18px] shrink-0">support_agent</span>
+            <span className="text-center text-[11px] font-semibold leading-tight sm:text-xs">
+              {t('department.cta')}
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

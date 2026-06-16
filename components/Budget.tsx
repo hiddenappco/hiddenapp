@@ -2,6 +2,7 @@ import React from 'react';
 import { Language } from '../types/core';
 import { Trip } from '../types/trips';
 import { useTranslation } from '../hooks/useTranslation';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 
 interface BudgetProps {
   language: Language;
@@ -10,9 +11,13 @@ interface BudgetProps {
   onBack: () => void;
   onMenuClick: () => void;
   onCreateTrip: () => void;
+  onJoinTrip: () => void;
+  onOpenConverter: () => void;
   onOpenTrip: () => void;
   onOpenHistoryTrip: (trip: Trip) => void;
   onDeleteTrip: (tripId: string) => void;
+  pendingSyncCount?: number;
+  isOnline?: boolean;
 }
 
 export const Budget: React.FC<BudgetProps> = ({
@@ -22,9 +27,13 @@ export const Budget: React.FC<BudgetProps> = ({
   onBack,
   onMenuClick,
   onCreateTrip,
+  onJoinTrip,
+  onOpenConverter,
   onOpenTrip,
   onOpenHistoryTrip,
-  onDeleteTrip
+  onDeleteTrip,
+  pendingSyncCount = 0,
+  isOnline = true,
 }) => {
   const { t } = useTranslation();
 
@@ -69,7 +78,43 @@ export const Budget: React.FC<BudgetProps> = ({
         <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
       </header>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-[calc(6rem+env(safe-area-inset-bottom,1.5rem))]">
+      <main className={`flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
+
+        {(!isOnline || pendingSyncCount > 0) && (
+          <div className={`px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+            isOnline ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+          }`}>
+            <span className="material-symbols-outlined text-base">{isOnline ? 'cloud_upload' : 'cloud_off'}</span>
+            {!isOnline ? t('trips.offlineMode') : t('trips.pendingSync', { count: pendingSyncCount })}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onOpenConverter}
+            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-1"
+          >
+            <span className="material-symbols-outlined text-base text-budget-primary shrink-0">currency_exchange</span>
+            <span className="truncate">{t('trips.converterLink')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onJoinTrip}
+            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-1"
+          >
+            <span className="material-symbols-outlined text-base text-budget-primary shrink-0">group_add</span>
+            <span className="truncate">{t('trips.joinTrip')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCreateTrip}
+            className="flex-[1.15] min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-budget-primary hover:bg-budget-primary-dark text-white text-[10px] sm:text-xs font-bold shadow-md shadow-black/20 active:scale-[0.98] transition-all px-1.5"
+          >
+            <span className="material-symbols-outlined text-[18px] shrink-0">add</span>
+            <span className="truncate">{t('budget.createNewShort')}</span>
+          </button>
+        </div>
 
         {/* Active Trip Section */}
         <section>
@@ -101,6 +146,12 @@ export const Budget: React.FC<BudgetProps> = ({
                   <h2 className="text-2xl font-black text-content leading-tight tracking-tight group-hover:text-budget-primary transition-colors">
                     {activeTrip.name}
                   </h2>
+                  {activeTrip.type === 'group' && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-budget-primary uppercase">
+                      <span className="material-symbols-outlined text-xs">groups</span>
+                      {t('trips.groupTrip')}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-end justify-between border-t border-white/[0.05] pt-5 mt-auto">
@@ -124,14 +175,14 @@ export const Budget: React.FC<BudgetProps> = ({
             /* Empty State */
             <div
               onClick={onCreateTrip}
-              className="rounded-[32px] border-2 border-dashed border-overlay/10 p-12 flex flex-col items-center justify-center text-center gap-5 cursor-pointer hover:bg-white/[0.02] hover:border-budget-primary/30 transition-all group"
+              className="rounded-[32px] border-2 border-dashed border-overlay/10 p-10 flex flex-col items-center justify-center text-center gap-4 cursor-pointer hover:bg-white/[0.02] hover:border-budget-primary/25 transition-all group"
             >
-              <div className="size-16 rounded-[22px] bg-overlay/5 flex items-center justify-center group-hover:bg-budget-primary group-hover:scale-110 transition-all shadow-lg">
-                <span className="material-symbols-outlined text-3xl text-content/20 group-hover:text-content">add_location_alt</span>
+              <div className="size-14 rounded-[20px] bg-overlay/5 flex items-center justify-center group-hover:bg-budget-primary/20 transition-all">
+                <span className="material-symbols-outlined text-2xl text-content/25 group-hover:text-budget-primary">add_location_alt</span>
               </div>
               <div>
-                <p className="text-content/40 font-medium text-sm mb-1">{t('budget.noActive')}</p>
-                <p className="text-budget-primary font-bold text-base tracking-wide">{t('budget.startOne')}</p>
+                <p className="text-content/40 font-medium text-sm">{t('budget.noActive')}</p>
+                <p className="text-content/30 text-xs mt-1">{t('budget.startOneHint')}</p>
               </div>
             </div>
           )}
@@ -188,17 +239,6 @@ export const Budget: React.FC<BudgetProps> = ({
         </section>
 
       </main>
-
-      {/* FAB: Create Trip */}
-      <div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] right-6 z-50">
-        <button
-          onClick={onCreateTrip}
-          className="flex items-center gap-2 bg-budget-primary hover:bg-budget-primary-dark text-white h-14 px-6 rounded-full shadow-lg shadow-budget-primary/30 active:scale-95 transition-all"
-        >
-          <span className="material-symbols-outlined text-[24px]">add</span>
-          <span className="font-bold text-sm tracking-wide">{t('budget.createNew')}</span>
-        </button>
-      </div>
     </div>
   );
 };

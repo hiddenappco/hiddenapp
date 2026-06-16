@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useOffGrid } from '../hooks/useOffGrid';
 import { useDepartments } from '../hooks/useContent';
 import { Language } from '../types/core';
@@ -7,11 +7,19 @@ import { OfflineChat } from './OfflineChat';
 import { OffGridManual } from './OffGridManual';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { VaultLocalSearchSource } from '../services/localLlmService';
+import { ConnectivityBanner, networkBannerVariant, networkStatusLabel } from './ui/ConnectivityBanner';
+import { DataConfirmModal } from './ui/DataConfirmModal';
+import { formatPackSize } from '../utils/formatPackSize';
 
 interface OffGridVaultProps {
   language: Language;
   onMenuClick: () => void;
 }
+
+type PendingDownload =
+  | { kind: 'pack'; deptKey: string; deptName: string; sizeBytes?: number }
+  | { kind: 'gemma' }
+  | null;
 
 const VAULT_SOURCE_LABEL_KEYS: Record<VaultLocalSearchSource, string> = {
   protocol: 'vault.sourceProtocol',
@@ -19,12 +27,14 @@ const VAULT_SOURCE_LABEL_KEYS: Record<VaultLocalSearchSource, string> = {
   refugio: 'vault.sourceRefugio',
   coupon: 'vault.sourceCoupon',
   event: 'vault.sourceEvent',
+  department: 'vault.sourceDepartment',
 };
 
 export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClick }) => {
   const { t } = useTranslation();
   const [showOfflineChat, setShowOfflineChat] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [pendingDownload, setPendingDownload] = useState<PendingDownload>(null);
   const {
     downloadedPacks,
     updateAvailable,
@@ -33,15 +43,22 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     gemmaInstalled,
     installingGemma,
     gemmaProgress,
-    isWifi,
+    network,
     storageEstimate,
     installGemma,
     uninstallGemma,
     downloadPack,
     deletePack,
     searchLocalVault,
-    packsMetadata
+    packsMetadata,
+    packLanguageAlert,
+    dismissPackLanguageAlert,
   } = useOffGrid();
+
+  const netStatus = networkStatusLabel(t, network);
+  const bannerVariant = networkBannerVariant(network);
+
+  const packsSectionRef = useRef<HTMLElement>(null);
 
   const { data: departments, loading: deptsLoading } = useDepartments();
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,7 +101,6 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
   const strokeDash = 2 * Math.PI * 45; // radius is 45
   const strokeOffset = strokeDash - (storageEstimate.percentage / 100) * strokeDash;
 
-  // Handle local query test
   const handleTestQuery = async () => {
     if (!searchTerm.trim()) {
       setSearchError(t('vault.enterSearchTerm'));
@@ -118,6 +134,39 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     }
   };
 
+  const requestPackDownload = (deptKey: string, deptName: string, sizeBytes?: number) => {
+    if (!network.isOnline) return;
+    setPendingDownload({ kind: 'pack', deptKey, deptName, sizeBytes });
+  };
+
+  const requestGemmaInstall = () => {
+    if (!network.isOnline) return;
+    if (!network.isWifi) return;
+    setPendingDownload({ kind: 'gemma' });
+  };
+
+  const confirmPendingDownload = () => {
+    if (!pendingDownload) return;
+    if (pendingDownload.kind === 'pack') {
+      downloadPack(pendingDownload.deptKey, pendingDownload.deptName);
+    } else {
+      installGemma();
+    }
+    setPendingDownload(null);
+  };
+
+  const packConfirmCopy = () => {
+    if (!pendingDownload || pendingDownload.kind !== 'pack') return { title: '', body: '', warning: undefined };
+    const sizeLabel = pendingDownload.sizeBytes
+      ? formatPackSize(pendingDownload.sizeBytes)
+      : t('connectivity.packConfirmBuilding');
+    return {
+      title: t('connectivity.packConfirmTitle', { name: pendingDownload.deptName }),
+      body: t('connectivity.packConfirmBody', { size: sizeLabel }),
+      warning: network.isCellular ? t('connectivity.cellularWarning') : undefined,
+    };
+  };
+
   return (
     <div className="bg-background-dark font-display text-content antialiased h-full w-full flex flex-col overflow-y-auto no-scrollbar relative selection:bg-primary selection:text-white">
       
@@ -136,27 +185,78 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
           </h2>
           <div
             className={`flex items-center gap-1.5 shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-              isWifi
+              netStatus.tone === 'ok'
                 ? 'border-emerald-500/25 text-emerald-400 bg-emerald-500/10'
-                : 'border-red-500/25 text-red-400 bg-red-500/10'
+                : netStatus.tone === 'warn'
+                  ? 'border-amber-500/25 text-amber-300 bg-amber-500/10'
+                  : 'border-red-500/25 text-red-400 bg-red-500/10'
             }`}
             title={t('vault.networkStatusHint')}
-            aria-label={`${t('vault.networkStatusHint')}: ${isWifi ? t('vault.online') : t('vault.offline')}`}
+            aria-label={`${t('vault.networkStatusHint')}: ${netStatus.label}`}
           >
             <span
-              className={`size-2 rounded-full shrink-0 ${isWifi ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}
+              className={`size-2 rounded-full shrink-0 ${
+                netStatus.tone === 'ok'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : netStatus.tone === 'warn'
+                    ? 'bg-amber-500'
+                    : 'bg-red-500'
+              }`}
               aria-hidden
             />
-            <span className="material-symbols-outlined text-[14px] leading-none">
-              {isWifi ? 'cloud_done' : 'cloud_off'}
-            </span>
-            <span className="hidden min-[360px]:inline">{isWifi ? t('vault.online') : t('vault.offline')}</span>
+            <span className="material-symbols-outlined text-[14px] leading-none">{netStatus.icon}</span>
+            <span className="hidden min-[360px]:inline">{netStatus.label}</span>
           </div>
         </div>
       </header>
 
-      {/* Main Body */}
       <main className="p-5 flex flex-col gap-6 pb-[calc(4rem+env(safe-area-inset-bottom,1.5rem))]">
+        {bannerVariant && (
+          <ConnectivityBanner variant={bannerVariant} />
+        )}
+
+        {packLanguageAlert && hasDownloadedPacks && (
+          <section
+            role="status"
+            className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col gap-3"
+          >
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-amber-400 text-[22px] shrink-0 mt-0.5">
+                translate
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-bold text-amber-100 leading-snug">
+                  {t('vault.languagePackAlertTitle')}
+                </h3>
+                <p className="text-xs text-amber-200/80 mt-1 leading-relaxed">
+                  {t('vault.languagePackAlertBody')}
+                </p>
+                {!network.isOnline && (
+                  <p className="text-[11px] text-amber-300/70 mt-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">wifi_off</span>
+                    {t('vault.languagePackAlertWifiNote')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 pl-9">
+              <button
+                type="button"
+                onClick={() => packsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-500 text-amber-950 text-xs font-bold uppercase tracking-wide hover:bg-amber-400 transition-colors"
+              >
+                {t('vault.languagePackAlertAction')}
+              </button>
+              <button
+                type="button"
+                onClick={dismissPackLanguageAlert}
+                className="min-h-[44px] px-4 py-2 rounded-xl border border-amber-500/30 text-amber-200 text-xs font-semibold hover:bg-amber-500/10 transition-colors"
+              >
+                {t('vault.languagePackAlertDismiss')}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* MANUAL DEL VIAJERO OFFLINE - COMPACT PREMIUM BANNER */}
         <section 
@@ -256,7 +356,10 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
         </section>
 
         {/* MODULAR DEPARTMENT PACKS SECTION — Paso 1 */}
-        <section className="relative overflow-hidden rounded-[30px] bg-surface-dark dark:bg-gradient-to-br dark:from-[#0a1f35] dark:to-[#12385c] p-6 border border-overlay/10 shadow-lg dark:shadow-black/30">
+        <section
+          ref={packsSectionRef}
+          className="relative overflow-hidden rounded-[30px] bg-surface-dark dark:bg-gradient-to-br dark:from-[#0a1f35] dark:to-[#12385c] p-6 border border-overlay/10 shadow-lg dark:shadow-black/30"
+        >
           <h3 className="text-content/40 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-sm text-emerald-500">folder_zip</span>
             {t('vault.stepPacks')} · {t('vault.departmentPacks')}
@@ -346,11 +449,11 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
 
                         {isDownloaded && hasUpdate && (
                           <button
-                            onClick={() => downloadPack(deptKey, dept.name)}
-                            disabled={!isWifi}
-                            className={`px-4 py-2 border rounded-[14px] text-[10px] font-bold uppercase transition-all ${
-                              isWifi 
-                                ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600/30 active:scale-[0.98]' 
+                            onClick={() => requestPackDownload(deptKey, dept.name, packsMetadata[deptKey]?.sizeBytes)}
+                            disabled={!network.isOnline}
+                            className={`touch-target px-4 py-2 border rounded-[14px] text-[10px] font-bold uppercase transition-all ${
+                              network.isOnline
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600/30 active:scale-[0.98]'
                                 : 'bg-overlay/5 text-content/30 border-overlay/5 cursor-not-allowed'
                             }`}
                           >
@@ -360,11 +463,11 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
 
                         {!isDownloaded && (
                           <button
-                            onClick={() => downloadPack(deptKey, dept.name)}
-                            disabled={!isWifi}
-                            className={`px-4 py-2 border rounded-[14px] text-[10px] font-bold uppercase transition-all ${
-                              isWifi 
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 active:scale-[0.98]' 
+                            onClick={() => requestPackDownload(deptKey, dept.name, packsMetadata[deptKey]?.sizeBytes)}
+                            disabled={!network.isOnline}
+                            className={`touch-target px-4 py-2 border rounded-[14px] text-[10px] font-bold uppercase transition-all ${
+                              network.isOnline
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 active:scale-[0.98]'
                                 : 'bg-overlay/5 text-content/30 border-overlay/5 cursor-not-allowed'
                             }`}
                           >
@@ -521,16 +624,22 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
           <div className="flex items-center gap-3">
             {!gemmaInstalled && !installingGemma && (
               <button
-                onClick={installGemma}
-                disabled={!isWifi}
-                className={`w-full h-12 font-bold text-xs uppercase tracking-wider rounded-[18px] shadow-lg transition-all ${
-                  isWifi
+                onClick={requestGemmaInstall}
+                disabled={!network.isOnline || !network.isWifi}
+                className={`touch-target w-full h-12 font-bold text-xs uppercase tracking-wider rounded-[18px] shadow-lg transition-all ${
+                  network.isOnline && network.isWifi
                     ? 'bg-overlay/10 hover:bg-overlay/15 text-content border border-emerald-600/40 active:scale-[0.98]'
                     : 'bg-overlay/5 text-content/30 border border-overlay/5 cursor-not-allowed shadow-none'
                 }`}
               >
                 {t('vault.installGemma')}
               </button>
+            )}
+            {!network.isWifi && network.isOnline && !gemmaInstalled && !installingGemma && (
+              <p className="text-[10px] text-amber-400/90 mt-2 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">wifi</span>
+                {t('connectivity.wifiOnlyBlocked')}
+              </p>
             )}
 
             {installingGemma && (
@@ -573,6 +682,28 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
         </section>
 
       </main>
+
+      <DataConfirmModal
+        open={pendingDownload?.kind === 'pack'}
+        title={packConfirmCopy().title}
+        body={packConfirmCopy().body}
+        warning={packConfirmCopy().warning}
+        confirmLabel={t('connectivity.confirmDownload')}
+        cancelLabel={t('connectivity.cancel')}
+        onConfirm={confirmPendingDownload}
+        onCancel={() => setPendingDownload(null)}
+      />
+
+      <DataConfirmModal
+        open={pendingDownload?.kind === 'gemma'}
+        title={t('connectivity.gemmaConfirmTitle')}
+        body={t('connectivity.gemmaConfirmBody')}
+        warning={t('connectivity.wifiRecommended')}
+        confirmLabel={t('connectivity.confirmDownload')}
+        cancelLabel={t('connectivity.cancel')}
+        onConfirm={confirmPendingDownload}
+        onCancel={() => setPendingDownload(null)}
+      />
     </div>
   );
 };

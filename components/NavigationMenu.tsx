@@ -24,6 +24,7 @@ interface NavigationMenuProps {
   onMonitorClick?: () => void;
   onRefugiosClick: () => void;
   onOffGridClick: () => void;
+  onPlannerClick: () => void;
 }
 
 export const NavigationMenu: React.FC<NavigationMenuProps> = ({
@@ -45,7 +46,8 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
   onPactClick,
   onMonitorClick = () => { },
   onRefugiosClick,
-  onOffGridClick
+  onOffGridClick,
+  onPlannerClick
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -71,6 +73,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
       coupons: t('menu.coupons'),
       calendar: t('menu.calendar'),
       budget: t('menu.budget'),
+      tripPlanner: t('menu.tripPlanner'),
       refugios: t('menu.refugios'),
       offGridVault: t('menu.offGridVault'),
       support: t('menu.support'),
@@ -140,7 +143,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
           <div className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
             <ul className="flex flex-col gap-1">
 
-              {/* 1. Mapa (Home) */}
+              {/* 1. Departamentos (Home) */}
               <li>
                 <button
                   onClick={() => { onHomeClick(); onClose(); }}
@@ -151,7 +154,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
                 </button>
               </li>
 
-              {/* 2. Explorar */}
+              {/* 2. Destinos */}
               <li>
                 <button
                   onClick={() => { onSearchClick(); onClose(); }}
@@ -173,14 +176,14 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
                 </button>
               </li>
 
-              {/* 3. Perfil */}
+              {/* Planificador de viajes */}
               <li>
                 <button
-                  onClick={() => { onProfileClick(); onClose(); }}
+                  onClick={() => { onPlannerClick(); onClose(); }}
                   className="group flex w-full h-12 items-center gap-4 rounded-xl px-4 hover:bg-overlay/10 transition-colors text-left"
                 >
-                  <span className="material-symbols-outlined text-content/90 group-hover:text-primary transition-colors">person</span>
-                  <p className="text-base font-medium text-content/90 group-hover:text-content">{texts.menu.profile}</p>
+                  <span className="material-symbols-outlined text-content/90 group-hover:text-primary transition-colors">explore</span>
+                  <p className="text-base font-medium text-content/90 group-hover:text-content">{texts.menu.tripPlanner}</p>
                 </button>
               </li>
 
@@ -219,7 +222,18 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
 
               <div className="my-2 h-px bg-overlay/10 mx-4"></div>
 
-              {/* 5. Noticias */}
+              {/* Perfil */}
+              <li>
+                <button
+                  onClick={() => { onProfileClick(); onClose(); }}
+                  className="group flex w-full h-12 items-center gap-4 rounded-xl px-4 hover:bg-overlay/10 transition-colors text-left"
+                >
+                  <span className="material-symbols-outlined text-content/90 group-hover:text-primary transition-colors">person</span>
+                  <p className="text-base font-medium text-content/90 group-hover:text-content">{texts.menu.profile}</p>
+                </button>
+              </li>
+
+              {/* Noticias */}
               <li>
                 <button
                   onClick={() => { onNewsClick(); onClose(); }}

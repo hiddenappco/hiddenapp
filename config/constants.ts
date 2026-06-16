@@ -1,7 +1,20 @@
 export const API_ENDPOINTS = {
-    // We use process.env or import.meta.env, falling back to the default URL if not defined
-    GENERATE_PDF: import.meta.env.VITE_PDF_EXPORT_URL || 'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateTripPdf',
+    GENERATE_TRIP_PDF:
+        import.meta.env.VITE_PDF_EXPORT_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateTripPdf',
+    GENERATE_DESTINATION_PDF:
+        import.meta.env.VITE_DESTINATION_PDF_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateDestinationPdf',
+    GENERATE_EXPEDITION_PDF:
+        import.meta.env.VITE_EXPEDITION_PDF_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateExpeditionPdf',
     GENERATE_LIVEKIT_TOKEN: import.meta.env.VITE_LIVEKIT_TOKEN_URL || 'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateLiveKitToken',
+    CREATE_EXPEDITION:
+        import.meta.env.VITE_CREATE_EXPEDITION_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/createExpedition',
+    GET_EXCHANGE_RATES:
+        import.meta.env.VITE_EXCHANGE_RATES_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/getExchangeRates',
 };
 
 export const LIVEKIT_CONFIG = {

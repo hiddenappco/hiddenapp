@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNetworkDetails } from './useNetworkDetails';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import axios from 'axios';
@@ -11,6 +12,7 @@ import {
   buildRefugioSearchSQL,
   buildCouponSearchSQL,
   buildEventSearchSQL,
+  buildDepartmentContextSQL,
   buildRagContext,
   type EngineStatus,
   type LlmResponse,
@@ -19,6 +21,12 @@ import {
   type VaultLocalSearchResult,
 } from '@/services/localLlmService';
 import { Language } from '@/types/core';
+import {
+  dismissPackLanguageAlert,
+  shouldShowPackLanguageAlert,
+  syncPackLanguageAlertAfterDownload,
+  type PackLanguageAlertState,
+} from '@/utils/offgridPackLanguageAlert';
 
 // Helper to convert base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -63,6 +71,7 @@ export interface StorageInfo {
 }
 
 export const useOffGrid = () => {
+  const network = useNetworkDetails();
   const [downloadedPacks, setDownloadedPacks] = useState<{ [key: string]: LocalPack }>({});
   const [updateAvailable, setUpdateAvailable] = useState<{ [key: string]: boolean }>({});
   const [downloadProgress, setDownloadProgress] = useState<{ [key: string]: number }>({});
@@ -70,10 +79,10 @@ export const useOffGrid = () => {
   const [gemmaInstalled, setGemmaInstalled] = useState<boolean>(false);
   const [installingGemma, setInstallingGemma] = useState<boolean>(false);
   const [gemmaProgress, setGemmaProgress] = useState<number>(0);
-  const [isWifi, setIsWifi] = useState<boolean>(true); // Default to true, updated dynamically
   const [storageEstimate, setStorageEstimate] = useState<StorageInfo>({ used: 0, total: 1024, percentage: 0 });
   const [sqlEngine, setSqlEngine] = useState<any>(null);
   const [packsMetadata, setPacksMetadata] = useState<{ [key: string]: { sizeBytes?: number } }>({});
+  const [packLanguageAlert, setPackLanguageAlert] = useState<PackLanguageAlertState | null>(null);
 
   // Initialize sql.js
   useEffect(() => {
@@ -91,27 +100,6 @@ export const useOffGrid = () => {
       }
     };
     initSql();
-  }, []);
-
-  // Network: navigator.onLine + connection API (badge and download gating)
-  useEffect(() => {
-    const checkNetwork = () => {
-      setIsWifi(navigator.onLine);
-    };
-
-    checkNetwork();
-    window.addEventListener('online', checkNetwork);
-    window.addEventListener('offline', checkNetwork);
-    const conn =
-      (navigator as Navigator & { connection?: EventTarget }).connection ||
-      (navigator as Navigator & { mozConnection?: EventTarget }).mozConnection ||
-      (navigator as Navigator & { webkitConnection?: EventTarget }).webkitConnection;
-    conn?.addEventListener?.('change', checkNetwork);
-    return () => {
-      window.removeEventListener('online', checkNetwork);
-      window.removeEventListener('offline', checkNetwork);
-      conn?.removeEventListener?.('change', checkNetwork);
-    };
   }, []);
 
   // Update storage estimate
@@ -192,6 +180,10 @@ export const useOffGrid = () => {
     updateStorageEstimate();
   }, [gemmaInstalled, downloadedPacks, updateStorageEstimate]);
 
+  useEffect(() => {
+    setPackLanguageAlert(shouldShowPackLanguageAlert(downloadedPacks));
+  }, [downloadedPacks]);
+
   // Verify updates comparing timestamps
   const checkUpdates = useCallback(async () => {
     if (!navigator.onLine) return;
@@ -271,7 +263,8 @@ export const useOffGrid = () => {
   // Gemma 4 Install Simulation
   const installGemma = async () => {
     if (gemmaInstalled || installingGemma) return;
-    if (!isWifi) {
+    if (!network.isOnline) return;
+    if (!network.isWifi) {
       console.warn('[OffGrid] Gemma install blocked: Wi-Fi required');
       await LocalNotifications.schedule({
         notifications: [{
@@ -376,7 +369,7 @@ export const useOffGrid = () => {
 
   // Download Department Pack
   const downloadPack = async (departmentId: string, departmentName: string) => {
-    if (isDownloading[departmentId]) return;
+    if (isDownloading[departmentId] || !network.isOnline) return;
     
     setIsDownloading(prev => ({ ...prev, [departmentId]: true }));
     setDownloadProgress(prev => ({ ...prev, [departmentId]: 0 }));
@@ -459,7 +452,9 @@ export const useOffGrid = () => {
       const updatedPacks = { ...downloadedPacks, [departmentId]: newPack };
       setDownloadedPacks(updatedPacks);
       localStorage.setItem('offgrid_downloaded_packs', JSON.stringify(updatedPacks));
-      
+      syncPackLanguageAlertAfterDownload(updatedPacks);
+      setPackLanguageAlert(shouldShowPackLanguageAlert(updatedPacks));
+
       // Clear update badge
       setUpdateAvailable(prev => ({ ...prev, [departmentId]: false }));
 
@@ -586,6 +581,16 @@ export const useOffGrid = () => {
   ): Promise<LlmResponse> => {
     const packLang = toPackLang(language);
 
+    // 0. Department briefing (single row; optional in legacy packs)
+    let departmentRow: Record<string, unknown> | null = null;
+    try {
+      const deptSQL = buildDepartmentContextSQL(packLang);
+      const deptRows = await queryOffline(departmentId, deptSQL.sql, deptSQL.params);
+      if (deptRows.length > 0) departmentRow = deptRows[0];
+    } catch (err) {
+      console.warn('[OffGrid RAG] Department context unavailable:', err);
+    }
+
     // 1. Search protocols
     const protocolSQL = buildProtocolSearchSQL(userQuery, packLang);
     let protocolResults: any[] = [];
@@ -638,7 +643,8 @@ export const useOffGrid = () => {
       refugioResults,
       couponResults,
       eventResults,
-      language
+      language,
+      departmentRow
     );
 
     // 5. Generate response via the active engine
@@ -699,7 +705,9 @@ export const useOffGrid = () => {
     gemmaInstalled,
     installingGemma,
     gemmaProgress,
-    isWifi,
+    network,
+    /** @deprecated use network.isOnline */
+    isWifi: network.isOnline,
     storageEstimate,
     installGemma,
     uninstallGemma,
@@ -712,6 +720,11 @@ export const useOffGrid = () => {
     executeOfflineRag,
     searchLocalVault,
     getEngineStatus,
-    initializeEngine
+    initializeEngine,
+    packLanguageAlert,
+    dismissPackLanguageAlert: () => {
+      dismissPackLanguageAlert();
+      setPackLanguageAlert(null);
+    },
   };
 };

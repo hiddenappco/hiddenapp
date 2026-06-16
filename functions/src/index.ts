@@ -19,7 +19,9 @@ export {
 } from './api/agents';
 
 export {
-    generateTripPdf
+    generateTripPdf,
+    generateDestinationPdf,
+    generateExpeditionPdf,
 } from './api/pdf';
 
 export {
@@ -27,8 +29,14 @@ export {
 } from './api/livekit';
 
 export {
+    createExpedition,
     onExpeditionCreate
 } from './api/expeditions';
+
+export {
+    getExchangeRates,
+    scheduledExchangeRates,
+} from './api/exchangeRates';
 
 export {
     generateDepartmentPack,
@@ -36,5 +44,6 @@ export {
     onCouponWritePack,
     onEventWritePack,
     onRefugioWritePack,
+    onDepartmentWritePack,
     onProtocolWritePack
 } from './api/packs';

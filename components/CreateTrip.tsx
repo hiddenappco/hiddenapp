@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
+import { useRevenueCat } from './layout/RevenueCatProvider';
+import type { TripCurrency } from '../types/trips';
 
 interface CreateTripProps {
   language: Language;
   onBack: () => void;
-  onStart: (name: string, destination: string) => void;
+  onStart: (name: string, destination: string, options: { isGroup: boolean; defaultCurrency: TripCurrency }) => void;
 }
 
 export const CreateTrip: React.FC<CreateTripProps> = ({ onBack, onStart }) => {
   const { t } = useTranslation();
+  const { isPremium } = useRevenueCat();
   const [name, setName] = useState('');
   const [dest, setDest] = useState('');
+  const [currency, setCurrency] = useState<TripCurrency>('COP');
+  const [isGroup, setIsGroup] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name && dest) {
-      onStart(name, dest);
+      onStart(name, dest, { isGroup: isGroup && isPremium, defaultCurrency: currency });
     }
   };
 
@@ -24,7 +29,6 @@ export const CreateTrip: React.FC<CreateTripProps> = ({ onBack, onStart }) => {
     <div className="bg-background-dark font-display antialiased text-content h-screen w-full flex flex-col overflow-hidden">
       <div className="relative flex h-full w-full flex-col max-w-md mx-auto bg-background-dark">
 
-        {/* Header */}
         <header className="flex items-center px-4 pb-2 pt-safe justify-between sticky top-0 z-50 shrink-0 bg-background-dark/90 backdrop-blur-md border-b border-overlay/5">
           <button
             onClick={onBack}
@@ -35,13 +39,13 @@ export const CreateTrip: React.FC<CreateTripProps> = ({ onBack, onStart }) => {
           <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
         </header>
 
-        <main className="flex-1 px-6 pt-8 flex flex-col">
+        <main className="flex-1 px-6 pt-8 flex flex-col overflow-y-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-extrabold text-content leading-tight mb-2">{t('trips.startTracking')}</h1>
             <p className="text-content/40 text-sm">{t('trips.configureSubtitle')}</p>
           </div>
 
-          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+          <form className="flex flex-col gap-6 pb-safe" onSubmit={handleSubmit}>
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-content/60 ml-1">{t('trips.tripName')}</label>
@@ -72,19 +76,70 @@ export const CreateTrip: React.FC<CreateTripProps> = ({ onBack, onStart }) => {
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-content/60 ml-1">{t('trips.currency')}</label>
               <div className="flex gap-3">
-                <button type="button" className="flex-1 h-12 rounded-xl border-2 border-budget-primary bg-budget-primary/10 text-budget-primary font-bold shadow-sm">COP ($)</button>
-                <button type="button" className="flex-1 h-12 rounded-xl border border-overlay/10 bg-overlay/5 text-content/40 font-medium hover:bg-overlay/10">USD ($)</button>
-                <button type="button" className="flex-1 h-12 rounded-xl border border-overlay/10 bg-overlay/5 text-content/40 font-medium hover:bg-overlay/10">EUR (€)</button>
+                {(['COP', 'USD', 'EUR'] as TripCurrency[]).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCurrency(c)}
+                    className={`flex-1 h-12 rounded-xl border-2 font-bold transition-all ${
+                      currency === c
+                        ? 'border-budget-primary bg-budget-primary/10 text-budget-primary shadow-sm'
+                        : 'border-overlay/10 bg-overlay/5 text-content/40 hover:bg-overlay/10'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-content-muted ml-1">{t('trips.currencyHint')}</p>
+            </div>
+
+            <div
+              className={`rounded-2xl border p-4 transition-all ${
+                isPremium
+                  ? 'border-overlay/10 bg-overlay/5'
+                  : 'border-budget-primary/20 bg-budget-primary/5 opacity-80'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold text-content text-sm flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">groups</span>
+                    {t('trips.groupTripToggle')}
+                  </p>
+                  <p className="text-xs text-content-muted mt-1">{t('trips.groupTripToggleDesc')}</p>
+                </div>
+                {isPremium ? (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isGroup}
+                    onClick={() => setIsGroup(!isGroup)}
+                    className={`relative shrink-0 w-11 h-6 rounded-full overflow-hidden transition-colors duration-200 ease-in-out ${
+                      isGroup ? 'bg-budget-primary' : 'bg-overlay/25'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-[2px] left-[2px] block size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                        isGroup ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                ) : (
+                  <span className="text-[9px] font-black uppercase tracking-wider text-budget-primary bg-budget-primary/10 px-2 py-1 rounded-lg">
+                    {t('trips.vipBadge')}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="mt-auto pb-safe">
+            <div className="mt-auto">
               <button
                 type="submit"
                 disabled={!name || !dest}
                 className="w-full h-14 bg-budget-primary hover:bg-budget-primary-dark text-white rounded-xl shadow-xl shadow-budget-primary/30 flex items-center justify-center gap-2 font-bold text-lg active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
               >
-                {t('trips.createTracker')}
+                {isGroup && isPremium ? t('trips.createGroupTracker') : t('trips.createTracker')}
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             </div>

@@ -6,6 +6,7 @@ import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { REFUGIO_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 
 interface RefugiosProps {
   language: Language;
@@ -69,7 +70,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
   const isSuggestedView = !searchTerm.trim() && selectedType === 'all';
 
   return (
-    <div className="bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto pb-28 no-scrollbar flex flex-col">
+    <div className={`bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto no-scrollbar flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 flex items-center justify-between transition-colors duration-300 shrink-0">
         <button
@@ -123,7 +124,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
       </div>
 
       {/* Refugios Cards Container */}
-      <div className="flex-1 px-4 pb-12">
+      <div className="flex-1 px-4">
         {!loading && (
           <div className="flex items-center justify-between pt-1 pb-3">
             <h3 className="text-xs font-bold text-content-subtle uppercase tracking-widest">

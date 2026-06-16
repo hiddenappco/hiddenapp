@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { requestNotificationPermission } from './services/firebaseMessaging';
 import {
   createTrip,
+  createGroupTrip,
   useActiveTrip,
   addExpenseToTrip,
   deleteExpenseFromTrip,
@@ -10,53 +11,88 @@ import {
   usePastTrips,
   useUserProfile,
   updateUserProfile,
-  deleteTrip
+  deleteTrip,
 } from './hooks/useFirestore';
+import { useTripSync } from './hooks/useTripSync';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { useServerReachability } from './hooks/useServerReachability';
+import {
+  cacheTripMirror,
+  getActiveTripIdLocal,
+  getTripMirror,
+  makeTempId,
+} from './services/tripLedgerStore';
 
-// Layout & Infrastructure
 import { AuthProvider, useAuth } from './components/layout/AuthProvider';
 import { RevenueCatProvider } from './components/layout/RevenueCatProvider';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppRoutes } from './components/layout/AppRoutes';
 
-// Hooks
 import { useCapacitorHardware } from './hooks/useCapacitorHardware';
 import { useEnvironmentalShieldLifecycle } from './hooks/useEnvironmentalShieldLifecycle';
-import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { useTranslation } from './hooks/useTranslation';
 
-// Types
-import { Expense } from './types/trips';
+import { Expense, Trip, TripCurrency } from './types/trips';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading, logout } = useAuth();
   const { currentLanguage, languageChosen, setLanguage } = useLanguage();
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Global connectivity signal (The Route Guardian Radar).
-  // Uses the native Capacitor Network plugin on device so the offline page
-  // reliably triggers on Android, where navigator.onLine is unreliable.
-  const isWifi = useNetworkStatus();
+  const isOnline = useNetworkStatus();
+  const serverReachable = useServerReachability(isOnline);
 
-  // Device-specific logic (Back button, Google Auth init)
   useCapacitorHardware(user, menuOpen, setMenuOpen);
   useEnvironmentalShieldLifecycle(user?.uid);
 
-  // -- Trip State (Real Persistence via Firestore Hooks) --
-  const { trip: activeTrip } = useActiveTrip(user?.uid);
+  const { trip: firestoreActiveTrip } = useActiveTrip(user?.uid, isOnline);
   const { trips: pastTrips } = usePastTrips(user?.uid);
   const { data: userProfile } = useUserProfile(user?.uid);
 
-  // Request notification permission on login
+  const [localActiveTrip, setLocalActiveTrip] = useState<Trip | null>(null);
+
+  const {
+    pendingCount,
+    syncing,
+    queueCreateTrip,
+    queueAddExpense,
+    queueDeleteExpense,
+    queueFinishTrip,
+    cacheTrip,
+  } = useTripSync(user?.uid);
+
+  useEffect(() => {
+    const resolveActiveTrip = async () => {
+      if (firestoreActiveTrip) {
+        setLocalActiveTrip(null);
+        await cacheTrip(firestoreActiveTrip);
+        return;
+      }
+      const localId = await getActiveTripIdLocal();
+      if (localId) {
+        const mirror = await getTripMirror(localId);
+        if (mirror?.status === 'active') {
+          setLocalActiveTrip(mirror);
+        }
+      } else {
+        setLocalActiveTrip(null);
+      }
+    };
+    resolveActiveTrip();
+  }, [firestoreActiveTrip, cacheTrip, isOnline]);
+
+  const activeTrip = firestoreActiveTrip || localActiveTrip;
+
   useEffect(() => {
     if (user) {
       requestNotificationPermission(user.uid);
     }
   }, [user]);
 
-  // Handle Redirect after login
   useEffect(() => {
     if (user && location.pathname === '/login') {
       navigate('/home');
@@ -68,29 +104,86 @@ const AppContent: React.FC = () => {
       await logout();
       navigate('/login');
     } catch (err) {
-      console.error("Error logging out:", err);
+      console.error('Error logging out:', err);
     }
   };
 
-  const handleCreateTripData = async (name: string, destination: string) => {
+  const displayName =
+    userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || t('trips.traveler');
+
+  const handleCreateTripData = async (
+    name: string,
+    destination: string,
+    options: { isGroup: boolean; defaultCurrency: TripCurrency }
+  ) => {
     if (!user) return;
     try {
-      await createTrip(user.uid, name, destination);
+      if (!isOnline) {
+        const localId = makeTempId('local_trip');
+        const mirror: Trip = {
+          id: localId,
+          userId: user.uid,
+          ownerId: user.uid,
+          name,
+          location: destination,
+          status: 'active',
+          type: options.isGroup ? 'group' : 'solo',
+          defaultCurrency: options.defaultCurrency,
+          expenses: [],
+          date: new Date().toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }),
+          totalSpent: 0,
+          memberIds: [user.uid],
+          members: [{ uid: user.uid, displayName, role: 'owner', joinedAt: new Date().toISOString() }],
+        };
+        await cacheTripMirror(mirror);
+        setLocalActiveTrip(mirror);
+        await queueCreateTrip(localId, {
+          name,
+          location: destination,
+          isGroup: options.isGroup,
+          displayName,
+          defaultCurrency: options.defaultCurrency,
+        });
+        navigate('/current-trip');
+        return;
+      }
+
+      if (options.isGroup) {
+        await createGroupTrip(user.uid, name, destination, displayName, options.defaultCurrency);
+      } else {
+        await createTrip(user.uid, name, destination, options.defaultCurrency);
+      }
       navigate('/current-trip');
     } catch (err) {
-      console.error("Error creating trip:", err);
+      console.error('Error creating trip:', err);
     }
   };
 
-  const handleAddExpense = async (expense: Expense) => {
-    if (activeTrip) {
-      await addExpenseToTrip(activeTrip.id, expense);
+  const handleAddExpense = async (expense: Expense, tempId: string) => {
+    if (!activeTrip) return;
+    const useQueue = !isOnline || activeTrip.id.startsWith('local_');
+    try {
+      if (useQueue) {
+        await queueAddExpense(activeTrip.id, expense, tempId);
+      } else {
+        await addExpenseToTrip(activeTrip.id, expense);
+      }
+    } catch (err) {
+      console.error('Error adding expense:', err);
     }
   };
 
   const handleDeleteExpense = async (expenseId: string, amount: number) => {
-    if (activeTrip) {
-      await deleteExpenseFromTrip(activeTrip.id, expenseId, amount);
+    if (!activeTrip) return;
+    const useQueue = !isOnline || activeTrip.id.startsWith('local_');
+    try {
+      if (useQueue) {
+        await queueDeleteExpense(activeTrip.id, expenseId, amount);
+      } else {
+        await deleteExpenseFromTrip(activeTrip.id, expenseId, amount);
+      }
+    } catch (err) {
+      console.error('Error deleting expense:', err);
     }
   };
 
@@ -98,18 +191,32 @@ const AppContent: React.FC = () => {
     try {
       await deleteTrip(tripId);
     } catch (err) {
-      console.error("Error deleting trip:", err);
+      console.error('Error deleting trip:', err);
     }
   };
 
   const handleFinishTrip = async (total: number) => {
-    if (activeTrip) {
-      await finishTrip(activeTrip.id, total);
+    if (!activeTrip) return;
+    const useQueue = !isOnline || activeTrip.id.startsWith('local_');
+    try {
+      if (useQueue) {
+        await queueFinishTrip(activeTrip.id, total);
+        setLocalActiveTrip(null);
+      } else {
+        await finishTrip(activeTrip.id, total);
+      }
       navigate('/budget');
+    } catch (err) {
+      console.error('Error finishing trip:', err);
     }
   };
 
-  if (loading) return <div className="h-screen w-full bg-background-dark text-white flex items-center justify-center font-display font-medium">Loading...</div>;
+  if (loading)
+    return (
+      <div className="h-screen w-full bg-background-dark text-white flex items-center justify-center font-display font-medium">
+        {t('common.loading')}
+      </div>
+    );
 
   return (
     <AppRoutes
@@ -129,7 +236,11 @@ const AppContent: React.FC = () => {
       handleDeleteTrip={handleDeleteTrip}
       handleFinishTrip={handleFinishTrip}
       updateUserProfile={updateUserProfile}
-      isWifi={isWifi}
+      isOnline={isOnline}
+      serverReachable={serverReachable}
+      tripPendingCount={pendingCount}
+      tripSyncing={syncing}
+      displayName={displayName}
     />
   );
 };

@@ -68,6 +68,8 @@ export function localizeDestination(raw: RawDoc, lang: AppLanguage): Record<stri
         pricingGuide: pickLocalizedObjectArray(doc, 'pricingGuide', lang),
         packingSummary:
             pickLocalized(doc, 'packingSummary', lang) || String(raw.packingSummary || ''),
+        planningNotes:
+            pickLocalized(doc, 'planningNotes', lang) || String(raw.planningNotes || ''),
         packingGuide,
     };
 }
@@ -173,4 +175,5 @@ export const DESTINATION_SEARCH_FIELDS = [
     'aiTip',
     'activities',
     'packingSummary',
+    'planningNotes',
 ] as const;

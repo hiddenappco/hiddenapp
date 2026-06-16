@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { runBackHandlers } from '../services/hardwareBackStack';
+import { getBottomNavTab } from '../utils/bottomNav';
 
 export const useCapacitorHardware = (user: any, menuOpen: boolean, setMenuOpen: (open: boolean) => void) => {
     const location = useLocation();
@@ -63,6 +64,11 @@ export const useCapacitorHardware = (user: any, menuOpen: boolean, setMenuOpen: 
             }
             if (menu) {
                 setMenu(false);
+                return;
+            }
+            const rootTab = getBottomNavTab(pathname);
+            if (u && rootTab && rootTab !== 'home') {
+                nav('/home');
                 return;
             }
             nav(-1);

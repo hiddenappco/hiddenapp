@@ -68,8 +68,11 @@ agent-worker/scratch_*.js
 # Documentación interna / roadmap / tareas (solo local)
 HACKATHON.txt
 HACKATHON_SUBMISSION.md
+Auditoria Y Ventajas a Implementar.txt
 public/unit-economics.html
 roadmap_integraciones.md
+roadmap_producto_voz_usuario.md
+INFORME_AUDITORIA_INVESTIGACION_PRODUCTO.md
 TAREA_*.md
 ANALISIS_FINANCIERO.md
 TECHNICAL_DOCUMENTATION.md

@@ -77,6 +77,118 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Native selects: theme-aware (fallback where custom pickers are not used) */
+  select {
+    color: var(--color-content);
+    background-color: var(--color-surface-dark);
+  }
+
+  select option {
+    background-color: var(--color-surface-dark);
+    color: var(--color-content);
+  }
+}
+
+@layer components {
+  /* Frosted glass — floating bars, cards, badges (see DepartmentBriefing CTA bar) */
+  .glass-surface {
+    border: 1px solid rgb(var(--color-border-overlay) / 0.15);
+    background-color: color-mix(in srgb, var(--color-surface-dark) 95%, transparent);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.25);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--color-border-overlay) / 0.15);
+    background-color: color-mix(in srgb, var(--color-surface-dark) 80%, transparent);
+    padding: 0.25rem 0.625rem;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: color-mix(in srgb, var(--color-content) 90%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Floating thumb navigation — frosted mirror bar (light + dark) */
+  .bottom-nav-glass {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid rgb(var(--color-border-overlay) / 0.16);
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--color-surface-dark) 78%, transparent) 0%,
+      color-mix(in srgb, var(--color-surface-dark) 62%, transparent) 100%
+    );
+    box-shadow:
+      0 8px 28px rgb(15 23 42 / 0.12),
+      0 1px 0 rgb(255 255 255 / 0.65) inset;
+    backdrop-filter: blur(24px) saturate(0.82);
+    -webkit-backdrop-filter: blur(24px) saturate(0.82);
+  }
+
+  .dark .bottom-nav-glass {
+    border-color: rgb(255 255 255 / 0.09);
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--color-surface-dark) 58%, transparent) 0%,
+      color-mix(in srgb, var(--color-nav-bg-dark) 72%, transparent) 100%
+    );
+    box-shadow:
+      0 12px 36px rgb(0 0 0 / 0.38),
+      0 1px 0 rgb(255 255 255 / 0.1) inset;
+    backdrop-filter: blur(28px) brightness(0.92) saturate(0.72);
+    -webkit-backdrop-filter: blur(28px) brightness(0.92) saturate(0.72);
+  }
+
+  /*
+   * Thumb nav spacing — bar height + edge gap + content clearance (see docs/UI_FIELD_CONSTRAINTS.md)
+   * Requires viewport-fit=cover in index.html for env(safe-area-inset-bottom).
+   */
+  :root {
+    --bottom-nav-edge-gap: 0.875rem;
+    --bottom-nav-bar-height: 4.25rem;
+    --bottom-nav-content-gap: 1.25rem;
+    --bottom-nav-fab-height: 3.5rem;
+    --bottom-nav-fab-gap: 0.875rem;
+  }
+
+  .bottom-nav-host {
+    padding-bottom: calc(var(--bottom-nav-edge-gap) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav-scroll-pad {
+    padding-bottom: calc(
+      var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
+        env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  .bottom-nav-fab-anchor {
+    position: absolute;
+    bottom: calc(
+      var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
+        env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  .bottom-nav-scroll-pad-fab {
+    padding-bottom: calc(
+      var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
+        var(--bottom-nav-fab-height) + var(--bottom-nav-fab-gap) + env(safe-area-inset-bottom, 0px)
+    );
+  }
 }
 
 /* Material Symbols Config - STRICT SIZING */

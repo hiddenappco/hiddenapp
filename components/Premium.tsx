@@ -13,7 +13,7 @@ interface PremiumProps {
 export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
   const { t } = useTranslation();
   const { offerings, isPremium, purchasePackage, restorePurchases } = useRevenueCat();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual' | 'lifetime'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<'trip' | 'monthly' | 'annual' | 'lifetime'>('trip');
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   const annualPackage = offerings?.find(pkg => pkg.packageType === PACKAGE_TYPE.ANNUAL);
@@ -21,19 +21,20 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
   const lifetimePackage = offerings?.find(pkg => pkg.packageType === PACKAGE_TYPE.LIFETIME);
 
   const fallbackPrices = {
-    monthly: "$19.900",
-    annual: "$139.900",
-    lifetime: "$249.900"
+    trip: '$17.900',
+    monthly: '$28.900',
+    annual: '$287.900',
+    lifetime: '$539.900',
   };
 
   const benefits = [
-    { icon: "shield_moon", titleKey: "benefit1Title", descKey: "benefit1Desc" },
-    { icon: "psychology", titleKey: "benefit2Title", descKey: "benefit2Desc" },
-    { icon: "map", titleKey: "benefit3Title", descKey: "benefit3Desc" },
-    { icon: "sell", titleKey: "benefit4Title", descKey: "benefit4Desc" },
-    { icon: "download", titleKey: "benefit5Title", descKey: "benefit5Desc" },
-    { icon: "support_agent", titleKey: "benefit6Title", descKey: "benefit6Desc" },
-    { icon: "folder_managed", titleKey: "benefit7Title", descKey: "benefit7Desc" }
+    { icon: 'shield_moon', titleKey: 'benefit1Title', descKey: 'benefit1Desc' },
+    { icon: 'psychology', titleKey: 'benefit2Title', descKey: 'benefit2Desc' },
+    { icon: 'record_voice_over', titleKey: 'benefit3Title', descKey: 'benefit3Desc' },
+    { icon: 'route', titleKey: 'benefit4Title', descKey: 'benefit4Desc' },
+    { icon: 'sell', titleKey: 'benefit5Title', descKey: 'benefit5Desc' },
+    { icon: 'download', titleKey: 'benefit6Title', descKey: 'benefit6Desc' },
+    { icon: 'groups', titleKey: 'benefit7Title', descKey: 'benefit7Desc' },
   ];
 
   const handleSubscribe = async () => {
@@ -42,7 +43,8 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
     let pkgToPurchase;
     if (selectedPlan === 'annual') pkgToPurchase = annualPackage;
     else if (selectedPlan === 'monthly') pkgToPurchase = monthlyPackage;
-    else pkgToPurchase = lifetimePackage;
+    else if (selectedPlan === 'lifetime') pkgToPurchase = lifetimePackage;
+    else pkgToPurchase = undefined; // Pase 10 días — producto pendiente en stores
 
     if (!pkgToPurchase) {
       console.error("RevenueCat: Package not found for selection", selectedPlan);
@@ -129,6 +131,37 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
           {/* Plans Section */}
           <div className="flex flex-col gap-4">
             <h2 className="px-1 text-sm font-bold uppercase tracking-wider text-premium-secondary/50 dark:text-content-subtle">{t('premium.planTitle')}</h2>
+
+            {/* Trip pass — 10 days */}
+            <label
+              className={`relative flex cursor-pointer flex-col gap-3 rounded-3xl border-2 p-5 transition-all duration-300 ${selectedPlan === 'trip'
+                ? 'border-primary bg-gradient-to-br from-primary/10 to-transparent dark:from-primary/20 shadow-xl shadow-primary/10 scale-[1.02]'
+                : 'border-gray-200 bg-white dark:border-overlay/10 dark:bg-premium-surface-dark'
+                }`}
+            >
+              <input
+                type="radio"
+                name="pricing"
+                className="peer sr-only"
+                checked={selectedPlan === 'trip'}
+                onChange={() => setSelectedPlan('trip')}
+              />
+              <div className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-primary to-orange-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-content shadow-lg shadow-orange-500/40">
+                {t('premium.tripBenefit')}
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-premium-secondary dark:text-content">{t('premium.tripTitle')}</span>
+                  <span className="text-xs text-premium-secondary/50 dark:text-content-muted mt-1">{t('premium.tripFlex')}</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-3xl font-black tracking-tight text-premium-secondary dark:text-content">
+                    {fallbackPrices.trip}
+                  </span>
+                  <span className="text-xs font-bold text-premium-secondary/50 dark:text-content-muted">{t('premium.tripPeriod')}</span>
+                </div>
+              </div>
+            </label>
 
             {/* Monthly Plan */}
             <label

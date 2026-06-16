@@ -3,6 +3,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { db, storage } from "../config/firebase";
 import initSqlJs from "sql.js";
 import { v4 as uuidv4 } from "uuid";
+import { fetchDepartmentProfile } from "../lib/departmentProfile";
 
 /**
  * Main helper to compile Firestore data into a SQLite database,
@@ -10,6 +11,16 @@ import { v4 as uuidv4 } from "uuid";
  */
 export async function buildPackForDepartment(departmentId: string): Promise<string> {
   console.log(`[buildPackForDepartment] Starting SQLite pack build for: ${departmentId}`);
+
+  const departmentProfile = await fetchDepartmentProfile(db, departmentId);
+
+  let departmentRow: Record<string, unknown> | null = departmentProfile;
+  if (departmentProfile?.id) {
+    const fullSnap = await db.collection("departments").doc(String(departmentProfile.id)).get();
+    if (fullSnap.exists) {
+      departmentRow = { id: fullSnap.id, ...fullSnap.data() };
+    }
+  }
 
   // 1. Fetch data from Firestore in parallel
   const [destinationsSnap, couponsSnap, eventsSnap, refugiosSnap, protocolsSpecificSnap, protocolsGlobalSnap] = await Promise.all([
@@ -42,12 +53,51 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
   console.log(`- Events: ${events.length}`);
   console.log(`- Refugios: ${refugios.length}`);
   console.log(`- Survival Protocols: ${protocols.length}`);
+  console.log(`- Department profile: ${departmentRow ? "yes" : "no"}`);
 
   // 2. Initialize sql.js in-memory database
   const SQL = await initSqlJs();
   const sqliteDb = new SQL.Database();
 
   // Create tables matching schemas
+  sqliteDb.run(`
+    CREATE TABLE department (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      name_en TEXT,
+      subtitle TEXT,
+      subtitle_en TEXT,
+      tag TEXT,
+      tag_en TEXT,
+      locationLabel TEXT,
+      locationLabel_en TEXT,
+      description TEXT,
+      description_en TEXT,
+      temp TEXT,
+      humidity TEXT,
+      safetyNote TEXT,
+      safetyNote_en TEXT,
+      logistics TEXT,
+      logistics_en TEXT,
+      seasonality TEXT,
+      seasonality_en TEXT,
+      ecosystems TEXT,
+      ecosystems_en TEXT,
+      mustTryGastronomy TEXT,
+      mustTryGastronomy_en TEXT,
+      tips TEXT,
+      tips_en TEXT,
+      geography TEXT,
+      geography_en TEXT,
+      culture TEXT,
+      culture_en TEXT,
+      history TEXT,
+      history_en TEXT,
+      generalInfo TEXT,
+      generalInfo_en TEXT
+    );
+  `);
+
   sqliteDb.run(`
     CREATE TABLE destinations (
       id TEXT PRIMARY KEY,
@@ -91,7 +141,11 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       validity TEXT,
       validity_en TEXT,
       redemptionInstructions TEXT,
-      redemptionInstructions_en TEXT
+      redemptionInstructions_en TEXT,
+      departmentId TEXT,
+      destinationId TEXT,
+      category TEXT,
+      isPremium INTEGER
     );
   `);
 
@@ -108,7 +162,11 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       description TEXT,
       description_en TEXT,
       tips TEXT,
-      tips_en TEXT
+      tips_en TEXT,
+      departmentId TEXT,
+      destinationId TEXT,
+      priceType TEXT,
+      priceType_en TEXT
     );
   `);
 
@@ -157,13 +215,69 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
   `);
 
   // 3. Populate tables (using parameterized statements to prevent SQL injections)
-  // Destinations
   const serializePackingField = (raw: unknown): string => {
     if (raw == null || raw === "") return "";
     if (typeof raw === "string") return raw;
     return JSON.stringify(raw);
   };
 
+  const serializeListField = (raw: unknown): string => {
+    if (raw == null || raw === "") return "";
+    if (typeof raw === "string") return raw;
+    return JSON.stringify(raw);
+  };
+
+  // Department briefing (single row per pack)
+  if (departmentRow) {
+    const d = departmentRow;
+    const deptStmt = sqliteDb.prepare(`
+      INSERT INTO department (
+        id, name, name_en, subtitle, subtitle_en, tag, tag_en, locationLabel, locationLabel_en,
+        description, description_en, temp, humidity, safetyNote, safetyNote_en,
+        logistics, logistics_en, seasonality, seasonality_en,
+        ecosystems, ecosystems_en, mustTryGastronomy, mustTryGastronomy_en, tips, tips_en,
+        geography, geography_en, culture, culture_en, history, history_en, generalInfo, generalInfo_en
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `);
+    deptStmt.run([
+      String(d.id || departmentId),
+      String(d.name || ""),
+      String(d.name_en || ""),
+      String(d.subtitle || ""),
+      String(d.subtitle_en || ""),
+      String(d.tag || ""),
+      String(d.tag_en || ""),
+      String(d.locationLabel || ""),
+      String(d.locationLabel_en || ""),
+      String(d.description || ""),
+      String(d.description_en || ""),
+      String(d.temp || ""),
+      String(d.humidity || ""),
+      String(d.safetyNote || ""),
+      String(d.safetyNote_en || ""),
+      String(d.logistics || ""),
+      String(d.logistics_en || ""),
+      String(d.seasonality || ""),
+      String(d.seasonality_en || ""),
+      serializeListField(d.ecosystems),
+      serializeListField(d.ecosystems_en),
+      serializeListField(d.mustTryGastronomy),
+      serializeListField(d.mustTryGastronomy_en),
+      serializeListField(d.tips),
+      serializeListField(d.tips_en),
+      String(d.geography || d.geographicInfo || ""),
+      String(d.geography_en || d.geographicInfo_en || ""),
+      String(d.culture || d.culturalInfo || ""),
+      String(d.culture_en || d.culturalInfo_en || ""),
+      String(d.history || d.historyInfo || ""),
+      String(d.history_en || d.historyInfo_en || ""),
+      String(d.generalInfo || ""),
+      String(d.generalInfo_en || ""),
+    ]);
+    deptStmt.free();
+  }
+
+  // Destinations
   const destStmt = sqliteDb.prepare(`
     INSERT INTO destinations (id, title, title_en, location, location_en, description, description_en, hiking, temp, signal, isCoastal, aiTip, aiTip_en, activities, activities_en, gettingThere, gettingThere_en, pricingGuide, pricingGuide_en, packingGuide, packingGuide_en, packingSummary, packingSummary_en)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -204,10 +318,11 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
 
   // Coupons
   const couponStmt = sqliteDb.prepare(`
-    INSERT INTO coupons (id, title, title_en, description, description_en, discount, discount_en, location, location_en, coupon_code, validity, validity_en, redemptionInstructions, redemptionInstructions_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO coupons (id, title, title_en, description, description_en, discount, discount_en, location, location_en, coupon_code, validity, validity_en, redemptionInstructions, redemptionInstructions_en, departmentId, destinationId, category, isPremium)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of coupons) {
+    const cat = Array.isArray(item.category) ? item.category[0] : item.category;
     couponStmt.run([
       item.id,
       item.title || "",
@@ -222,15 +337,19 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       item.validity || "",
       item.validity_en || "",
       item.redemptionInstructions || "",
-      item.redemptionInstructions_en || ""
+      item.redemptionInstructions_en || "",
+      item.departmentId || departmentId,
+      String(item.destinationId || ""),
+      cat ? String(cat) : "",
+      item.isPremium === true ? 1 : 0,
     ]);
   }
   couponStmt.free();
 
   // Events
   const eventStmt = sqliteDb.prepare(`
-    INSERT INTO events (id, name, name_en, subtitle, subtitle_en, location, location_en, date, description, description_en, tips, tips_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO events (id, name, name_en, subtitle, subtitle_en, location, location_en, date, description, description_en, tips, tips_en, departmentId, destinationId, priceType, priceType_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of events) {
     let dateStr = "";
@@ -239,6 +358,7 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
         ? item.date.toDate().toLocaleDateString("es-CO") 
         : String(item.date);
     }
+    const priceType = item.priceType?.value || item.priceType || "";
     eventStmt.run([
       item.id,
       item.name || "",
@@ -251,7 +371,11 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       item.description || "",
       item.description_en || "",
       item.tips || "",
-      item.tips_en || ""
+      item.tips_en || "",
+      item.departmentId || departmentId,
+      String(item.destinationId || ""),
+      String(priceType),
+      String(item.priceType_en || ""),
     ]);
   }
   eventStmt.free();
@@ -436,6 +560,29 @@ export const onRefugioWritePack = onDocumentWritten("refugios/{id}", async (even
   if (before?.departmentId) deptIds.add(before.departmentId);
   for (const deptId of deptIds) {
     await buildPackForDepartment(deptId);
+  }
+});
+
+// Rebuild when a department profile is created, updated, or deleted
+export const onDepartmentWritePack = onDocumentWritten("departments/{id}", async (event) => {
+  const after = event.data?.after?.data();
+  const before = event.data?.before?.data();
+  const deptIds = new Set<string>();
+  const docId = event.params.id;
+  if (docId) deptIds.add(docId);
+  for (const row of [after, before]) {
+    if (row?.departmentId) deptIds.add(String(row.departmentId));
+  }
+  if (docId === "valle" || after?.departmentId === "valle-del-cauca" || before?.departmentId === "valle-del-cauca") {
+    deptIds.add("valle-del-cauca");
+    deptIds.add("valle");
+  }
+  for (const deptId of deptIds) {
+    try {
+      await buildPackForDepartment(deptId);
+    } catch (err) {
+      console.warn(`[onDepartmentWritePack] Skip rebuild for ${deptId}:`, err);
+    }
   }
 });
 

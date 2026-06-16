@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Language } from '../types/core';
+import { hasDownloadedPacks, markPackLanguageRefreshNeeded } from '../utils/offgridPackLanguageAlert';
 
 interface LanguageContextType {
     currentLanguage: Language;
@@ -20,6 +21,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
 
     const setLanguage = (lang: Language) => {
+        if (lang !== currentLanguage && hasDownloadedPacks()) {
+            markPackLanguageRefreshNeeded(lang);
+        }
         setCurrentLanguage(lang);
         setLanguageChosen(true);
         localStorage.setItem('app_language', lang);

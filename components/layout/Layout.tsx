@@ -1,7 +1,10 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { NavigationMenu } from '../NavigationMenu';
+import { BottomNav } from '../BottomNav';
 import { Language } from '../../types/core';
 import { AnimatedLayoutOutlet } from './AnimatedLayoutOutlet';
+import { getBottomNavTab, isBottomNavVisible } from '../../utils/bottomNav';
 
 interface LayoutProps {
     language: Language;
@@ -28,8 +31,9 @@ export const Layout: React.FC<LayoutProps> = ({
     const handleMenuClose = onMenuClose;
     const handleMenuOpen = onMenuOpen;
 
-    // We need to inject the "Open Menu" trigger into the Outlet context or provide a way for children to open it.
-    // For now, let's pass context.
+    const { pathname } = useLocation();
+    const bottomNavTab = getBottomNavTab(pathname);
+    const showBottomNav = isBottomNavVisible(pathname) && !isMenuOpen;
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-background-dark">
@@ -53,12 +57,17 @@ export const Layout: React.FC<LayoutProps> = ({
                 onMonitorClick={() => { handleMenuClose(); onNavigate('/environmental-monitor'); }}
                 onRefugiosClick={() => { handleMenuClose(); onNavigate('/refugios'); }}
                 onOffGridClick={() => { handleMenuClose(); onNavigate('/offgrid-vault'); }}
+                onPlannerClick={() => { handleMenuClose(); onNavigate('/expedition/plan'); }}
             />
 
             {/* Main Content Area */}
             <div className="w-full h-full min-h-0">
                 <AnimatedLayoutOutlet outletContext={{ openMenu: handleMenuOpen }} />
             </div>
+
+            {showBottomNav && bottomNavTab && (
+                <BottomNav activeTab={bottomNavTab} onNavigate={onNavigate} />
+            )}
         </div>
     );
 };

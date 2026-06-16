@@ -47,6 +47,17 @@ export interface RagDestination {
   pricing?: string[];
   gettingThere?: string[];
   packingSummary?: string;
+  packingItems?: string[];
+}
+
+export interface RagDepartment {
+  name: string;
+  subtitle?: string;
+  description?: string;
+  safetyNote?: string;
+  logistics?: string;
+  seasonality?: string;
+  tips?: string[];
 }
 
 export interface RagCoupon {
@@ -55,6 +66,9 @@ export interface RagCoupon {
   discount?: string;
   location?: string;
   validity?: string;
+  couponCode?: string;
+  redemptionInstructions?: string;
+  destinationId?: string;
 }
 
 export interface RagEvent {
@@ -68,6 +82,7 @@ export interface RagEvent {
 
 export interface RagContext {
   protocols: Array<{ title: string; content: string; category?: string }>;
+  department: RagDepartment | null;
   destinations: RagDestination[];
   refugios: Array<{ name: string; tagline?: string; description: string; location?: string }>;
   coupons: RagCoupon[];
@@ -157,8 +172,11 @@ export function buildDestinationSearchSQL(
   const packExpr = lang === 'en'
     ? `COALESCE(NULLIF(packingSummary_en, ''), packingSummary)`
     : 'packingSummary';
+  const packGuideExpr = lang === 'en'
+    ? `COALESCE(NULLIF(packingGuide_en, ''), packingGuide)`
+    : 'packingGuide';
 
-  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${locExpr} AS location, ${tipExpr} AS aiTip, ${actExpr} AS activities, ${gettingExpr} AS gettingThere, ${pricingExpr} AS pricingGuide, ${packExpr} AS packingSummary`;
+  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${locExpr} AS location, ${tipExpr} AS aiTip, ${actExpr} AS activities, ${gettingExpr} AS gettingThere, ${pricingExpr} AS pricingGuide, ${packExpr} AS packingSummary, ${packGuideExpr} AS packingGuide`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -258,8 +276,9 @@ export function buildCouponSearchSQL(
   const discountExpr = localizedColumn('discount', lang);
   const locExpr = localizedColumn('location', lang);
   const validityExpr = localizedColumn('validity', lang);
+  const redeemExpr = localizedColumn('redemptionInstructions', lang);
 
-  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${discountExpr} AS discount, ${locExpr} AS location, ${validityExpr} AS validity`;
+  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${discountExpr} AS discount, ${locExpr} AS location, ${validityExpr} AS validity, coupon_code AS coupon_code, ${redeemExpr} AS redemptionInstructions, destinationId`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -293,7 +312,7 @@ export function buildEventSearchSQL(
   const locExpr = localizedColumn('location', lang);
   const tipsExpr = localizedColumn('tips', lang);
 
-  const selectCols = `${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, ${locExpr} AS location, ${tipsExpr} AS tips, date`;
+  const selectCols = `${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, ${locExpr} AS location, ${tipsExpr} AS tips, date, destinationId`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -317,9 +336,57 @@ export function buildEventSearchSQL(
   };
 }
 
+export function buildDepartmentContextSQL(lang: 'es' | 'en' = 'es'): { sql: string; params: string[] } {
+  const nameExpr = localizedColumn('name', lang);
+  const subtitleExpr = localizedColumn('subtitle', lang);
+  const descExpr = localizedColumn('description', lang);
+  const safetyExpr = localizedColumn('safetyNote', lang);
+  const logisticsExpr = localizedColumn('logistics', lang);
+  const seasonExpr = localizedColumn('seasonality', lang);
+  const tipsExpr = lang === 'en'
+    ? `COALESCE(NULLIF(tips_en, ''), tips)`
+    : 'tips';
+
+  return {
+    sql: `SELECT ${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, ${safetyExpr} AS safetyNote, ${logisticsExpr} AS logistics, ${seasonExpr} AS seasonality, ${tipsExpr} AS tips FROM department LIMIT 1`,
+    params: [],
+  };
+}
+
+export function buildDepartmentSearchSQL(
+  userQuery: string,
+  lang: 'es' | 'en' = 'es'
+): { sql: string; params: string[] } {
+  const nameExpr = localizedColumn('name', lang);
+  const subtitleExpr = localizedColumn('subtitle', lang);
+  const descExpr = localizedColumn('description', lang);
+  const safetyExpr = localizedColumn('safetyNote', lang);
+  const logisticsExpr = localizedColumn('logistics', lang);
+
+  const selectCols = `${nameExpr} AS name, ${subtitleExpr} AS subtitle, ${descExpr} AS description, ${safetyExpr} AS safetyNote, ${logisticsExpr} AS logistics`;
+
+  const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
+  if (terms.length === 0) {
+    return { sql: `SELECT ${selectCols} FROM department LIMIT 1`, params: [] };
+  }
+
+  const conditions = terms.map(() =>
+    `(name LIKE ? OR name_en LIKE ? OR subtitle LIKE ? OR subtitle_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR safetyNote LIKE ? OR safetyNote_en LIKE ? OR logistics LIKE ? OR logistics_en LIKE ?)`
+  ).join(' OR ');
+  const params = terms.flatMap(t => {
+    const like = `%${t}%`;
+    return [like, like, like, like, like, like, like, like, like, like];
+  });
+
+  return {
+    sql: `SELECT ${selectCols} FROM department WHERE ${conditions} LIMIT ${SQL_RESULT_LIMIT}`,
+    params,
+  };
+}
+
 // ─── Vault local search (Paso 2 UI) ─────────────────────────────────────────
 
-export type VaultLocalSearchSource = 'protocol' | 'destination' | 'refugio' | 'coupon' | 'event';
+export type VaultLocalSearchSource = 'protocol' | 'destination' | 'refugio' | 'coupon' | 'event' | 'department';
 
 export interface VaultLocalSearchResult {
   source: VaultLocalSearchSource;
@@ -383,6 +450,29 @@ export async function searchVaultLocalCatalog(
     });
   }
 
+  try {
+    const deptRows = await runVaultSearchQuery(
+      userQuery,
+      packLang,
+      buildDepartmentSearchSQL,
+      queryFn
+    );
+    for (const row of deptRows) {
+      results.push({
+        source: 'department',
+        title: sanitizeRichText(String(row.name || '')),
+        details: joinDetailParts([
+          row.subtitle ? String(row.subtitle) : undefined,
+          row.description ? String(row.description) : undefined,
+          row.safetyNote ? String(row.safetyNote) : undefined,
+          row.logistics ? String(row.logistics) : undefined,
+        ]),
+      });
+    }
+  } catch {
+    // department table absent in legacy packs
+  }
+
   const destRows = await runVaultSearchQuery(
     userQuery,
     packLang,
@@ -391,11 +481,18 @@ export async function searchVaultLocalCatalog(
   );
   for (const row of destRows) {
     const activities = parseActivities(row.activities).map(sanitizeRichText).filter(Boolean);
-    const extra = activities.length > 0 ? `\n${activities.join(', ')}` : '';
+    const packing = [
+      row.packingSummary ? String(row.packingSummary) : '',
+      ...parsePackingGuide(row.packingGuide),
+    ].filter(Boolean);
+    const extra = [
+      activities.length > 0 ? activities.join(', ') : '',
+      packing.length > 0 ? packing.join('; ') : '',
+    ].filter(Boolean).join('\n');
     results.push({
       source: 'destination',
       title: sanitizeRichText(String(row.title || '')),
-      details: sanitizeRichText(String(row.description || '')) + extra,
+      details: sanitizeRichText(String(row.description || '')) + (extra ? `\n${extra}` : ''),
     });
   }
 
@@ -432,6 +529,7 @@ export async function searchVaultLocalCatalog(
         row.discount ? String(row.discount) : undefined,
         row.location ? String(row.location) : undefined,
         row.validity ? String(row.validity) : undefined,
+        row.destinationId ? `→ ${String(row.destinationId)}` : undefined,
       ]),
     });
   }
@@ -591,6 +689,45 @@ function parseGettingThere(raw: unknown): string[] {
     .filter(Boolean);
 }
 
+/** Formats packingGuide categories into compact lines for offline RAG. */
+function parsePackingGuide(raw: unknown): string[] {
+  const parsed = parseJsonArray(raw);
+  if (parsed.length === 0 && typeof raw === 'string' && raw.trim()) {
+    try {
+      const nested = JSON.parse(raw);
+      return parsePackingGuide(nested);
+    } catch {
+      return [];
+    }
+  }
+  const lines: string[] = [];
+  for (const cat of parsed) {
+    const categoria = String(cat.categoria ?? cat.category ?? '').trim();
+    const items = Array.isArray(cat.items) ? cat.items : [];
+    const names = items
+      .map((item: Record<string, unknown>) => String(item.nombre ?? item.name ?? '').trim())
+      .filter(Boolean);
+    if (categoria && names.length > 0) lines.push(`${categoria}: ${names.join(', ')}`);
+    else if (names.length > 0) lines.push(names.join(', '));
+  }
+  return lines;
+}
+
+function parseTipsList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((t) => String(t).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map((t) => String(t).trim()).filter(Boolean);
+    } catch {
+      return [raw.trim()];
+    }
+  }
+  return [];
+}
+
 // ─── Context Builder ────────────────────────────────────────────────────────
 
 /**
@@ -609,11 +746,22 @@ export function buildRagContext(
     gettingThere?: unknown;
     pricingGuide?: unknown;
     packingSummary?: string;
+    packingGuide?: unknown;
   }>,
   refugioResults: Array<{ name: string; tagline?: string; description: string; location?: string }> = [],
-  couponResults: Array<{ title: string; description?: string; discount?: string; location?: string; validity?: string }> = [],
-  eventResults: Array<{ name: string; subtitle?: string; description?: string; location?: string; date?: string; tips?: string }> = [],
-  language: Language = Language.Spanish
+  couponResults: Array<{
+    title: string;
+    description?: string;
+    discount?: string;
+    location?: string;
+    validity?: string;
+    coupon_code?: string;
+    redemptionInstructions?: string;
+    destinationId?: string;
+  }> = [],
+  eventResults: Array<{ name: string; subtitle?: string; description?: string; location?: string; date?: string; tips?: string; destinationId?: string }> = [],
+  language: Language = Language.Spanish,
+  departmentRow: Record<string, unknown> | null = null
 ): RagContext {
   const ctx = getLocale(language).vault.llm;
   const protocols = protocolResults.map((p) => ({
@@ -621,22 +769,39 @@ export function buildRagContext(
     content: sanitizeRichText(p.content),
     category: p.category ? sanitizeRichText(p.category) : p.category,
   }));
-  const destinations: RagDestination[] = destinationResults.map((d) => ({
-    title: sanitizeRichText(d.title),
-    description: sanitizeRichText(d.description),
-    location: d.location ? sanitizeRichText(d.location) : d.location,
-    aiTip: d.aiTip ? sanitizeRichText(d.aiTip) : undefined,
-    activities: parseActivities(d.activities)
-      .map((a) => sanitizeRichText(a))
-      .filter(Boolean),
-    gettingThere: parseGettingThere(d.gettingThere)
-      .map((g) => sanitizeRichText(g))
-      .filter(Boolean),
-    pricing: parsePricing(d.pricingGuide)
-      .map((p) => sanitizeRichText(p))
-      .filter(Boolean),
-    packingSummary: d.packingSummary ? sanitizeRichText(d.packingSummary) : undefined,
-  }));
+
+  const department: RagDepartment | null = departmentRow
+    ? {
+        name: sanitizeRichText(String(departmentRow.name || '')),
+        subtitle: departmentRow.subtitle ? sanitizeRichText(String(departmentRow.subtitle)) : undefined,
+        description: departmentRow.description ? sanitizeRichText(String(departmentRow.description)) : undefined,
+        safetyNote: departmentRow.safetyNote ? sanitizeRichText(String(departmentRow.safetyNote)) : undefined,
+        logistics: departmentRow.logistics ? sanitizeRichText(String(departmentRow.logistics)) : undefined,
+        seasonality: departmentRow.seasonality ? sanitizeRichText(String(departmentRow.seasonality)) : undefined,
+        tips: parseTipsList(departmentRow.tips).map(sanitizeRichText).filter(Boolean),
+      }
+    : null;
+
+  const destinations: RagDestination[] = destinationResults.map((d) => {
+    const packingItems = parsePackingGuide(d.packingGuide).map(sanitizeRichText).filter(Boolean);
+    return {
+      title: sanitizeRichText(d.title),
+      description: sanitizeRichText(d.description),
+      location: d.location ? sanitizeRichText(d.location) : d.location,
+      aiTip: d.aiTip ? sanitizeRichText(d.aiTip) : undefined,
+      activities: parseActivities(d.activities)
+        .map((a) => sanitizeRichText(a))
+        .filter(Boolean),
+      gettingThere: parseGettingThere(d.gettingThere)
+        .map((g) => sanitizeRichText(g))
+        .filter(Boolean),
+      pricing: parsePricing(d.pricingGuide)
+        .map((p) => sanitizeRichText(p))
+        .filter(Boolean),
+      packingSummary: d.packingSummary ? sanitizeRichText(d.packingSummary) : undefined,
+      packingItems: packingItems.length > 0 ? packingItems : undefined,
+    };
+  });
   const refugios = refugioResults.map((r) => ({
     name: sanitizeRichText(r.name),
     tagline: r.tagline ? sanitizeRichText(r.tagline) : r.tagline,
@@ -649,6 +814,11 @@ export function buildRagContext(
     discount: c.discount ? sanitizeRichText(c.discount) : undefined,
     location: c.location ? sanitizeRichText(c.location) : undefined,
     validity: c.validity ? sanitizeRichText(c.validity) : undefined,
+    couponCode: c.coupon_code ? sanitizeRichText(String(c.coupon_code)) : undefined,
+    redemptionInstructions: c.redemptionInstructions
+      ? sanitizeRichText(String(c.redemptionInstructions))
+      : undefined,
+    destinationId: c.destinationId ? sanitizeRichText(String(c.destinationId)) : undefined,
   }));
   const events: RagEvent[] = eventResults.map((e) => ({
     name: sanitizeRichText(e.name),
@@ -660,6 +830,18 @@ export function buildRagContext(
   }));
 
   let rawText = '';
+
+  if (department) {
+    rawText += `${ctx.contextDepartment}\n`;
+    rawText += `\n🗺️ ${department.name}${department.subtitle ? ` — ${department.subtitle}` : ''}\n`;
+    if (department.description) rawText += `${department.description}\n`;
+    if (department.safetyNote) rawText += `${ctx.contextSafety} ${department.safetyNote}\n`;
+    if (department.logistics) rawText += `${ctx.contextLogistics} ${department.logistics}\n`;
+    if (department.seasonality) rawText += `${ctx.contextSeasonality} ${department.seasonality}\n`;
+    if (department.tips && department.tips.length > 0) {
+      rawText += `${ctx.contextTips} ${department.tips.join('; ')}\n`;
+    }
+  }
 
   if (protocols.length > 0) {
     rawText += `${ctx.contextProtocols}\n`;
@@ -684,6 +866,9 @@ export function buildRagContext(
       if (d.packingSummary) {
         rawText += `${ctx.contextPacking} ${d.packingSummary}\n`;
       }
+      if (d.packingItems && d.packingItems.length > 0) {
+        rawText += `${ctx.contextPackingList} ${d.packingItems.join('; ')}\n`;
+      }
       if (d.aiTip) {
         rawText += `${ctx.contextTip} ${d.aiTip}\n`;
       }
@@ -703,6 +888,8 @@ export function buildRagContext(
       rawText += `\n🎟️ ${c.title}${c.discount ? ` — ${c.discount}` : ''}${c.location ? ` (${c.location})` : ''}\n`;
       if (c.description) rawText += `${c.description}\n`;
       if (c.validity) rawText += `${ctx.contextValidity} ${c.validity}\n`;
+      if (c.couponCode) rawText += `${ctx.contextCouponCode} ${c.couponCode}\n`;
+      if (c.redemptionInstructions) rawText += `${c.redemptionInstructions}\n`;
     }
   }
 
@@ -722,6 +909,7 @@ export function buildRagContext(
 
   return {
     protocols,
+    department,
     destinations,
     refugios,
     coupons,
@@ -802,6 +990,7 @@ export function generateFallbackResponse(
   if (
     !ragContext ||
     (ragContext.protocols.length === 0 &&
+      !ragContext.department &&
       ragContext.destinations.length === 0 &&
       ragContext.refugios.length === 0 &&
       ragContext.coupons.length === 0 &&
@@ -811,6 +1000,16 @@ export function generateFallbackResponse(
   }
 
   let response = '';
+
+  if (ragContext.department) {
+    response += `${llm.departmentHeader}\n\n`;
+    const dept = ragContext.department;
+    response += `**${dept.name}**${dept.subtitle ? ` — _${dept.subtitle}_` : ''}\n`;
+    if (dept.description) response += `${dept.description}\n`;
+    if (dept.safetyNote) response += `\n${llm.safetyLabel} ${dept.safetyNote}\n`;
+    if (dept.logistics) response += `\n${llm.logisticsLabel} ${dept.logistics}\n`;
+    response += `\n`;
+  }
 
   if (ragContext.protocols.length > 0) {
     response += `${llm.protocolsHeader}\n\n`;
@@ -844,6 +1043,12 @@ export function generateFallbackResponse(
       if (d.packingSummary) {
         response += `\n${llm.packingLabel} ${d.packingSummary}\n`;
       }
+      if (d.packingItems && d.packingItems.length > 0) {
+        response += `\n${llm.packingListLabel}\n`;
+        for (const item of d.packingItems) {
+          response += `• ${item}\n`;
+        }
+      }
       if (d.aiTip) {
         response += `\n${llm.aiTipLabel} ${d.aiTip}\n`;
       }
@@ -864,6 +1069,8 @@ export function generateFallbackResponse(
       response += `**${c.title}**${c.discount ? ` — _${c.discount}_` : ''}${c.location ? ` · ${c.location}` : ''}\n`;
       if (c.description) response += `${c.description}\n`;
       if (c.validity) response += `_${c.validity}_\n`;
+      if (c.couponCode) response += `${llm.couponCodeLabel} ${c.couponCode}\n`;
+      if (c.redemptionInstructions) response += `${c.redemptionInstructions}\n`;
       response += `\n`;
     }
   }

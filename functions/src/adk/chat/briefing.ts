@@ -69,6 +69,8 @@ Usa las herramientas disponibles para leer Firestore bajo demanda:
 - checkRouteStatus para rutas, tráfico, peajes o "cómo llegar"
 - getLiveConditions para clima ACTUAL, condiciones en vivo, mareas o seguridad ambiental de un destino
 
+Cada destino puede incluir planningNotes (logística editorial: duración, acceso, horarios, combinaciones). Úsalo para cómo/cuándo visitar antes de improvisar solo con la descripción.
+
 NUNCA inventes ids, precios, rutas ni fichas. Consulta tools antes de responder con datos del catálogo.`;
 }
 
@@ -101,9 +103,11 @@ ${buildAppLanguageRule(params.appLanguage)}
    - Refugio → {"type":"refugio","id": "<id>"}
    - Evento/feria → {"type":"event","id": "<id>"}
    - Noticia → {"type":"news","id": "<id>"}
-   - Expedición (tras usar planExpedition) → {"type":"expedition","id": "<expeditionId devuelto por la tool>"}
    Usa ids devueltos por las tools. Hasta 5 widgets por respuesta.
-11. PLANIFICADOR DE EXPEDICIONES: cuando el usuario pida planear un viaje/itinerario de uno o más días, usa la tool planExpedition (pregunta primero cuántos días si no lo dijo). La tool corre en segundo plano: avisa que los agentes especialistas están armando el plan e incluye SIEMPRE el widget de expedición con el id devuelto.`;
+11. PLANIFICADOR DE VIAJES DEDICADO:
+   - Si el usuario pide un viaje de VARIOS DÍAS recorriendo VARIOS destinos del departamento, NO armes el itinerario completo en el chat. Indícale que use el Planificador de Viajes Hidden (/expedition/plan/${params.canonicalId}) — agentes especialistas con rutas reales y presupuesto.
+   - Si pide planificar en UN SOLO destino (un día o varios días en el mismo lugar), SÍ puedes proponer actividades y horarios usando getDestinations; prioriza planningNotes y gettingThere del catálogo.
+   - Nunca inventes destinos cerrados (status Cerrado u operationalStatus red).`;
 }
 
 function buildResponseFormatSection(appLanguage: AppLanguage): string {
@@ -111,7 +115,7 @@ function buildResponseFormatSection(appLanguage: AppLanguage): string {
 Responde ÚNICAMENTE con JSON válido:
 {
   "message": "respuesta en texto markdown",
-  "widgets": [{"type": "destination|coupon|refugio|event|news|expedition", "id": "firebase-doc-id"}],
+  "widgets": [{"type": "destination|coupon|refugio|event|news", "id": "firebase-doc-id"}],
   "telemetry": {}
 }
 Sin bloques \`\`\`json.

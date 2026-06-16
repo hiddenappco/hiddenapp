@@ -1,0 +1,65 @@
+# Hidden App — UI field constraints (piloto / P0)
+
+Checklist heurístico para uso a una mano, zonas sin señal y pantallas OLED prolongadas.  
+Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINTS` · `P0-THUMB-NAV` ✅ Jun 2026.
+
+## Reglas obligatorias
+
+| Regla | Especificación | Utilidad CSS |
+|-------|----------------|--------------|
+| **Área táctil** | Controles críticos ≥ **44×44 px** | `.touch-target` en `index.css` |
+| **Zona inferior (pulgar)** | Hubs principales accesibles desde **barra inferior** | `BottomNav` + `utils/bottomNav.ts` |
+| **Zona inferior (CTAs)** | Acciones primarias de pantalla en el **tercio inferior** del scroll o barra superior cuando el FAB choca con nav | `fixed bottom-*`, `pb-safe`, `.bottom-nav-scroll-pad` |
+| **Dark OLED-friendly** | Fondos profundos en expedición prolongada | `--color-bg-dark: #0D1B2A` (no `#000` global) |
+| **Glass surfaces** | Barras flotantes, modales, badges offline | `.glass-surface`, `.glass-pill`, `.bottom-nav-glass` |
+
+## BottomNav (P0-THUMB-NAV) ✅
+
+| Aspecto | Valor |
+|---------|-------|
+| **Tabs** | Destinos · Monitor · Deptos · Bitácora · Refugios |
+| **Rutas** | `/home`, `/environmental-monitor`, `/search`, `/budget`, `/refugios` (match exacto) |
+| **Oculto en** | Detalles, chat, Live, expedición, login, drawer abierto |
+| **Safe area** | `.bottom-nav-host` = `0.875rem` + `env(safe-area-inset-bottom)` |
+| **Scroll pad** | `.bottom-nav-scroll-pad` — padding inferior para listas/CTAs |
+| **Tokens** | `--bottom-nav-edge-gap`, `--bottom-nav-bar-height`, `--bottom-nav-content-gap` |
+| **Activo** | Icono + etiqueta naranja + subrayado (sin glow de fondo en iconos) |
+| **Android back** | Tab hub ≠ `/home` → `/home`; en `/home` → minimizar app |
+
+**Archivos:** `components/BottomNav.tsx`, `components/layout/Layout.tsx`, `utils/bottomNav.ts`, `hooks/useCapacitorHardware.ts`, `index.css`.
+
+## Pantallas auditadas (Jun 2026)
+
+| Pantalla | Estado | Notas |
+|----------|--------|-------|
+| `SignalLostFallback` | ✅ | CTAs `touch-target` h-12, copy unificado `connectivity.*` |
+| `OffGridVault` | ✅ | Banner conectividad, modales descarga, badge Wi‑Fi/celular/offline |
+| `BottomNav` | ✅ | 5 tabs; glass + safe-area; rutas en `bottomNav.ts` |
+| `Budget` (Bitácora) | ✅ | Sin FAB; fila superior Conversor TRM · Unirse · Crear viaje |
+| `CreateTrip` | ✅ | Toggle viaje grupal (`w-11 h-6`, thumb `size-5`, `overflow-hidden`) |
+| `ExpeditionWizard` | ✅ | 5 pasos; paso 2 transporte terrestre obligatorio; `touch-target` en opciones de movilidad |
+| `DepartmentBriefing` | ✅ | Barra dual CTA compacta + glass |
+| `NavigationMenu` | ✅ | Departamentos · Destinos; Perfil en sección inferior |
+| `TripExpenses` | Parcial | Revisar inputs numéricos en siguiente pasada |
+| `LiveAgent` | Pendiente | Auditar controles de voz / mute |
+
+## Conectividad (P0-OFFLINE-COPY)
+
+- **`connectivity.offline.*`** — sin señal; bóveda + bitácora activas.
+- **`connectivity.server.*`** — dispositivo online pero servidores Hidden no alcanzables.
+- **`ConnectivityBanner`** — bóveda y futuras pantallas.
+- **`OfflineGuardian`** — `offline` vs `server` vía `useServerReachability`.
+
+## Transparencia de datos (P0-DATA-TRANSPARENCY)
+
+- Tamaño pack antes de descargar (`formatPackSize` + modal).
+- Advertencia en **datos móviles** (`useNetworkDetails().isCellular`).
+- **Gemma 4**: solo Wi‑Fi + modal de confirmación (~1.5 GB).
+- Estado «compilando pack» cuando no hay `sizeBytes`.
+
+## Cómo extender
+
+1. Usar `touch-target` en botones/iconos nuevos.
+2. Preferir `glass-surface` para barras flotantes (ver `DepartmentBriefing`, `DataConfirmModal`).
+3. Mensajes de red siempre desde `locales` → namespace `connectivity`.
+4. Descargas grandes → `DataConfirmModal` + chequeo `useNetworkDetails`.

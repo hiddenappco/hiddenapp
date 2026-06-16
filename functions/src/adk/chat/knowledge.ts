@@ -39,7 +39,7 @@ const HEAVY_MEDIA_FIELDS = [
     'pdfFile',
 ] as const;
 
-function stripHeavyMediaFields(data: Record<string, unknown>): Record<string, unknown> {
+export function stripHeavyMediaFields(data: Record<string, unknown>): Record<string, unknown> {
     const copy = { ...data };
     for (const field of HEAVY_MEDIA_FIELDS) {
         delete copy[field];

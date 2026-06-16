@@ -8,7 +8,7 @@
 |---|---|
 | **Official submission snapshot** | Git tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) · commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) · June 11, 2026 |
 | **Same snapshot (branch)** | [`submission`](https://github.com/hiddenappco/hiddenapp/tree/submission) |
-| **Release notes** | [GitHub Release — v1.0-challenge-submission](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) |
+| **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
 | **Active development** | Branch [`main`](https://github.com/hiddenappco/hiddenapp/tree/main) — post-submission product work (expedition hub, Bitácora v2, thumb navigation, docs) |
 

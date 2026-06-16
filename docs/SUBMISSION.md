@@ -15,6 +15,7 @@
 | **Branch** [`submission`](https://github.com/hiddenappco/hiddenapp/tree/submission) | Same commit as the tag (easier `git checkout`) | Judges preferring a branch name |
 | **Branch** [`main`](https://github.com/hiddenappco/hiddenapp/tree/main) | Active product development after submission | Contributors, post-challenge reviewers |
 | **[GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission)** | Human-readable release notes for the snapshot | Quick overview without cloning |
+| **[Release draft text](./RELEASE_v1.0-challenge-submission.md)** | Copy/paste body for the Releases UI if not yet published | Maintainers |
 
 **Rule of thumb:** evaluate the **tag / `submission` branch** for the challenge deliverable; use **`main`** for the latest Hidden App codebase.
 

@@ -139,7 +139,8 @@ export const joinTripByCode = async (
     if (snap.empty) {
         throw new Error('TRIP_NOT_FOUND');
     }
-    return addMemberToTrip(snap.docs[0].ref, snap.docs[0].id, snap.data(), userId, displayName);
+    const docSnap = snap.docs[0];
+    return addMemberToTrip(docSnap.ref, docSnap.id, docSnap.data(), userId, displayName);
 };
 
 export const joinTripById = async (

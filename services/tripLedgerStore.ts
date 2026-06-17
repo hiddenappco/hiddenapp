@@ -103,11 +103,16 @@ export async function cacheExpensesMirror(tripId: string, expenses: Expense[]): 
         const store = tx.objectStore('expenses');
         const index = store.index('tripId');
         const range = IDBKeyRange.only(tripId);
+        // IndexedDB runs queued puts before the cursor's deletes, so only delete
+        // rows that are NOT part of the new set; puts then overwrite/insert the rest.
+        const nextIds = new Set(expenses.map((e) => e.id));
         const cursorReq = index.openCursor(range);
         cursorReq.onsuccess = () => {
             const cursor = cursorReq.result;
             if (cursor) {
-                store.delete(cursor.primaryKey);
+                if (!nextIds.has(String((cursor.value as { id?: unknown }).id))) {
+                    store.delete(cursor.primaryKey);
+                }
                 cursor.continue();
             }
         };

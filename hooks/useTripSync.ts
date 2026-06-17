@@ -38,53 +38,66 @@ export function useTripSync(userId: string | undefined) {
         syncingRef.current = true;
         setSyncing(true);
         try {
-            const entries = await getOutboxEntries();
-            for (const entry of entries) {
-                try {
-                    if (entry.op === 'create_trip') {
-                        const { name, location, isGroup, displayName, defaultCurrency } = entry.payload as {
-                            name: string;
-                            location: string;
-                            isGroup?: boolean;
-                            displayName?: string;
-                            defaultCurrency?: string;
-                        };
-                        const realId = isGroup
-                            ? await createGroupTripRemote(userId, name, location, displayName || 'Viajero', defaultCurrency as 'COP' | 'USD' | 'EUR' | undefined)
-                            : await createTripRemote(userId, name, location, defaultCurrency as 'COP' | 'USD' | 'EUR' | undefined);
-                        if (entry.tripId.startsWith('local_')) {
-                            await remapTripIdInOutbox(entry.tripId, realId);
-                            const localId = await getActiveTripIdLocal();
-                            if (localId === entry.tripId) {
-                                await setActiveTripIdLocal(realId);
+            // Reload entries from a fresh pass whenever a create_trip remaps a
+            // local_* id, so subsequent ops use the real (server) trip id rather
+            // than the stale in-memory snapshot.
+            let restart = true;
+            while (restart) {
+                restart = false;
+                const entries = await getOutboxEntries();
+                for (const entry of entries) {
+                    try {
+                        if (entry.op === 'create_trip') {
+                            const { name, location, isGroup, displayName, defaultCurrency } = entry.payload as {
+                                name: string;
+                                location: string;
+                                isGroup?: boolean;
+                                displayName?: string;
+                                defaultCurrency?: string;
+                            };
+                            const realId = isGroup
+                                ? await createGroupTripRemote(userId, name, location, displayName || 'Viajero', defaultCurrency as 'COP' | 'USD' | 'EUR' | undefined)
+                                : await createTripRemote(userId, name, location, defaultCurrency as 'COP' | 'USD' | 'EUR' | undefined);
+                            await removeOutboxEntry(entry.id);
+                            if (entry.tripId.startsWith('local_')) {
+                                await remapTripIdInOutbox(entry.tripId, realId);
+                                const localId = await getActiveTripIdLocal();
+                                if (localId === entry.tripId) {
+                                    await setActiveTripIdLocal(realId);
+                                }
+                                // Outbox was rewritten: re-read it before continuing.
+                                restart = true;
+                                break;
+                            }
+                            continue;
+                        } else if (entry.op === 'add_expense') {
+                            const expense = entry.payload.expense as Expense;
+                            const { tempId } = entry;
+                            const realExpenseId = await addExpenseToTrip(entry.tripId, expense, tempId);
+                            if (tempId && realExpenseId) {
+                                const mirror = await getExpensesMirror(entry.tripId);
+                                const updated = mirror.map((e) =>
+                                    e.id === tempId ? { ...e, id: realExpenseId, pendingSync: false, localOnly: false } : e
+                                );
+                                await cacheExpensesMirror(entry.tripId, updated);
+                            }
+                        } else if (entry.op === 'delete_expense') {
+                            const { expenseId, amount } = entry.payload as { expenseId: string; amount: number };
+                            if (!expenseId.startsWith('temp_')) {
+                                await deleteExpenseFromTrip(entry.tripId, expenseId, amount);
+                            }
+                        } else if (entry.op === 'finish_trip') {
+                            const { total } = entry.payload as { total: number };
+                            if (!entry.tripId.startsWith('local_')) {
+                                await finishTripRemote(entry.tripId, total);
                             }
                         }
-                    } else if (entry.op === 'add_expense') {
-                        const expense = entry.payload.expense as Expense;
-                        const { tempId } = entry;
-                        const realExpenseId = await addExpenseToTrip(entry.tripId, expense, tempId);
-                        if (tempId && realExpenseId) {
-                            const mirror = await getExpensesMirror(entry.tripId);
-                            const updated = mirror.map((e) =>
-                                e.id === tempId ? { ...e, id: realExpenseId, pendingSync: false, localOnly: false } : e
-                            );
-                            await cacheExpensesMirror(entry.tripId, updated);
-                        }
-                    } else if (entry.op === 'delete_expense') {
-                        const { expenseId, amount } = entry.payload as { expenseId: string; amount: number };
-                        if (!expenseId.startsWith('temp_')) {
-                            await deleteExpenseFromTrip(entry.tripId, expenseId, amount);
-                        }
-                    } else if (entry.op === 'finish_trip') {
-                        const { total } = entry.payload as { total: number };
-                        if (!entry.tripId.startsWith('local_')) {
-                            await finishTripRemote(entry.tripId, total);
-                        }
+                        await removeOutboxEntry(entry.id);
+                    } catch (err) {
+                        console.error('[useTripSync] Failed op:', entry.op, err);
+                        restart = false;
+                        break;
                     }
-                    await removeOutboxEntry(entry.id);
-                } catch (err) {
-                    console.error('[useTripSync] Failed op:', entry.op, err);
-                    break;
                 }
             }
         } finally {

@@ -24,7 +24,7 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`PREMIUM_PR
 | `users.isGuest` | Marca sesión anónima de evaluación / demo |
 | `users.isPremium` | Acceso Premium (manual Rowy, cupón admin o futuro RevenueCat) |
 | `users.premiumExpiresAt` | Fin del Pase Viaje 10 días *(pendiente backend)* |
-| `users.liveCallUsage` | Ventana rodante 30 d · segundos consumidos Live |
+| `users.liveCallUsage` | Ventana rodante 30 d · segundos consumidos Live — **solo escritura server-side** (`recordLiveCallSeconds` + Admin SDK); reglas Firestore bloquean cambios desde el cliente |
 | `users.expeditionPlansUsed` | Contador por ventana Free / Pase / Premium *(pendiente)* |
 
 Cliente: `RevenueCatProvider` lee `isPremium` desde el perfil Firestore (`utils/userIdentity.ts`).
@@ -184,7 +184,7 @@ Efectos actuales en demo:
 | Chat 10 msg/día Free | ✓ | ✓ `Chat.tsx` | — |
 | Ranger 5/día Free | ✓ | ✗ sin enforcement | P1 |
 | Live solo Premium | ✓ | ✗ abierto a todos autenticados (MVP) | P0 |
-| Live cuota 30 min/mes | ✓ | ✓ backend; guests bypass | P0 guest |
+| Live cuota 30 min/mes | ✓ | ✓ backend + `recordLiveCallSeconds`; guests bypass; cliente no escribe `liveCallUsage` | P0 guest |
 | Hub cuota 1/2/3 | ✓ | ✗ sin `expeditionPlansUsed` | P0 |
 | Pase `premiumExpiresAt` | ✓ | ✗ | P0 |
 | PDF destino Premium | ✓ | ✓ | — |
@@ -221,4 +221,7 @@ Actualizar precios y cuotas numéricas en UI cuando cierren stores (ver checklis
 | Límites chat / Live (constantes) | [`config/constants.ts`](../config/constants.ts) |
 | Identidad usuario | [`utils/userIdentity.ts`](../utils/userIdentity.ts) |
 | Cuota Live backend | [`functions/src/lib/liveCallQuota.ts`](../functions/src/lib/liveCallQuota.ts) |
+| Contabilización Live (HTTP) | [`functions/src/api/livekit.ts`](../functions/src/api/livekit.ts) → `recordLiveCallSeconds` |
+| Cliente reporte de segundos | [`services/liveCallUsage.ts`](../services/liveCallUsage.ts) → POST con Bearer |
+| Reglas Firestore `liveCallUsage` | [`firestore.rules`](../firestore.rules) |
 | Pantalla Premium | [`components/Premium.tsx`](../components/Premium.tsx) |

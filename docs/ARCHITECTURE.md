@@ -45,7 +45,7 @@ flowchart TB
             EXPD["createExpedition + onExpeditionCreate<br/>multi-agent planner"]
             PDF["generateTripPdf<br/>bilingual trip ledger"]
             FX["getExchangeRates + scheduledExchangeRates<br/>TRM cache"]
-            LKT["generateLiveKitToken"]
+            LKT["generateLiveKitToken<br/>recordLiveCallSeconds"]
             PACK["department packs + Rowy triggers"]
             CRON["scheduledEnvironmentalMonitor<br/>+ entity alerts"]
         end
@@ -112,7 +112,7 @@ flowchart TB
     UI -->|HTTPS| CHAT
     UI -->|HTTPS| ENV
     UI -->|HTTPS| PDF
-    UI -->|HTTPS| LKT
+    UI -->|HTTPS Bearer| LKT
     UI -->|WebRTC| LK
 
     CHAT --> RUNNER
@@ -276,7 +276,7 @@ sequenceDiagram
 | **Widget validation** | `sanitizeChatWidgets` / `enrichChatWidgets` verify ids against the live catalog |
 | **Payload trimming** | `stripHeavyMediaFields` removes galleries/images from tool results before they enter the model context |
 | **Observability** | `getGcpExporters` + `maybeSetOtelProviders` — Cloud Trace / Monitoring |
-| **Resilience** | MCP unavailable → FunctionTool RAG; ADK failure → legacy Gemini SDK with full KB prompt |
+| **Resilience** | MCP unavailable → FunctionTool RAG (failed MCP connections are not cached as global disable; toolsets retry per request); ADK failure → legacy Gemini SDK with full KB prompt |
 
 **Chat tools:**
 
@@ -335,12 +335,12 @@ sequenceDiagram
 
 Pipeline guarantees:
 
-- **Deterministic gathering** — catalog data (full fichas: `gettingThere`, `packingGuide`, `planningNotes` up to 4000 chars, optional `suggestedDaysMin/Max`, `regionCluster`) is fetched by code, not by the LLM.
-- **Validated handoffs** — destination and refugio ids from each agent are checked against the catalog; `validateExpeditionPlan` enforces must-visit, pace caps (stricter when `groundMobility` is `public_transport`), and soft day hints from metadata.
-- **Real geography** — haversine matrix for ordering, then Google Routes driving legs (max 45) injected deterministically into the final itinerary.
-- **Coupon widgets** — catalog coupons matched to day stops by `destinationId`; Premium coupons render locked in UI (`ExpeditionCouponWidget` → `/premium`).
-- **Budget agent** — separate Pro agent estimates COP min/max totals from `pricingGuide` hints.
-- **Traveler intent** — wizard captures `groundMobility`, `travelerNotes`, `mustVisitDestinationIds`, pace; curator/logistics read **`planningNotes`** per destination for duration, access windows, and combination rules.
+- **Deterministic gathering** — catalog data (full fichas: `gettingThere`, `packingGuide`, `planningNotes` up to 4000 chars, optional `suggestedDaysMin/Max`, `regionCluster`) is fetched by code, not by the LLM. User **must-visit** ids are validated in `createExpedition` via direct doc lookup (`getAll`); the pipeline injects any missing must-visit rows with `getDestinationsByIds` so they are never dropped by the curator catalog window (limit 80).
+- **Validated handoffs** — destination and refugio ids from each agent are checked against the catalog; `validateExpeditionPlan` enforces must-visit, pace caps (stricter when `groundMobility` is `public_transport`), `MIN_DAYS` (distinct calendar days per destination across the whole plan), and soft cluster hints from metadata. Writer output must include at least one day; empty itineraries are rejected before `ready`.
+- **Real geography** — haversine matrix for ordering, then Google Routes driving legs (max 45) injected deterministically. Final stop travel times are chained by the **writer's actual stop sequence**, not skeleton indices.
+- **Coupon widgets** — catalog coupons matched to day stops by **exact** `destinationId`; Premium coupons render locked in UI (`ExpeditionCouponWidget` → `/premium`). Department-wide coupons appear in result UI and expedition PDF.
+- **Budget agent** — separate Pro agent estimates COP min/max totals from `pricingGuide` hints; `family` / `group` profiles default group size to 4 when unspecified.
+- **Traveler intent** — wizard captures `groundMobility`, `travelerNotes`, `mustVisitDestinationIds`, pace; **interests** are stored as canonical keys (`nature`, `hiking`, …), not localized labels. Curator/logistics read **`planningNotes`** per destination for duration, access windows, and combination rules.
 - **Result UX** — `itinerary.travelContext` stores mobility for **`ExpeditionMobilityBadge`** in UI and `generateExpeditionPdf`.
 - **Catalog honesty** — if the catalog can't support the requested days, the curator explains honestly in the result note.
 - **Live UX** — `expeditions/{id}.status` transitions (`queued → curating → routing → budgeting → writing → ready`) stream to `ExpeditionProgress` via `onSnapshot`.
@@ -355,6 +355,15 @@ Pipeline guarantees:
 ### Live voice (`hidden-agent-worker`)
 
 Full-duplex voice via **LiveKit** + **Gemini Multimodal Live** on Cloud Run. `getDestinations` returns full destination docs (including **`planningNotes`**, minus heavy media). Separate from the text ADK stack; uses `@livekit/agents` with department isolation from the LiveKit room name.
+
+**Token and quota flow (Jun 2026):**
+
+1. `LiveAgent` requests a room token from `generateLiveKitToken` with `Authorization: Bearer <Firebase ID token>` (`getAuthHeaders`). The server derives `userId` from the verified token — never from the request body.
+2. `assertLiveCallQuota` blocks token issuance when the rolling 30-day window is exhausted (`403 LIVE_QUOTA_EXCEEDED`).
+3. During the call, elapsed seconds are reported best-effort to `recordLiveCallSeconds` (same Bearer auth); usage is written with the **Admin SDK** (`addLiveCallSecondsAdmin`).
+4. Firestore rules prevent clients from modifying `users.liveCallUsage` directly; only server-side accounting updates the field.
+
+See [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md) for guest bypass policy during hackathon demo.
 
 ### Off-Grid Vault
 
@@ -371,7 +380,8 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 | **Currency** | Canonical ledger in **COP**; expenses may be entered in COP, USD, or EUR with `amountOriginal`, `exchangeRate`, `exchangeRateDate` |
 | **TRM** | `functions/src/api/exchangeRates.ts` — daily TRM from datos.gov.co, EUR via Frankfurter; cached in `config/exchangeRates`; client hook `useExchangeRates` |
 | **Group splits** | `paidByMemberId`, `splitAmong[]`; balance math in `utils/tripBalances.ts`; `TripBalances` panel + settlements in bilingual PDF (`functions/src/pdf/tripTemplate.ts`) |
-| **Offline** | `services/tripLedgerStore.ts` mirrors active trip in IndexedDB; outbox ops (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect; `TripSyncBanner` shows pending count |
+| **Offline** | `services/tripLedgerStore.ts` mirrors active trip in IndexedDB; outbox ops (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect (re-reads outbox after `create_trip` remaps local ids); expense mirror sync avoids deleting rows still in the incoming set; `TripSyncBanner` shows pending count |
+| **Join by code** | `joinTripByCode` reads trip data from `QuerySnapshot.docs[0]`, not the snapshot itself |
 | **Offline routes** | `/budget`, `/create-trip`, `/current-trip`, `/trips/converter`, `/trip-history/:id` work without `OfflineGuardian`; group join (`/trips/join`) requires network |
 | **Offline hub CTA** | `SignalLostFallback` links to Off-Grid vault and trip ledger |
 
@@ -426,7 +436,20 @@ components/expedition/            ← ExpeditionDepartmentPicker, ExpeditionWiza
 
 API keys (Gemini, Maps, weather providers, LiveKit) are **not** in the public repository. They are configured via Firebase Secrets and local `.env` files excluded by `.gitignore`. The PWA bundle only includes public Firebase web client configuration.
 
-`chatAgent` and `environmentalAgent` verify a Firebase ID token on every request; the authenticated UID from the token is used for Firestore access — not a client-supplied `userId`.
+**Authenticated HTTP endpoints** verify a Firebase ID token on every request via `requireAuthUid` (`functions/src/lib/verifyAuth.ts`). The authenticated UID from the token is used for authorization and accounting — never a client-supplied `userId`.
+
+| Endpoint | Auth | Notes |
+|----------|------|-------|
+| `chatAgent` | Bearer required | Session-scoped Firestore access |
+| `environmentalAgent` | Bearer required | Same pattern |
+| `createExpedition` | Bearer required | Enqueues `expeditions/{id}` for the verified uid |
+| `generateTripPdf`, `generateDestinationPdf`, `generateExpeditionPdf` | Bearer required | PDF export for owner |
+| `generateLiveKitToken` | Bearer required | UID from token; quota check before minting LiveKit JWT |
+| `recordLiveCallSeconds` | Bearer required | Server-side `liveCallUsage` increment (Admin SDK) |
+
+**Firestore rules:** users may write their own profile document, but writes that change `liveCallUsage` are rejected — usage is updated only by Cloud Functions with the Admin SDK.
+
+**Client:** `services/authHeaders.ts` attaches `Authorization: Bearer` from `auth.currentUser.getIdToken()` for the endpoints above.
 
 ---
 

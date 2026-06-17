@@ -79,6 +79,23 @@ After the tag was created, the team continued shipping on `main`. Examples (not 
 | **UX / QA** | `docs/UI_FIELD_CONSTRAINTS.md`, connectivity copy, vault data transparency |
 | **Premium** | `docs/PREMIUM_ENTITLEMENTS.md`, `docs/PREMIUM_PRICING.md` |
 
+### Changelog (post-tag, `main`)
+
+| Date | Commit | Summary |
+|------|--------|---------|
+| 2026-06-11 | [`cb77f91`](https://github.com/hiddenappco/hiddenapp/commit/cb77f91) | Expedition hub, Bitácora v2, thumb nav, submission docs |
+| 2026-06-11 | [`1cc398c`](https://github.com/hiddenappco/hiddenapp/commit/1cc398c) | GitHub Release draft notes for `v1.0-challenge-submission` |
+| 2026-06-16 | [`6c85652`](https://github.com/hiddenappco/hiddenapp/commit/6c85652) | **Live security:** Firebase token on `generateLiveKitToken`; `recordLiveCallSeconds` server-side; Firestore blocks client `liveCallUsage` writes |
+| 2026-06-16 | [`ef710b5`](https://github.com/hiddenappco/hiddenapp/commit/ef710b5) | **Expedition:** must-visit by doc id, writer guards, travel-leg chaining, MIN_DAYS fix, coupon/PDF hardening |
+| 2026-06-16 | [`6a6aa34`](https://github.com/hiddenappco/hiddenapp/commit/6a6aa34) | **Bitácora:** join-by-code data read, offline outbox after id remap, expense mirror deletes |
+| 2026-06-16 | [`fed6187`](https://github.com/hiddenappco/hiddenapp/commit/fed6187) | **Off-Grid:** reconnect pack listener on connectivity change; close sql.js on errors |
+| 2026-06-16 | [`7650843`](https://github.com/hiddenappco/hiddenapp/commit/7650843) | **Environmental:** valid lat/lng `0`; no native shield auto-deactivate on background |
+| 2026-06-16 | [`96136b5`](https://github.com/hiddenappco/hiddenapp/commit/96136b5) | **Client:** BottomNav types, `useCoupon` loading, PDF export error body |
+| 2026-06-16 | [`5e0e70c`](https://github.com/hiddenappco/hiddenapp/commit/5e0e70c) | **MCP:** do not clear global availability on transient catalog toolset failure |
+| 2026-06-16 | [`1c238c4`](https://github.com/hiddenappco/hiddenapp/commit/1c238c4) | **Live worker:** news title `title` with legacy `tittle` fallback |
+
+Deployed to production (Jun 16–17): Cloud Functions (LiveKit, expedition, chat, PDFs, triggers), Hosting, `firestore.rules`, and `hidden-agent-worker`.
+
 To see only post-submission commits:
 
 ```bash

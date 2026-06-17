@@ -12,9 +12,14 @@ async function postPdfExport(
     });
 
     if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        const code = err.error || (await response.text());
-        throw new Error(String(code));
+        const text = await response.text().catch(() => '');
+        let code: string = text;
+        try {
+            code = JSON.parse(text)?.error || text;
+        } catch {
+            /* body was not JSON */
+        }
+        throw new Error(String(code || response.status));
     }
 
     const data = await response.json();

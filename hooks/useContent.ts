@@ -595,8 +595,13 @@ export const useCoupon = (id: string | undefined) => {
     const data = useLocalizedItem(rawData, localizeCoupon);
 
     useEffect(() => {
+        if (!id) {
+            setRawData(null);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
         const fetchCoupon = async () => {
-            if (!id) return;
             try {
                 const docRef = doc(db, 'Coupons', id);
                 const docSnap = await getDoc(docRef);

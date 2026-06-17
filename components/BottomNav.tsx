@@ -22,17 +22,19 @@ const NAV_ITEMS: NavItem[] = [
     { id: 'refugios', icon: 'home_work', labelKey: 'refugios' },
 ];
 
-function NavTabButton({
-    item,
-    isActive,
-    label,
-    onPress,
-}: {
+interface NavTabButtonProps {
     item: NavItem;
     isActive: boolean;
     label: string;
     onPress: () => void;
-}) {
+}
+
+const NavTabButton: React.FC<NavTabButtonProps> = ({
+    item,
+    isActive,
+    label,
+    onPress,
+}) => {
     return (
         <button
             type="button"
@@ -70,7 +72,7 @@ function NavTabButton({
             />
         </button>
     );
-}
+};
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onNavigate }) => {
     const { t } = useTranslation();

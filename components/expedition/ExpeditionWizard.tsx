@@ -85,9 +85,14 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
 
     const endDate = useMemo(() => {
         if (!startDate || days < 1) return '';
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + days - 1);
-        return d.toISOString().slice(0, 10);
+        const [y, m, d] = startDate.split('-').map(Number);
+        if (!y || !m || !d) return '';
+        // Local calendar math (no UTC) so the end date doesn't drift a day
+        // in negative-offset timezones like America/Bogota.
+        const dt = new Date(y, m - 1, d + days - 1);
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        return `${dt.getFullYear()}-${mm}-${dd}`;
     }, [startDate, days]);
 
     const toggleInterest = (key: string) => {
@@ -129,7 +134,7 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
                         : budgetMode === 'range'
                           ? { minCOP: Number(budgetMin), maxCOP: Number(budgetMax) }
                           : {},
-                interests: interests.map((i) => t(`expedition.interest.${i}`)),
+                interests,
                 travelerProfile,
                 groupSize: travelerProfile === 'group' || travelerProfile === 'family' ? groupSize : undefined,
                 mustVisitDestinationIds: mustVisit,

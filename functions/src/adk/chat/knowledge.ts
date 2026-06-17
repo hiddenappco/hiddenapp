@@ -93,6 +93,29 @@ export async function getDestinationsKnowledge(
     return rows.slice(0, limit);
 }
 
+/**
+ * Fetches specific destinations by id (localized), regardless of the catalog
+ * window used by getDestinationsKnowledge. Used to guarantee user-requested
+ * must-visit destinations are always available to the planner.
+ */
+export async function getDestinationsByIds(
+    scope: CatalogScope,
+    ids: string[],
+    firestore: Firestore = db
+): Promise<Array<Record<string, unknown>>> {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (unique.length === 0) return [];
+    const lang = resolveLang(scope);
+    const refs = unique.map((id) => firestore.collection('destinations').doc(id));
+    const snaps = await firestore.getAll(...refs);
+    return snaps
+        .filter((s) => s.exists)
+        .map((s) => {
+            const raw = mapDestinationForAgent(s.id, s.data() as Record<string, unknown>);
+            return localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+        });
+}
+
 export async function getRefugiosKnowledge(
     scope: CatalogScope,
     opts?: { destinationId?: string; limit?: number },

@@ -278,16 +278,19 @@ export function generateExpeditionPdfHtml(
     ].join('');
 
     let budgetHtml = '';
-    if (budget && budget.totalMin != null && budget.totalMax != null) {
-        const min = Number(budget.totalMin);
-        const max = Number(budget.totalMax);
+    const budgetMin = budget ? Number(budget.totalMin) : NaN;
+    const budgetMax = budget ? Number(budget.totalMax) : NaN;
+    if (budget && Number.isFinite(budgetMin) && Number.isFinite(budgetMax)) {
+        const ppMin = Number(budget.perPersonMin);
+        const ppMax = Number(budget.perPersonMax);
+        const hasPerPerson = Number.isFinite(ppMin) && Number.isFinite(ppMax);
         budgetHtml = `
             <div class="card budget-card">
                 <div class="card-label">${L.budget}</div>
-                <div class="budget-amount">${formatCop(min, lang)} – ${formatCop(max, lang)}</div>
+                <div class="budget-amount">${formatCop(budgetMin, lang)} – ${formatCop(budgetMax, lang)}</div>
                 ${
-                    budget.perPersonMin != null && budget.perPersonMax != null
-                        ? `<p class="footer-text" style="margin-top:6px;">${L.perPerson}: ${formatCop(Number(budget.perPersonMin), lang)} – ${formatCop(Number(budget.perPersonMax), lang)}</p>`
+                    hasPerPerson
+                        ? `<p class="footer-text" style="margin-top:6px;">${L.perPerson}: ${formatCop(ppMin, lang)} – ${formatCop(ppMax, lang)}</p>`
                         : ''
                 }
                 ${budget.narrative ? `<p class="prose" style="margin-top:10px;">${escapeHtml(String(budget.narrative))}</p>` : ''}
@@ -295,6 +298,19 @@ export function generateExpeditionPdfHtml(
             </div>
         `;
     }
+
+    const departmentCoupons = Array.isArray(itinerary.departmentCoupons)
+        ? (itinerary.departmentCoupons as Row[])
+        : [];
+    const departmentCouponsHtml =
+        departmentCoupons.length > 0
+            ? `<div class="card"><div class="card-label">${L.coupons}</div>${departmentCoupons
+                  .map(
+                      (c) =>
+                          `<div class="price-row"><span>${escapeHtml(String(c.title || ''))}</span><strong>${escapeHtml(String(c.discount || ''))}</strong></div>`
+                  )
+                  .join('')}</div>`
+            : '';
 
     const body = `
         ${pdfHeader(L.badge)}
@@ -304,6 +320,7 @@ export function generateExpeditionPdfHtml(
             ${summary ? `<p class="pdf-hero-lead">${escapeHtml(summary)}</p>` : ''}
         </section>
         ${budgetHtml}
+        ${departmentCouponsHtml}
         <div class="itinerary-section">
             ${days.map((d) => renderDay(d, lang)).join('')}
         </div>

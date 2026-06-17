@@ -118,14 +118,14 @@ export const createExpedition = onRequest(
 
             const mustVisit = parsed.request.mustVisitDestinationIds ?? [];
             if (mustVisit.length > 0) {
-                const snap = await db
-                    .collection('destinations')
-                    .where('departmentId', '==', canonicalId)
-                    .limit(200)
-                    .get();
-                const validIds = new Set(snap.docs.map((d) => d.id));
-                for (const id of mustVisit) {
-                    if (!validIds.has(id)) {
+                // Validate each id directly so valid must-visit destinations are never
+                // rejected just because they fall outside an arbitrary catalog window.
+                const uniqueIds = [...new Set(mustVisit)];
+                const refs = uniqueIds.map((id) => db.collection('destinations').doc(id));
+                const snaps = await db.getAll(...refs);
+                const existing = new Set(snaps.filter((s) => s.exists).map((s) => s.id));
+                for (const id of uniqueIds) {
+                    if (!existing.has(id)) {
                         res.status(400).json({ error: 'INVALID_MUST_VISIT', destinationId: id });
                         return;
                     }

@@ -3,6 +3,7 @@ import { getRouteAnalysis } from '../../api/routes';
 import {
     getCouponsKnowledge,
     getDepartmentKnowledge,
+    getDestinationsByIds,
     getDestinationsKnowledge,
     getEventsKnowledge,
     getRefugiosKnowledge,
@@ -169,6 +170,18 @@ export async function runExpeditionPipeline(expeditionId: string): Promise<void>
         }
 
         const destById = new Map(openDestinations.map((d) => [String(d.id), d]));
+
+        // Guarantee user-required must-visit destinations are available even if they
+        // fall outside the curator catalog window (limit 80) — otherwise the plan
+        // would fail later with MUST_VISIT_MISSING for a perfectly valid request.
+        const missingMustVisit = (request.mustVisitDestinationIds ?? []).filter(
+            (id) => !destById.has(id)
+        );
+        if (missingMustVisit.length > 0) {
+            const extra = await getDestinationsByIds(scope, missingMustVisit);
+            for (const row of extra) destById.set(String(row.id), row);
+        }
+
         const curatorCatalog = buildCuratorCatalog(openDestinations);
 
         const curatorPrompt = `${buildLanguageDirective(language)}
@@ -309,7 +322,15 @@ Write all JSON string fields (logic) in the mandatory output language.`;
         await setStatus('budgeting');
 
         const priceHints = sumPricingHints(selected.map(buildPlannerDestination));
-        const groupSize = Math.max(1, Number(request.groupSize) || (request.travelerProfile === 'couple' ? 2 : 1));
+        const defaultGroupSize =
+            request.travelerProfile === 'couple'
+                ? 2
+                : request.travelerProfile === 'family'
+                  ? 4
+                  : request.travelerProfile === 'group'
+                    ? 4
+                    : 1;
+        const groupSize = Math.max(1, Number(request.groupSize) || defaultGroupSize);
 
         const budgetPrompt = `${buildLanguageDirective(language)}
 
@@ -430,7 +451,7 @@ VALIDATION NOTES: ${validation.note || 'ok'}`;
             await runAgentEphemeral(getWriterAgent(), writerPrompt, expeditionId, 'hidden-expedition')
         );
 
-        if (!writerRaw.title || !Array.isArray(writerRaw.days)) {
+        if (!writerRaw.title || !Array.isArray(writerRaw.days) || writerRaw.days.length === 0) {
             await setStatus('error', { error: 'WRITER_FAILED' });
             return;
         }
@@ -441,16 +462,18 @@ VALIDATION NOTES: ${validation.note || 'ok'}`;
                 ? refugioById.get(skeleton.overnightRefugioId)
                 : null;
 
-            const stops = (Array.isArray(wd.stops) ? (wd.stops as Row[]) : []).map((s, idx) => {
+            const writerStops = Array.isArray(wd.stops) ? (wd.stops as Row[]) : [];
+            const stops = writerStops.map((s, idx) => {
                 const stopId = String(s.destinationId || '');
                 let travel: { durationText: string; distanceText: string } | null = null;
-                const allStopIds = skeleton?.stopIds || [];
+                // Chain legs by the writer's own previous stop (not the skeleton index),
+                // so a leg is only attached when it matches the real stop sequence.
                 const prevId =
                     idx === 0
                         ? Number(wd.day) === 1
                             ? '__origin__'
                             : findPreviousStopId(planDays, Number(wd.day))
-                        : allStopIds[idx - 1];
+                        : String(writerStops[idx - 1]?.destinationId || '') || null;
                 if (prevId) travel = legs[`${prevId}→${stopId}`] ?? null;
 
                 return {
@@ -478,6 +501,11 @@ VALIDATION NOTES: ${validation.note || 'ok'}`;
                 })) ?? [],
             };
         });
+
+        if (itineraryDays.length === 0) {
+            await setStatus('error', { error: 'WRITER_FAILED' });
+            return;
+        }
 
         await setStatus('ready', {
             itinerary: {

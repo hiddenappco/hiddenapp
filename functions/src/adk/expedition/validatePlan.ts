@@ -50,8 +50,14 @@ export function validateExpeditionPlan(
 
     const mustVisit = request.mustVisitDestinationIds ?? [];
     const visited = new Set<string>();
+    // Distinct plan days each destination is allocated (for MIN_DAYS).
+    const daysPerDest = new Map<string, Set<number>>();
     for (const d of planDays) {
-        for (const id of d.stopIds) visited.add(id);
+        for (const id of d.stopIds) {
+            visited.add(id);
+            if (!daysPerDest.has(id)) daysPerDest.set(id, new Set());
+            daysPerDest.get(id)!.add(d.day);
+        }
     }
     for (const id of mustVisit) {
         if (!visited.has(id)) {
@@ -78,24 +84,26 @@ export function validateExpeditionPlan(
             if (!dest) continue;
             const cluster = String(dest.regionCluster || '').trim();
             if (cluster) clusters.add(cluster);
-            const minDays = resolveSuggestedMinDays(dest);
-            if (minDays != null && minDays > 1) {
-                const count = d.stopIds.filter((id) => id === stopId).length;
-                if (count < minDays && requestedDays >= minDays) {
-                    issues.push({
-                        code: 'MIN_DAYS',
-                        message: `${dest.title || stopId} needs ~${minDays} day(s); assigned ${count}`,
-                        day: d.day,
-                        destinationId: stopId,
-                    });
-                }
-            }
         }
         if (clusters.size > 2) {
             issues.push({
                 code: 'CLUSTER_MIX',
                 message: `Day ${d.day} mixes ${clusters.size} region clusters`,
                 day: d.day,
+            });
+        }
+    }
+
+    // MIN_DAYS: count distinct days a destination is allocated across the whole plan.
+    for (const [stopId, daySet] of daysPerDest) {
+        const dest = destById.get(stopId);
+        if (!dest) continue;
+        const minDays = resolveSuggestedMinDays(dest);
+        if (minDays != null && minDays > 1 && requestedDays >= minDays && daySet.size < minDays) {
+            issues.push({
+                code: 'MIN_DAYS',
+                message: `${dest.title || stopId} needs ~${minDays} day(s); assigned ${daySet.size}`,
+                destinationId: stopId,
             });
         }
     }

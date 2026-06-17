@@ -24,11 +24,11 @@ function normalizeDestLinks(raw: unknown): string[] {
 function couponMatchesDestination(coupon: Row, destinationId: string): boolean {
     const links = normalizeDestLinks(coupon.destinationId);
     if (links.length === 0) return false;
-    const destNorm = destinationId.toLowerCase();
-    return links.some((link) => {
-        const l = link.toLowerCase();
-        return l === destNorm || l.includes(destNorm) || destNorm.includes(l);
-    });
+    // Exact id match only: substring matching ("el-cocuy" ⊂ "el-cocuy-laguna")
+    // could attach a coupon to the wrong destination. Showing no coupon is
+    // preferable to showing an incorrect one.
+    const destNorm = destinationId.trim().toLowerCase();
+    return links.some((link) => link.trim().toLowerCase() === destNorm);
 }
 
 function toCouponRef(coupon: Row): ExpeditionCouponRef {

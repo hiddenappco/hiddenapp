@@ -221,9 +221,11 @@ export const useOffGrid = () => {
     }
   }, [downloadedPacks]);
 
-  // Subscribe to real-time metadata and updates check when network and packs are available
+  // Subscribe to real-time metadata and updates check when network and packs are available.
+  // Depend on network.isOnline so the listener is (re)established after reconnecting,
+  // even if the vault was first opened while offline.
   useEffect(() => {
-    if (!navigator.onLine) return;
+    if (!network.isOnline) return;
 
     console.log("[OffGrid] Subscribing to real-time updates for department_packs...");
     const unsubscribe = onSnapshot(collection(db, 'department_packs'), (querySnapshot) => {
@@ -258,7 +260,7 @@ export const useOffGrid = () => {
     });
 
     return () => unsubscribe();
-  }, [downloadedPacks]);
+  }, [downloadedPacks, network.isOnline]);
 
   // Gemma 4 Install Simulation
   const installGemma = async () => {
@@ -547,19 +549,24 @@ export const useOffGrid = () => {
       const dbData = base64ToUint8Array(fileResult.data as string);
       const offlineDb = new sqlEngine.Database(dbData);
 
-      // 2. Prepare statement and run query
-      const stmt = offlineDb.prepare(sqlQuery);
-      stmt.bind(params);
-      
-      const results: any[] = [];
-      while (stmt.step()) {
-        results.push(stmt.getAsObject());
+      // 2. Prepare statement and run query — always release the connection,
+      // even if prepare/bind/step throws, to avoid leaking sql.js memory.
+      try {
+        const stmt = offlineDb.prepare(sqlQuery);
+        try {
+          stmt.bind(params);
+
+          const results: any[] = [];
+          while (stmt.step()) {
+            results.push(stmt.getAsObject());
+          }
+          return results;
+        } finally {
+          stmt.free();
+        }
+      } finally {
+        offlineDb.close();
       }
-      
-      stmt.free();
-      offlineDb.close();
-      
-      return results;
     } catch (err) {
       console.error("[OffGrid] Offline query failed:", err);
       throw err;

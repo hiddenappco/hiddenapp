@@ -293,7 +293,7 @@ export function createDepartmentTools(departmentId: string, routeCtx?: RouteSess
                     // Excluir arrays multimedia pesados para ahorrar tokens
                     delete data.image;
                     delete data.authorAvatar;
-                    return { id: doc.id, title: data.tittle, summary: data.summary, content: data.content, category: data.category, badge: data.badge, author: data.author };
+                    return { id: doc.id, title: data.title ?? data.tittle, summary: data.summary, content: data.content, category: data.category, badge: data.badge, author: data.author };
                 });
 
                 console.log(`[Tools] ✅ Found ${news.length} news articles for "${departmentId}"`);

@@ -186,7 +186,12 @@ export const useEnvironmentalMonitor = (
 
         if (newState) {
             if (!destinationId) return 'NO_DESTINATION';
-            if (!coords?.lat || !coords?.lng) {
+            if (
+                coords?.lat == null ||
+                coords?.lng == null ||
+                Number.isNaN(coords.lat) ||
+                Number.isNaN(coords.lng)
+            ) {
                 return 'NO_COORDINATES';
             }
         }

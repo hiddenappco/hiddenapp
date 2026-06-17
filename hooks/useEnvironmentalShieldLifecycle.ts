@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { App as CapacitorApp } from '@capacitor/app';
 import { deactivateEnvironmentalShield } from '../services/environmentalShield';
 
 /**
- * Apaga el escudo al cerrar la app (pestaña/navegador o salida nativa).
- * En Android/iOS minimizar también dispara inactividad; el TTL de 12h cubre ese caso.
+ * Apaga el escudo al cerrar la app (pestaña/navegador).
+ * En nativo, minimizar NO apaga el escudo: el TTL de 12h cubre ese caso para
+ * no desactivar la vigilancia mientras el usuario solo cambia de app.
  */
 export function useEnvironmentalShieldLifecycle(userId: string | undefined) {
     useEffect(() => {
@@ -20,18 +19,8 @@ export function useEnvironmentalShieldLifecycle(userId: string | undefined) {
         const onPageHide = () => deactivate();
         window.addEventListener('pagehide', onPageHide);
 
-        let removeAppListener: (() => void) | undefined;
-        if (Capacitor.isNativePlatform()) {
-            CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-                if (!isActive) deactivate();
-            }).then((handle) => {
-                removeAppListener = () => handle.remove();
-            });
-        }
-
         return () => {
             window.removeEventListener('pagehide', onPageHide);
-            removeAppListener?.();
         };
     }, [userId]);
 }

@@ -11,7 +11,6 @@ const MCP_CATALOG_TOOLS = [
 ];
 
 const cachedToolsets = new Map<string, MCPToolset>();
-let mcpAvailable: boolean | null = null;
 
 function stdioServerEntryPath(): string {
     return path.join(__dirname, '..', '..', 'mcp', 'stdioEntry.js');
@@ -26,8 +25,6 @@ export async function getCatalogMcpToolset(
     departmentId: string,
     appLanguage: 'es' | 'en' = 'es'
 ): Promise<MCPToolset | null> {
-    if (mcpAvailable === false) return null;
-
     const cacheKey = `${departmentId}:${appLanguage}`;
     const cached = cachedToolsets.get(cacheKey);
     if (cached) return cached;
@@ -53,12 +50,12 @@ export async function getCatalogMcpToolset(
 
         await toolset.getTools();
         cachedToolsets.set(cacheKey, toolset);
-        mcpAvailable = true;
         console.log(`[ADK] MCP catalog toolset connected (stdio, scope: ${departmentId}, lang: ${appLanguage})`);
         return toolset;
     } catch (err) {
-        mcpAvailable = false;
-        console.warn('[ADK] MCP catalog toolset unavailable:', err);
+        // Only successful toolsets are cached; a failure (possibly transient or
+        // department-specific) must not disable MCP globally for the instance.
+        console.warn('[ADK] MCP catalog toolset unavailable (will retry next request):', err);
         return null;
     }
 }

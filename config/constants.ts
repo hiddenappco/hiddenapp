@@ -9,6 +9,9 @@ export const API_ENDPOINTS = {
         import.meta.env.VITE_EXPEDITION_PDF_URL ||
         'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateExpeditionPdf',
     GENERATE_LIVEKIT_TOKEN: import.meta.env.VITE_LIVEKIT_TOKEN_URL || 'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/generateLiveKitToken',
+    RECORD_LIVE_CALL_SECONDS:
+        import.meta.env.VITE_RECORD_LIVE_CALL_URL ||
+        'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/recordLiveCallSeconds',
     CREATE_EXPEDITION:
         import.meta.env.VITE_CREATE_EXPEDITION_URL ||
         'https://us-central1-gen-lang-client-0040858908.cloudfunctions.net/createExpedition',

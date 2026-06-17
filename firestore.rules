@@ -13,7 +13,14 @@ service cloud.firestore {
     // Permitimos lectura pública para que la app pueda mostrar nombres/fotos.
     match /users/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Owners may write their own profile, but NOT tamper with live-call usage:
+      // either the write doesn't touch `liveCallUsage`, or it leaves it unchanged.
+      // Usage is updated server-side via the Admin SDK (recordLiveCallSeconds).
+      allow write: if request.auth != null && request.auth.uid == userId
+        && (
+          !('liveCallUsage' in request.resource.data)
+          || (resource != null && request.resource.data.liveCallUsage == resource.data.liveCallUsage)
+        );
     }
 
     // --- 3. BITÁCORA DE GASTOS (trips) ---

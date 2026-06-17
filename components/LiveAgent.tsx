@@ -23,6 +23,7 @@ import { Capacitor } from '@capacitor/core';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import { useLiveCallQuota } from '../hooks/useLiveCallQuota';
 import { addLiveCallSeconds } from '../services/liveCallUsage';
+import { getAuthHeaders } from '../services/authHeaders';
 
 // Sub-components
 import { OrbRanger } from './live/OrbRanger';
@@ -107,8 +108,15 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
             if (!user?.uid) return;
             const toFlush = Math.max(0, Math.floor(totalSessionSeconds) - flushedSecondsRef.current);
             if (toFlush > 0) {
-                await addLiveCallSeconds(user.uid, toFlush);
-                flushedSecondsRef.current = Math.floor(totalSessionSeconds);
+                // Best-effort usage accounting: a failed report must never break the
+                // call lifecycle. The counter only advances on success, so the next
+                // flush retries the unreported seconds.
+                try {
+                    await addLiveCallSeconds(user.uid, toFlush);
+                    flushedSecondsRef.current = Math.floor(totalSessionSeconds);
+                } catch (err) {
+                    console.warn('[LiveAgent] Failed to record live-call usage:', err);
+                }
             }
         },
         [user?.uid]
@@ -171,9 +179,8 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
 
                 const response = await fetch(API_ENDPOINTS.GENERATE_LIVEKIT_TOKEN, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: await getAuthHeaders(),
                     body: JSON.stringify({
-                        userId: user.uid,
                         userName: user.displayName || 'Explorer',
                         departmentId: effectiveDeptId,
                         userCoordinates: userCoordinates,

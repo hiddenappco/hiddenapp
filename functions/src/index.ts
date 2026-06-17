@@ -25,7 +25,8 @@ export {
 } from './api/pdf';
 
 export {
-    generateLiveKitToken
+    generateLiveKitToken,
+    recordLiveCallSeconds
 } from './api/livekit';
 
 export {

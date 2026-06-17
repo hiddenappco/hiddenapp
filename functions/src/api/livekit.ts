@@ -2,7 +2,8 @@ import { onRequest } from "firebase-functions/v2/https";
 import { AccessToken } from "livekit-server-sdk";
 import { db } from "../config/firebase";
 import { resolveDepartmentContext } from "../lib/departmentProfile";
-import { assertLiveCallQuota } from "../lib/liveCallQuota";
+import { assertLiveCallQuota, addLiveCallSecondsAdmin } from "../lib/liveCallQuota";
+import { AuthError, requireAuthUid } from "../lib/verifyAuth";
 
 /**
  * generateLiveKitToken - "El Portero"
@@ -22,11 +23,24 @@ export const generateLiveKitToken = onRequest(
         try {
             res.set('Access-Control-Allow-Origin', '*');
 
-            const { userId, userName, departmentId: incomingDepartmentId, userCoordinates, language: uiLanguage } = req.body;
+            // Identity comes from the verified Firebase ID token, never the body,
+            // so a client cannot mint a token for another UID or bypass quota.
+            let userId: string;
+            try {
+                userId = await requireAuthUid(req);
+            } catch (err) {
+                if (err instanceof AuthError) {
+                    res.status(401).json({ error: "Unauthorized" });
+                    return;
+                }
+                throw err;
+            }
+
+            const { userName, departmentId: incomingDepartmentId, userCoordinates, language: uiLanguage } = req.body;
             const appLanguage = uiLanguage === 'en' ? 'en' : 'es';
 
-            if (!userId || !incomingDepartmentId) {
-                res.status(400).json({ error: "Missing userId or departmentId" });
+            if (!incomingDepartmentId) {
+                res.status(400).json({ error: "Missing departmentId" });
                 return;
             }
 
@@ -103,6 +117,49 @@ export const generateLiveKitToken = onRequest(
             res.status(500).json({
                 error: `Error generating LiveKit token: ${error instanceof Error ? error.message : 'Unknown error'}`
             });
+        }
+    }
+);
+
+/**
+ * recordLiveCallSeconds - server-side usage accounting for the Live voice agent.
+ *
+ * The client reports elapsed seconds; the UID is taken from the verified Firebase
+ * ID token (never the body) and usage is written with the Admin SDK, so a client
+ * cannot reset or under-report its own quota by writing to Firestore directly.
+ */
+export const recordLiveCallSeconds = onRequest(
+    {
+        cors: true,
+        timeoutSeconds: 20,
+        memory: "256MiB",
+    },
+    async (req, res) => {
+        try {
+            res.set('Access-Control-Allow-Origin', '*');
+
+            let userId: string;
+            try {
+                userId = await requireAuthUid(req);
+            } catch (err) {
+                if (err instanceof AuthError) {
+                    res.status(401).json({ error: "Unauthorized" });
+                    return;
+                }
+                throw err;
+            }
+
+            const seconds = Number(req.body?.seconds);
+            if (!Number.isFinite(seconds) || seconds <= 0) {
+                res.status(400).json({ error: "INVALID_SECONDS" });
+                return;
+            }
+
+            await addLiveCallSecondsAdmin(db, userId, seconds);
+            res.status(200).json({ success: true });
+        } catch (error) {
+            console.error("[recordLiveCallSeconds] ERROR:", error);
+            res.status(500).json({ error: "RECORD_FAILED" });
         }
     }
 );

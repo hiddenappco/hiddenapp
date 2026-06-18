@@ -105,12 +105,16 @@ export interface Expedition {
     id: string;
     status: ExpeditionStatus;
     departmentId: string;
+    language?: 'es' | 'en';
     error?: string;
     note?: string;
     itinerary?: ExpeditionItinerary;
     request?: ExpeditionRequest;
     pdfUrl?: string;
     pdfExpiresAt?: { toDate?: () => Date } | string | Date;
+    revisionsUsed?: number;
+    parentExpeditionId?: string | null;
+    revisionIncluded?: boolean;
 }
 
 export const useExpedition = (id: string | undefined) => {

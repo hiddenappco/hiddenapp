@@ -7,6 +7,7 @@ export const en: TranslationType = {
         save: "Save Changes",
         saving: "Saving...",
         back: "Back",
+        unlockPremium: "See Premium plans",
         error: "Error",
         success: "Success",
         done: "Done",
@@ -270,7 +271,7 @@ export const en: TranslationType = {
         ariaLabel: "Main navigation",
         destinations: "Destinations",
         monitor: "Monitor",
-        home: "Depts",
+        home: "Home",
         budget: "Ledger",
         refugios: "Refuges"
     },
@@ -539,6 +540,18 @@ export const en: TranslationType = {
         downloadPdf: "Download plan PDF",
         pdfGenerating: "Generating PDF…",
         pdfError: "We couldn't generate the plan PDF. Please try again.",
+        premiumRequiredTitle: "Premium-only planner",
+        premiumRequiredDesc: "The multi-agent hub is Hidden's deepest experience. Activate Premium or the Trip Pass to build your day-by-day itinerary.",
+        quotaBanner: "{remaining} of {limit} planner runs left this period",
+        quotaExceeded: "You've used all your planner runs for this period.",
+        revisionTitle: "What would you like to adjust?",
+        revisionDesc: "Describe the changes in your own words. 1 revision is included at no extra cost; further changes use a planner run.",
+        revisionPlaceholder: "E.g.: Swap Bahía Málaga for San Cipriano, I want 2 nights there and fewer days in Cali...",
+        revisionSubmit: "Regenerate itinerary",
+        revisionSubmitting: "Submitting changes...",
+        revisionIncluded: "1 revision included in this run",
+        revisionPremiumTitle: "More changes need a planner run",
+        revisionQuotaExceeded: "You've used the included revision and have no planner runs left this period. Upgrade your plan or wait for the next cycle.",
         profile: { solo: "Solo", couple: "Couple", family: "Family", group: "Group" },
         mobilityRequired: "Select an option to continue.",
         mobility: {
@@ -565,7 +578,12 @@ export const en: TranslationType = {
             MISSING_BUDGET_RANGE: "Enter both minimum and maximum budget.",
             INVALID_MUST_VISIT: "One selected destination does not belong to this department.",
             MISSING_EXPEDITION_ID: "The server did not return an expedition id.",
-            MISSING_AUTHORIZATION: "You must be signed in to plan an expedition."
+            MISSING_AUTHORIZATION: "You must be signed in to plan an expedition.",
+            PREMIUM_REQUIRED: "The expedition planner requires Premium or a Trip Pass.",
+            EXPEDITION_QUOTA_EXCEEDED: "You've used all your planner runs for this period.",
+            MISSING_REVISION_NOTES: "Describe what you'd like to change in the itinerary.",
+            PARENT_EXPEDITION_NOT_FOUND: "We couldn't find the previous plan.",
+            PARENT_EXPEDITION_NOT_READY: "The previous plan isn't ready to adjust yet."
         },
         interest: {
             nature: "Nature",
@@ -658,10 +676,17 @@ export const en: TranslationType = {
         quotaNoTime: "No minutes left",
         sessionElapsed: "On call: {time}",
         quotaAutoHangup: "Your Live minutes for this period are used up.",
-        quotaBlockedCall: "You can't start a call until your quota renews."
+        quotaBlockedCall: "You can't start a call until your quota renews.",
+        trialLabel: "Free trial",
+        trialHint: "You have {remaining} of {total} left in your one-time Live voice trial.",
+        trialExpiredTitle: "Voice trial used up",
+        trialExpiredDesc: "You've used your 5-minute trial. Activate Premium for 30 min/month with the Live Agent.",
+        premiumRequiredTitle: "Premium Live Agent"
     },
     environmental: {
         initializing: "INITIALIZING MONITOR...",
+        rangerQuotaHint: "Ranger queries today: {remaining} of {limit}",
+        rangerQuotaExceeded: "You've hit today's Ranger query limit. Upgrade to Premium for more capacity.",
         connected: "CONNECTED",
         standby: "STANDBY",
         protected: "PROTECTED",
@@ -997,7 +1022,22 @@ export const en: TranslationType = {
         startOne: "Start a new adventure today!",
         startOneHint: "Use the button above or tap here",
         trackExpenses: "Track expenses",
-        deleteConfirm: "Delete this trip from history?"
+        deleteConfirm: "Delete this trip from history?",
+        historyFullHint: "10-trip history limit. Delete one from history before finishing another trip.",
+        paywallRoi: {
+            title: "Your pass pays for itself",
+            subtitle: "One Premium coupon in the Hidden catalog can beat the Trip Pass price.",
+            couponLine: "Example: “{title}”",
+            savingsExact: "Estimated savings ~{amount}",
+            savingsFrom: "Estimated savings from {amount}",
+            savingsExample: "Reference savings ~{amount}",
+            passLine: "10-day Trip Pass: {amount}",
+            netPositive: "You keep {amount} after one use",
+            netBreakEven: "Pays for itself in one use",
+            cta: "See Premium plans",
+            viewCoupon: "View coupon",
+            disclaimer: "Estimate based on the Hidden catalog; actual savings depend on the venue and service."
+        }
     },
     trips: {
         newTrip: "New Trip",
@@ -1013,6 +1053,7 @@ export const en: TranslationType = {
         transactions: "Transactions",
         finishTrip: "Finish Trip",
         finishConfirm: "Close trip?",
+        historyFull: "You already have 10 trips in history. Delete one from the ledger to save this trip when you finish it.",
         deleteExpenseConfirm: "Delete expense?",
         addExpense: "Add Expense",
         swipeToDelete: "Swipe to delete",

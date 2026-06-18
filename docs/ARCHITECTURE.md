@@ -346,7 +346,7 @@ Pipeline guarantees:
 - **Live UX** — `expeditions/{id}.status` transitions (`queued → curating → routing → budgeting → writing → ready`) stream to `ExpeditionProgress` via `onSnapshot`.
 - **i18n** — `buildLanguageDirective` on all agents; Routes `languageCode` es/en.
 
-**Unit economics (Jun 2026):** probabilistic model — avg **5–15 days** per consultation; quotas **1 / 2 / 3** (Free / Trip pass / Premium monthly); no commercial day cap (technical `MAX_DAYS=30`). Chat/Live for lighter planning. Target margin **≥70%**. See `docs/PREMIUM_PRICING.md`.
+**Unit economics (Jun 2026):** probabilistic model — avg **5–15 days** per consultation; hub quotas **0 / 1 / 3** (Free / Trip pass / Premium monthly); no commercial day cap (technical `MAX_DAYS=30`). Chat/Live for lighter planning. Target margin **≥70%**. See [`docs/UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md).
 
 **Frontend routes:** `/expedition/plan` (department picker) · `/expedition/plan/:departmentId` (wizard) · `/expedition/:expeditionId` (progress + result).
 
@@ -389,11 +389,11 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 **Hooks:** `useTrips`, `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
-**Not in v2 (explicit):** expedition → trip save (`T28-A7`), offline mirror of completed trip history, conflict UI for concurrent offline edits.
+**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **descartado** · offline mirror of completed trip history · conflict UI for concurrent offline edits.
 
 ### Premium membership (pricing Jun 2026)
 
-Monetization is defined in [`PREMIUM_PRICING.md`](./PREMIUM_PRICING.md); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). Modeled in [`public/unit-economics.html`](../public/unit-economics.html). **Stores / RevenueCat not live yet** — UI shows COP fallbacks on `/premium`.
+Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — UI shows COP fallbacks on `/premium`.
 
 | Plan | USD | COP (~3.600) | Role |
 |------|-----|--------------|------|

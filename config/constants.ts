@@ -1,3 +1,10 @@
+import {
+    CHAT_FREE_DAILY_MESSAGES,
+    LIVE_PREMIUM_MONTHLY_SECONDS,
+    LIVE_TRIAL_SECONDS,
+    LIVE_PERIOD_MS,
+} from './premiumLimits';
+
 export const API_ENDPOINTS = {
     GENERATE_TRIP_PDF:
         import.meta.env.VITE_PDF_EXPORT_URL ||
@@ -25,14 +32,15 @@ export const LIVEKIT_CONFIG = {
 };
 
 export const CHAT_LIMITS = {
-    FREE_DAILY_MESSAGES: 10,
-    MAX_RECORDING_TIME_SEC: 30
+    FREE_DAILY_MESSAGES: CHAT_FREE_DAILY_MESSAGES,
+    MAX_RECORDING_TIME_SEC: 30,
 };
 
-/** Live voice agent — rolling 30-day window (MVP: all users) */
+/** Live voice agent — Premium: 30 min / 30 d; Free: 5 min lifetime trial */
 export const LIVE_CALL_LIMITS = {
-    MONTHLY_SECONDS: 30 * 60,
-    PERIOD_DAYS: 30,
+    MONTHLY_SECONDS: LIVE_PREMIUM_MONTHLY_SECONDS,
+    TRIAL_SECONDS: LIVE_TRIAL_SECONDS,
+    PERIOD_DAYS: LIVE_PERIOD_MS / (24 * 60 * 60 * 1000),
 };
 
 export const COLLECTIONS = {
@@ -46,3 +54,10 @@ export const COLLECTIONS = {
     SUPPORT_TICKETS: 'support_tickets',
     ASSISTANTS: 'assistants'
 };
+
+/** Bitácora de gastos — viajes completados guardados por usuario. */
+export const TRIP_LEDGER_LIMITS = {
+    MAX_PAST_TRIPS: 10,
+} as const;
+
+export const TRIP_HISTORY_FULL = 'TRIP_HISTORY_FULL';

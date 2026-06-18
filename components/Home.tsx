@@ -6,6 +6,7 @@ import { useDepartments, useDestinationCounts, resolveDestinationCount } from '.
 import { normalizeImage } from '../utils/imageHelpers';
 import { formatDepartmentStatValue } from '../utils/departmentIdentity';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { DepartmentListSkeleton } from './ui/ContentSkeleton';
 
 interface HomeProps {
   language: Language;
@@ -62,14 +63,22 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
     ...decorativeDepartments
   ];
 
-  if (loading) return (
-    <div className="h-screen w-full bg-surface-dark flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-        <p className="text-content font-medium animate-pulse">{texts.loading}</p>
+  if (loading) {
+    return (
+      <div className="bg-background-dark text-content font-display h-screen flex flex-col relative overflow-hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between p-4 pt-safe shrink-0">
+          <div className="size-10 rounded-full bg-overlay/10 animate-pulse" />
+          <div className="h-8 w-20 bg-overlay/10 rounded-lg animate-pulse" />
+          <div className="size-10" />
+        </header>
+        <main className={`flex-1 w-full overflow-y-auto no-scrollbar pt-3 px-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
+          <div className="h-5 w-48 mx-auto mb-2 bg-overlay/10 rounded-lg animate-pulse" />
+          <div className="h-4 w-64 mx-auto mb-6 bg-overlay/10 rounded-lg animate-pulse" />
+          <DepartmentListSkeleton count={3} />
+        </main>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="bg-background-dark text-content font-display h-screen flex flex-col relative overflow-hidden">
@@ -83,7 +92,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
       <header className="sticky top-0 left-0 right-0 z-30 flex items-center justify-between p-4 pt-safe bg-gradient-to-b from-background-dark/95 to-transparent pointer-events-none shrink-0">
         <button
           onClick={onMenuClick || openMenu}
-          className="pointer-events-auto flex items-center justify-center size-10 rounded-full text-content bg-surface-dark hover:bg-surface-dark/80 shadow-lg border border-overlay/10 transition-colors"
+          className="pointer-events-auto touch-target flex items-center justify-center rounded-full text-content bg-surface-dark hover:bg-surface-dark/80 shadow-lg border border-overlay/10 transition-colors"
         >
           <span className="material-symbols-outlined">menu</span>
         </button>

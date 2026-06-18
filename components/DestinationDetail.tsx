@@ -10,6 +10,7 @@ import { Language } from '../types/core';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { GettingThereItem, PricingItem } from '../types/content';
 import { useTranslation } from '../hooks/useTranslation';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 // Sub-components
 import { DestinationHero } from './destination/DestinationHero';
@@ -189,7 +190,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     pinchZoom: t('destination.pinchZoom'),
   };
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.loading}</div>;
+  if (loading) return <PageDetailSkeleton />;
   if (!destination) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.notFound}</div>;
 
   const localizedAiTip = destination?.aiTip || '';

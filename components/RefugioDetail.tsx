@@ -8,6 +8,7 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 import { RichTextContent } from './ui/RichTextContent';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 interface RefugioDetailProps {
   language: Language;
@@ -173,7 +174,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
     );
   }, [refugio, allRefugios, linkedDestinations]);
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('refugio.loading')}</div>;
+  if (loading) return <PageDetailSkeleton />;
   if (!refugio) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('refugio.notFound')}</div>;
 
   const displayName = refugio.name;

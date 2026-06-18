@@ -3,7 +3,7 @@ import { Purchases, CustomerInfo, PurchasesPackage, PurchasesOffering } from '@r
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from './AuthProvider';
 import { useUserProfile } from '../../hooks/useFirestore';
-import { getIdentityFromProfile } from '../../utils/userIdentity';
+import { hasActivePremium } from '../../utils/premiumAccess';
 import { grantPremiumInFirestore } from '../../services/userPremiumSync';
 
 // RevenueCat Settings
@@ -34,11 +34,8 @@ export const RevenueCatProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
     const [offerings, setOfferings] = useState<PurchasesOffering[] | null>(null);
 
-    /** Firestore users/{uid}.isPremium is the source of truth (Rowy toggle / admin grant). */
-    const isPremium = useMemo(
-        () => getIdentityFromProfile(profile).isPremium,
-        [profile]
-    );
+    /** Firestore profile is source of truth; respects premiumExpiresAt and hackathon guest. */
+    const isPremium = useMemo(() => hasActivePremium(profile), [profile]);
 
     const updateCustomerStatus = useCallback((info: CustomerInfo) => {
         setCustomerInfo(info);

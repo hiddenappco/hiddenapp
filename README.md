@@ -6,11 +6,11 @@
 
 | | |
 |---|---|
-| **Official submission snapshot** | Git tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) · commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) · June 11, 2026 |
-| **Same snapshot (branch)** | [`submission`](https://github.com/hiddenappco/hiddenapp/tree/submission) |
+| **Official submission snapshot** (tag / branch `submission`) | **Frozen** at commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) — **June 11, 2026, 15:35 (-0500)**. Tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) is **immutable** — do not move it. |
+| **Active development** (branch `main`) | **Live product** with post-close optimizations, premium hardening, and production bug fixes. Default branch for contributors and post-challenge reviewers. |
 | **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
-| **Active development** | Branch [`main`](https://github.com/hiddenappco/hiddenapp/tree/main) — post-submission product work (expedition hub, Bitácora v2, thumb navigation, docs) |
+| **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B, market sizing (English, judge-facing) |
 
 ### Quick start for judges
 
@@ -34,7 +34,7 @@ git checkout main
 git log v1.0-challenge-submission..main --oneline
 ```
 
-> **Note:** `main` is intentionally ahead of the submission tag. The tag preserves the exact codebase at challenge close; `main` reflects ongoing startup development toward commercial launch.
+> **Two worlds, one repo:** Judges auditing the **formal deliverable** should `git checkout v1.0-challenge-submission` (or `submission`) — that is the cognitive core frozen before the Devpost deadline. Judges evaluating **momentum and production discipline** should browse **`main`**: continuous commits after June 11 prove active startup development, not a weekend hackathon toy.
 
 ---
 
@@ -261,7 +261,7 @@ gcloud run deploy hidden-agent-worker --source . --region us-central1
 | [docs/SUBMISSION.md](./docs/SUBMISSION.md) | **Challenge snapshot** — tag, branch, checkout, post-submission changelog |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System diagrams, ADK orchestration, agents, client navigation, deployment |
 | [docs/UI_FIELD_CONSTRAINTS.md](./docs/UI_FIELD_CONSTRAINTS.md) | Touch targets, thumb-zone bar, safe-area tokens (P0 QA checklist) |
-| [docs/PREMIUM_PRICING.md](./docs/PREMIUM_PRICING.md) | Premium plans, pricing ladder (Jun 2026) |
+| [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) | **Business model & unit economics** — pricing, B2B, market, projections |
 | [docs/PREMIUM_ENTITLEMENTS.md](./docs/PREMIUM_ENTITLEMENTS.md) | Feature matrix by tier — Guest · Free · Premium (Jun 2026) |
 | [public/architecture.html](./public/architecture.html) | Standalone architecture page (also deployed on Hosting) |
 | [LICENSE](./LICENSE) | License terms |

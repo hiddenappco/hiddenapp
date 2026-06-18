@@ -3,6 +3,7 @@ import { AccessToken } from "livekit-server-sdk";
 import { db } from "../config/firebase";
 import { resolveDepartmentContext } from "../lib/departmentProfile";
 import { assertLiveCallQuota, addLiveCallSecondsAdmin } from "../lib/liveCallQuota";
+import { hasActivePremium } from "../lib/premiumAccess";
 import { AuthError, requireAuthUid } from "../lib/verifyAuth";
 
 /**
@@ -10,7 +11,9 @@ import { AuthError, requireAuthUid } from "../lib/verifyAuth";
  * 
  * Generates a LiveKit access token for a user to join a voice/video room
  * with the Hyperlocal Agent. In production, this will gate on Premium status.
- * For development, access is open to all authenticated users.
+ * Premium users: 30 min / 30 d rolling window.
+ * Free registered users: one-time 5 min trial (`liveTrialUsedSeconds`).
+ * Hackathon guests (`isGuest`): full access until post-hackathon.
  */
 export const generateLiveKitToken = onRequest(
     {
@@ -44,16 +47,26 @@ export const generateLiveKitToken = onRequest(
                 return;
             }
 
+            const userSnap = await db.collection("users").doc(userId).get();
+            const userData = userSnap.data() ?? {};
             const quotaCheck = await assertLiveCallQuota(db, userId);
+
             if (!quotaCheck.allowed) {
+                const errorCode = quotaCheck.reason ?? "LIVE_QUOTA_EXCEEDED";
                 res.status(403).json({
-                    error: "LIVE_QUOTA_EXCEEDED",
-                    message: "Monthly live call limit reached",
-                    resetAt: quotaCheck.resetAt,
+                    error: errorCode,
+                    message:
+                        errorCode === "PREMIUM_REQUIRED"
+                            ? "Live voice requires Premium or trial minutes"
+                            : "Monthly live call limit reached",
+                    resetAt: quotaCheck.resetAt || undefined,
                     remainingSeconds: 0,
+                    isTrial: quotaCheck.isTrial,
                 });
                 return;
             }
+
+            const isTrial = quotaCheck.isTrial && !hasActivePremium(userData);
 
             const { canonicalId } = await resolveDepartmentContext(db, incomingDepartmentId);
             const departmentId = canonicalId;
@@ -110,6 +123,8 @@ export const generateLiveKitToken = onRequest(
                 livekitUrl,
                 roomName,
                 remainingSeconds: quotaCheck.remainingSeconds,
+                isTrial,
+                limitSeconds: quotaCheck.limitSeconds,
             });
 
         } catch (error) {

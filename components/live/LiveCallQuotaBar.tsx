@@ -24,22 +24,36 @@ export const LiveCallQuotaBar: React.FC<LiveCallQuotaBarProps> = ({
     );
 
     if (quota.isBlocked) {
+        const title = quota.isTrial ? t('live.trialExpiredTitle') : t('live.quotaExceededTitle');
+        const desc = quota.isTrial
+            ? t('live.trialExpiredDesc')
+            : t('live.quotaExceededDesc', { date: resetDate });
         return (
             <div className="w-full max-w-sm rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-center">
                 <span className="material-symbols-outlined text-red-400 text-2xl mb-2">hourglass_disabled</span>
-                <p className="text-sm font-bold text-content">{t('live.quotaExceededTitle')}</p>
-                <p className="text-[11px] text-content/60 mt-1 leading-relaxed">
-                    {t('live.quotaExceededDesc', { date: resetDate })}
-                </p>
+                <p className="text-sm font-bold text-content">{title}</p>
+                <p className="text-[11px] text-content/60 mt-1 leading-relaxed">{desc}</p>
             </div>
         );
     }
+
+    const quotaLabel = quota.isTrial ? t('live.trialLabel') : t('live.quotaLabel');
+    const hintText = quota.isTrial
+        ? t('live.trialHint', {
+              remaining: formatLiveMinutesSeconds(quota.remainingSeconds),
+              total: formatLiveMinutesSeconds(quota.limitSeconds),
+          })
+        : t('live.quotaHint', {
+              used: formatLiveMinutesSeconds(quota.usedSeconds),
+              total: formatLiveMinutesSeconds(quota.limitSeconds),
+              date: resetDate,
+          });
 
     return (
         <div className={`w-full max-w-sm rounded-2xl border border-overlay/10 bg-surface-dark/80 ${compact ? 'p-3' : 'p-4'}`}>
             <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-content/50">
-                    {t('live.quotaLabel')}
+                    {quotaLabel}
                 </span>
                 <span className="text-[10px] font-bold text-primary tabular-nums">
                     {formatLiveMinutesSeconds(quota.remainingSeconds)} {t('live.quotaRemaining')}
@@ -51,13 +65,7 @@ export const LiveCallQuotaBar: React.FC<LiveCallQuotaBarProps> = ({
                     style={{ width: `${remainingPct}%` }}
                 />
             </div>
-            <p className="text-[10px] text-content/45 mt-2 leading-relaxed">
-                {t('live.quotaHint', {
-                    used: formatLiveMinutesSeconds(quota.usedSeconds),
-                    total: formatLiveMinutesSeconds(quota.limitSeconds),
-                    date: resetDate,
-                })}
-            </p>
+            <p className="text-[10px] text-content/45 mt-2 leading-relaxed">{hintText}</p>
             {showSession && sessionSeconds > 0 && (
                 <p className="text-[10px] text-emerald-400/90 font-bold mt-2 tabular-nums">
                     {t('live.sessionElapsed', { time: formatLiveMinutesSeconds(sessionSeconds) })}

@@ -7,6 +7,7 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 interface FairDetailProps {
   language: Language;
@@ -108,7 +109,7 @@ export const FairDetail: React.FC<FairDetailProps> = ({
     }
   };
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('fair.loading')}</div>;
+  if (loading) return <PageDetailSkeleton />;
   if (!event) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('fair.notFound')}</div>;
 
   const displayName = event.name;

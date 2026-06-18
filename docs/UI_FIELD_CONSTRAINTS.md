@@ -12,6 +12,8 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 | **Zona inferior (CTAs)** | Acciones primarias de pantalla en el **tercio inferior** del scroll o barra superior cuando el FAB choca con nav | `fixed bottom-*`, `pb-safe`, `.bottom-nav-scroll-pad` |
 | **Dark OLED-friendly** | Fondos profundos en expedición prolongada | `--color-bg-dark: #0D1B2A` (no `#000` global) |
 | **Glass surfaces** | Barras flotantes, modales, badges offline | `.glass-surface`, `.glass-pill`, `.bottom-nav-glass` |
+| **Carga coherente** | Sin flash blanco; skeleton o spinner sobre `bg-background-dark` | `RouteLoadingFallback`, `ContentSkeleton` |
+| **Code splitting** | Pantallas secundarias en chunks lazy | `components/layout/lazyPages.ts` + `Suspense` en `AnimatedLayoutOutlet` |
 
 ## BottomNav (P0-THUMB-NAV) ✅
 
@@ -28,6 +30,18 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 
 **Archivos:** `components/BottomNav.tsx`, `components/layout/Layout.tsx`, `utils/bottomNav.ts`, `hooks/useCapacitorHardware.ts`, `index.css`.
 
+## Rendimiento y carga (T18 / T29-A5) ✅ Jun 2026
+
+| Patrón | Implementación |
+|--------|----------------|
+| **Lazy routes** | ~40 pantallas en `lazyPages.ts`; hubs `/home` y `/budget` eager |
+| **Suspense** | `AnimatedLayoutOutlet` → `RouteLoadingFallback` (fondo oscuro) |
+| **Transiciones** | `PageTransition` / `AnimatedLayoutOutlet` con `bg-background-dark` |
+| **Skeletons listas** | `ContentSkeleton.tsx` — Home, búsqueda, refugios, noticias, cupones, ferias, expedición picker |
+| **Skeletons detalle** | `PageDetailSkeleton` — destino, departamento, cupón, refugio, feria, noticia, monitor, historial viaje |
+
+**Archivos:** `components/layout/RouteLoadingFallback.tsx`, `components/layout/lazyPages.ts`, `components/ui/ContentSkeleton.tsx`.
+
 ## Pantallas auditadas (Jun 2026)
 
 | Pantalla | Estado | Notas |
@@ -38,10 +52,14 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 | `Budget` (Bitácora) | ✅ | Sin FAB; fila superior Conversor TRM · Unirse · Crear viaje |
 | `CreateTrip` | ✅ | Toggle viaje grupal (`w-11 h-6`, thumb `size-5`, `overflow-hidden`) |
 | `ExpeditionWizard` | ✅ | 5 pasos; paso 2 transporte terrestre obligatorio; `touch-target` en opciones de movilidad |
-| `DepartmentBriefing` | ✅ | Barra dual CTA compacta + glass |
+| `ExpeditionDepartmentPicker` | ✅ | Skeleton departamentos; back `touch-target` |
+| `DepartmentBriefing` | ✅ | Barra dual CTA compacta + glass; skeleton detalle |
 | `NavigationMenu` | ✅ | Departamentos · Destinos; Perfil en sección inferior |
-| `TripExpenses` | Parcial | Revisar inputs numéricos en siguiente pasada |
-| `LiveAgent` | Pendiente | Auditar controles de voz / mute |
+| `TripExpenses` | ✅ | `touch-target` en back, conversor, categorías, split, modal CTAs |
+| `JoinTrip` | ✅ | `touch-target` en back, toggles modo, CTA unirse |
+| `CurrencyConverter` | ✅ | `touch-target` en back y swap |
+| `LiveAgent` | ✅ | `touch-target` en back, iniciar llamada, colgar; `ControlBar` mute/hangup/record |
+| `Home` / `ManualSearch` / `Refugios` / `NewsFeed` / `Coupons` | ✅ | `bottom-nav-scroll-pad` donde aplica; skeletons en carga Firestore |
 
 ## Conectividad (P0-OFFLINE-COPY)
 
@@ -63,3 +81,5 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 2. Preferir `glass-surface` para barras flotantes (ver `DepartmentBriefing`, `DataConfirmModal`).
 3. Mensajes de red siempre desde `locales` → namespace `connectivity`.
 4. Descargas grandes → `DataConfirmModal` + chequeo `useNetworkDetails`.
+5. Pantallas nuevas → registrar en `lazyPages.ts` (no import eager en `AppRoutes`).
+6. Listas Firestore → skeleton de `ContentSkeleton`, nunca pantalla vacía ni texto suelto «Cargando…» en hubs.

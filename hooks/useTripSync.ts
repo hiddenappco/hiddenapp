@@ -89,7 +89,7 @@ export function useTripSync(userId: string | undefined) {
                         } else if (entry.op === 'finish_trip') {
                             const { total } = entry.payload as { total: number };
                             if (!entry.tripId.startsWith('local_')) {
-                                await finishTripRemote(entry.tripId, total);
+                                await finishTripRemote(entry.tripId, total, userId);
                             }
                         }
                         await removeOutboxEntry(entry.id);

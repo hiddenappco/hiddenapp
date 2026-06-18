@@ -10,7 +10,7 @@ import { PageTransition } from './PageTransition';
 import { Language } from '../../types/core';
 import type { Expense, TripCurrency } from '../../types/trips';
 
-// Components
+// Components — eager (hubs & auth entry)
 import { LanguageSelector } from '../LanguageSelector';
 import { Login } from '../Login';
 import { SignUp } from '../SignUp';
@@ -18,43 +18,47 @@ import { PasswordRecovery } from '../PasswordRecovery';
 import { PrivacyPolicy } from '../PrivacyPolicy';
 import { TermsOfUse } from '../TermsOfUse';
 import { Home } from '../Home';
-import { DepartmentBriefing } from '../DepartmentBriefing';
-import { Chat } from '../Chat';
-import { ManualSearch } from '../ManualSearch';
-import { DestinationDetail } from '../DestinationDetail';
-import { NewsFeed } from '../NewsFeed';
-import { NewsDetail } from '../NewsDetail';
-import { Coupons } from '../Coupons';
-import { CouponDetail } from '../CouponDetail';
-import { Support } from '../Support';
-import { Profile } from '../Profile';
-import { Premium } from '../Premium';
 import { Budget } from '../Budget';
-import { CreateTrip } from '../CreateTrip';
-import { TripExpenses } from '../TripExpenses';
-import { TripHistoryDetail } from '../TripHistoryDetail';
-import { JoinTrip } from '../JoinTrip';
-import { CurrencyConverter } from '../CurrencyConverter';
-import { SavedDestinations } from '../SavedDestinations';
-import { SavedCoupons } from '../SavedCoupons';
-import { SavedFairs } from '../SavedFairs';
-import { FairsCalendar } from '../FairsCalendar';
-import { FairDetail } from '../FairDetail';
-import { Notifications } from '../Notifications';
-import { NotificationSettings } from '../NotificationSettings';
-import { ProfileSettings } from '../ProfileSettings';
-import { HiddenPact } from '../HiddenPact';
-import { EnvironmentalMonitor } from '../EnvironmentalMonitor';
-import { AgentSelector } from '../AgentSelector';
-import { LiveAgent } from '../LiveAgent';
-import { OffGridVault } from '../OffGridVault';
 import { SignalLostFallback } from '../SignalLostFallback';
-import { Refugios } from '../Refugios';
-import { RefugioDetail } from '../RefugioDetail';
-import { SavedRefugios } from '../SavedRefugios';
-import { ExpeditionPlannerPage } from '../expedition/ExpeditionPlannerPage';
-import { ExpeditionResultPage } from '../expedition/ExpeditionResultPage';
-import { ExpeditionDepartmentPicker } from '../expedition/ExpeditionDepartmentPicker';
+
+// Lazy-loaded screens (code-split chunks)
+import {
+    DepartmentBriefing,
+    Chat,
+    ManualSearch,
+    DestinationDetail,
+    NewsFeed,
+    NewsDetail,
+    Coupons,
+    CouponDetail,
+    Support,
+    Profile,
+    Premium,
+    CreateTrip,
+    TripExpenses,
+    TripHistoryDetail,
+    JoinTrip,
+    CurrencyConverter,
+    SavedDestinations,
+    SavedCoupons,
+    SavedFairs,
+    FairsCalendar,
+    FairDetail,
+    Notifications,
+    NotificationSettings,
+    ProfileSettings,
+    HiddenPact,
+    EnvironmentalMonitor,
+    AgentSelector,
+    LiveAgent,
+    OffGridVault,
+    Refugios,
+    RefugioDetail,
+    SavedRefugios,
+    ExpeditionPlannerPage,
+    ExpeditionResultPage,
+    ExpeditionDepartmentPicker,
+} from './lazyPages';
 
 interface AppRoutesProps {
     user: any;
@@ -464,6 +468,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onDeleteExpense={handleDeleteExpense}
                                     onFinishTrip={handleFinishTrip}
                                     onOpenConverter={() => navigate('/trips/converter')}
+                                    pastTripCount={pastTrips?.length ?? 0}
                                     pendingCount={tripPendingCount}
                                     syncing={tripSyncing}
                                 />

@@ -50,6 +50,13 @@ export interface UserProfile {
         usedSeconds?: number;
         lastUpdated?: unknown;
     };
+    liveTrialUsedSeconds?: number;
+    rangerUsage?: { date?: string; count?: number };
+    expeditionPlansUsed?: {
+        periodStart?: unknown;
+        count?: number;
+    };
+    premiumExpiresAt?: unknown;
 }
 
 export interface TicketMessage {

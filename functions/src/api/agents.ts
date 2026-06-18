@@ -32,6 +32,7 @@ import {
     localizeRefugio,
 } from "../lib/localizeCatalog";
 import { AuthError, requireAuthUid } from "../lib/verifyAuth";
+import { assertAndConsumeRangerQuota } from "../lib/rangerQuota";
 
 let genAIInstance: GoogleGenerativeAI | null = null;
 const getGenAI = () => {
@@ -92,6 +93,15 @@ export const environmentalAgent = onRequest({
 
         if (!coordinates?.lat || !coordinates?.lng) {
             res.status(400).json({ error: "Missing coordinates" });
+            return;
+        }
+
+        const rangerQuota = await assertAndConsumeRangerQuota(db, userId);
+        if (!rangerQuota.allowed) {
+            res.status(403).json({
+                error: 'RANGER_QUOTA_EXCEEDED',
+                limit: rangerQuota.limit,
+            });
             return;
         }
 

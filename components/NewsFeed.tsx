@@ -6,6 +6,8 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { NEWS_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { MediaListSkeleton } from './ui/ContentSkeleton';
 
 interface NewsFeedProps {
   language: Language;
@@ -124,10 +126,10 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-5 pb-8 no-scrollbar">
+      <main className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-5 no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
         {loading ? (
-          <div className="text-center py-10 text-content-subtle">{t('news.loadingFeed')}</div>
+          <MediaListSkeleton count={4} />
         ) : filteredNews.length > 0 ? (
           <>
             {/* News List */}

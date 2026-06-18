@@ -3,6 +3,10 @@ import { Language } from '../types/core';
 import { Trip } from '../types/trips';
 import { useTranslation } from '../hooks/useTranslation';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { PaywallRoiCard } from './trips/PaywallRoiCard';
+import { TRIP_LEDGER_LIMITS } from '../config/constants';
+
+const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
 
 interface BudgetProps {
   language: Language;
@@ -78,7 +82,7 @@ export const Budget: React.FC<BudgetProps> = ({
         <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
       </header>
 
-      <main className={`flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
+      <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar p-4 flex flex-col gap-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
         {(!isOnline || pendingSyncCount > 0) && (
           <div className={`px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 ${
@@ -115,6 +119,8 @@ export const Budget: React.FC<BudgetProps> = ({
             <span className="truncate">{t('budget.createNewShort')}</span>
           </button>
         </div>
+
+        <PaywallRoiCard activeTrip={activeTrip} />
 
         {/* Active Trip Section */}
         <section>
@@ -189,10 +195,19 @@ export const Budget: React.FC<BudgetProps> = ({
         </section>
 
         {/* History Section */}
-        <section>
-          <div className="flex items-center justify-between mb-4 px-1">
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between mb-1 px-1">
             <h3 className="text-content/30 text-[10px] font-bold uppercase tracking-[0.2em]">{t('budget.history')}</h3>
+            <span className="text-[10px] font-bold text-content/25 tabular-nums">
+              {pastTrips.length}/{MAX_PAST_TRIPS}
+            </span>
           </div>
+
+          {pastTrips.length >= MAX_PAST_TRIPS && (
+            <p className="text-[11px] leading-relaxed text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+              {t('budget.historyFullHint')}
+            </p>
+          )}
 
           <div className="flex flex-col gap-3">
             {pastTrips.length > 0 ? (
@@ -236,6 +251,7 @@ export const Budget: React.FC<BudgetProps> = ({
               </div>
             )}
           </div>
+          <div className="shrink-0 h-2 w-full" aria-hidden="true" />
         </section>
 
       </main>

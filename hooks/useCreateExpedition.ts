@@ -25,9 +25,11 @@ export interface CreateExpeditionPayload {
         maxStopsPerDay?: number;
         travelerNotes?: string;
     };
+    parentExpeditionId?: string;
+    revisionNotes?: string;
 }
 
-export async function createExpedition(payload: CreateExpeditionPayload): Promise<{ expeditionId: string }> {
+async function postCreateExpedition(payload: CreateExpeditionPayload): Promise<{ expeditionId: string }> {
     const response = await fetch(API_ENDPOINTS.CREATE_EXPEDITION, {
         method: 'POST',
         headers: await getAuthHeaders(),
@@ -42,4 +44,24 @@ export async function createExpedition(payload: CreateExpeditionPayload): Promis
     const data = await response.json();
     if (!data.expeditionId) throw new Error('MISSING_EXPEDITION_ID');
     return { expeditionId: data.expeditionId };
+}
+
+export async function createExpedition(payload: CreateExpeditionPayload): Promise<{ expeditionId: string }> {
+    return postCreateExpedition(payload);
+}
+
+export async function reviseExpedition(
+    parentExpeditionId: string,
+    departmentId: string,
+    language: 'es' | 'en',
+    revisionNotes: string,
+    request: CreateExpeditionPayload['request']
+): Promise<{ expeditionId: string }> {
+    return postCreateExpedition({
+        departmentId,
+        language,
+        parentExpeditionId,
+        revisionNotes,
+        request,
+    });
 }

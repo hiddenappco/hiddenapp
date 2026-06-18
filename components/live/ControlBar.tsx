@@ -31,7 +31,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={onToggleMute}
-                    className={`size-14 rounded-full flex items-center justify-center transition-all border ${
+                    className={`touch-target size-14 rounded-full flex items-center justify-center transition-all border ${
                         isMuted
                             ? 'bg-red-500/20 border-red-500/30 text-red-400'
                             : 'bg-overlay/10 border-overlay/10 text-content hover:bg-overlay/20'
@@ -46,7 +46,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={onHangUp}
-                    className="size-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/30 transition-colors"
+                    className="touch-target size-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/30 transition-colors"
                 >
                     <span className="material-symbols-outlined text-[28px]">call_end</span>
                 </motion.button>
@@ -55,7 +55,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
             {/* Record indicator button */}
             <button
                 onClick={onToggleRecording}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                className={`touch-target flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all min-h-[2.75rem] ${
                     isRecording
                         ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                         : 'text-content/20 hover:text-content/40'

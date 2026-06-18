@@ -7,6 +7,8 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { useTranslation } from '../hooks/useTranslation';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { COUPON_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { MediaListSkeleton } from './ui/ContentSkeleton';
 
 interface CouponsProps {
   language: Language;
@@ -80,7 +82,7 @@ export const Coupons: React.FC<CouponsProps> = ({
   const featuredCoupons = coupons.filter(c => c.featuredCoupon);
 
   return (
-    <div className="bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto pb-28 no-scrollbar flex flex-col">
+    <div className={`bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto no-scrollbar flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 flex items-center justify-between transition-colors duration-300 shrink-0">
         <button
@@ -159,6 +161,12 @@ export const Coupons: React.FC<CouponsProps> = ({
       </div>
 
       {/* Featured Offers - Hide when searching */}
+      {loading && coupons.length === 0 ? (
+        <div className="px-4 mt-2 flex-1">
+          <MediaListSkeleton count={4} />
+        </div>
+      ) : (
+      <>
       {featuredCoupons.length > 0 && (
         <div className="mt-2 shrink-0">
           <div className="flex items-center justify-between px-4 pb-3 pt-2">
@@ -299,6 +307,8 @@ export const Coupons: React.FC<CouponsProps> = ({
           })}
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

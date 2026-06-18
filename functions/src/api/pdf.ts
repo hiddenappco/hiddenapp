@@ -8,10 +8,11 @@ import { generateDestinationPdfHtml } from '../pdf/destinationTemplate';
 import { generateExpeditionPdfHtml } from '../pdf/expeditionTemplate';
 import { renderHtmlToPdfBuffer, uploadUserPdf } from '../pdf/renderPdf';
 import type { PdfLanguage } from '../pdf/shared';
+import { hasActivePremium } from '../lib/premiumAccess';
 
 async function userIsPremium(uid: string): Promise<boolean> {
     const snap = await db.collection('users').doc(uid).get();
-    return snap.data()?.isPremium === true;
+    return hasActivePremium(snap.data());
 }
 
 function normalizeLanguage(raw: unknown): PdfLanguage {
@@ -40,10 +41,21 @@ export const generateTripPdf = onRequest(
     { cors: true, timeoutSeconds: 120, memory: '4GiB' },
     async (req, res) => {
         try {
+            const uid = await requireAuthUid(req);
             const { tripId, userId, language } = req.body;
 
             if (!tripId || !userId) {
                 res.status(400).send('Missing tripId or userId');
+                return;
+            }
+
+            if (userId !== uid) {
+                res.status(403).json({ error: 'FORBIDDEN' });
+                return;
+            }
+
+            if (!(await userIsPremium(uid))) {
+                res.status(403).json({ error: 'PREMIUM_REQUIRED' });
                 return;
             }
 
@@ -73,6 +85,10 @@ export const generateTripPdf = onRequest(
                 id: tripId,
             });
         } catch (error) {
+            if (error instanceof AuthError) {
+                res.status(401).json({ error: 'MISSING_AUTHORIZATION' });
+                return;
+            }
             console.error('[generateTripPdf]', error);
             res.status(500).json({
                 error: `Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -186,6 +202,11 @@ export const generateExpeditionPdf = onRequest(
 
         try {
             const uid = await requireAuthUid(req);
+            if (!(await userIsPremium(uid))) {
+                res.status(403).json({ error: 'PREMIUM_REQUIRED' });
+                return;
+            }
+
             const { expeditionId } = req.body as { expeditionId?: string };
             if (!expeditionId) {
                 res.status(400).json({ error: 'MISSING_EXPEDITION_ID' });

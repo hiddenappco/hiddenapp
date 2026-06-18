@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDestinations, useDestination } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
+import { useRevenueCat } from './layout/RevenueCatProvider';
+import { useUserProfile } from '../hooks/useSocial';
+import { computeRangerQuota } from '../utils/rangerQuota';
 import { useEnvironmentalMonitor } from '../hooks/useEnvironmentalMonitor';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
@@ -9,6 +12,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 import { EnvironmentalHeader } from './environmental/EnvironmentalHeader';
 import { IntelligenceAdvice } from './environmental/IntelligenceAdvice';
@@ -26,6 +30,9 @@ interface EnvironmentalMonitorProps {
 export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ language, onMenuClick }) => {
     const { t } = useTranslation();
     const { user } = useAuth();
+    const { isPremium } = useRevenueCat();
+    const { data: profile } = useUserProfile(user?.uid);
+    const rangerQuota = computeRangerQuota(profile);
     const { data: destinations, loading: loadingDests } = useDestinations();
 
     const [selectedId, setSelectedId] = useState<string>('');
@@ -80,6 +87,17 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     const handleQuerySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!query.trim() || tacticalLoading || !isMonitoring) return;
+        if (!rangerQuota.allowed) {
+            setTacticalMessages((prev) => [
+                ...prev,
+                {
+                    id: `sys-${Date.now()}`,
+                    role: 'assistant',
+                    text: t('environmental.rangerQuotaExceeded'),
+                },
+            ]);
+            return;
+        }
 
         const userText = query.trim();
         const userMsgId = `u-${Date.now()}`;
@@ -148,11 +166,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
               : null;
 
     if (loadingDests) {
-        return (
-            <div className="h-screen w-full bg-background-dark flex items-center justify-center text-primary font-bold">
-                {t('environmental.initializing')}
-            </div>
-        );
+        return <PageDetailSkeleton />;
     }
 
     return (

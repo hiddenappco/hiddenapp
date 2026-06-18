@@ -327,7 +327,7 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
                 <header className="sticky top-0 z-30 flex items-center justify-between bg-background-dark/80 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
                     <button
                         onClick={onBack}
-                        className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
+                        className="touch-target flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
                     >
                         <span className="material-symbols-outlined text-[24px]">arrow_back</span>
                     </button>
@@ -379,7 +379,7 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
                                 type="button"
                                 onClick={handleStartCall}
                                 disabled={callDisabled}
-                                className={`relative z-10 flex size-24 items-center justify-center rounded-full transition-all text-white shadow-xl ${
+                                className={`touch-target relative z-10 flex size-24 items-center justify-center rounded-full transition-all text-white shadow-xl ${
                                     callDisabled
                                         ? 'bg-overlay/20 text-content/30 cursor-not-allowed shadow-none'
                                         : 'bg-emerald-500 hover:bg-emerald-400 hover:scale-105 active:scale-95 shadow-emerald-500/40'
@@ -422,7 +422,7 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
             <header className="sticky top-0 z-30 flex items-center justify-between bg-background-dark/80 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
                 <button
                     onClick={handleHangUp}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
+                    className="touch-target flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
                 >
                     <span className="material-symbols-outlined text-[24px]">arrow_back</span>
                 </button>

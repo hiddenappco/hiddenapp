@@ -48,7 +48,7 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
         return (
             <div className="bg-background-dark h-screen flex flex-col text-content">
                 <header className="flex items-center px-4 pt-safe pb-2 border-b border-overlay/5">
-                    <button onClick={onBack} className="size-10 flex items-center justify-center">
+                    <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <h1 className="flex-1 text-center font-bold pr-10">{t('trips.joinTrip')}</h1>
@@ -71,7 +71,7 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
     return (
         <div className="bg-background-dark h-screen flex flex-col text-content">
             <header className="flex items-center px-4 pt-safe pb-2 border-b border-overlay/5">
-                <button onClick={onBack} className="size-10 flex items-center justify-center">
+                <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
                     <span className="material-symbols-outlined">arrow_back</span>
                 </button>
                 <h1 className="flex-1 text-center font-bold pr-10">{t('trips.joinTrip')}</h1>
@@ -84,14 +84,14 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
                     <button
                         type="button"
                         onClick={() => setMode('code')}
-                        className={`flex-1 h-10 rounded-lg text-xs font-bold ${mode === 'code' ? 'bg-budget-primary text-white' : 'text-content-muted'}`}
+                        className={`touch-target flex-1 min-h-[2.75rem] rounded-lg text-xs font-bold ${mode === 'code' ? 'bg-budget-primary text-white' : 'text-content-muted'}`}
                     >
                         {t('trips.joinByCode')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setMode('id')}
-                        className={`flex-1 h-10 rounded-lg text-xs font-bold ${mode === 'id' ? 'bg-budget-primary text-white' : 'text-content-muted'}`}
+                        className={`touch-target flex-1 min-h-[2.75rem] rounded-lg text-xs font-bold ${mode === 'id' ? 'bg-budget-primary text-white' : 'text-content-muted'}`}
                     >
                         {t('trips.joinById')}
                     </button>
@@ -121,7 +121,7 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
                     <button
                         type="submit"
                         disabled={loading}
-                        className="h-14 rounded-xl bg-budget-primary text-white font-bold disabled:opacity-50"
+                        className="touch-target h-14 rounded-xl bg-budget-primary text-white font-bold disabled:opacity-50"
                     >
                         {loading ? t('common.loading') : t('trips.joinTrip')}
                     </button>

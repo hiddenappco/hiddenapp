@@ -6,6 +6,7 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 interface NewsDetailProps {
   article?: NewsArticle;
@@ -20,7 +21,7 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
   const { data: fetchedArticle, loading } = useNewsArticle(finalId);
   const article = propArticle || fetchedArticle;
 
-  if (loading && !article) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('news.loading')}</div>;
+  if (loading && !article) return <PageDetailSkeleton />;
   if (!article && !loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('news.notFound')}</div>;
 
   if (!article) return null;

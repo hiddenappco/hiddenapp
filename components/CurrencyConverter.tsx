@@ -34,7 +34,7 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ onBack }) 
     return (
         <div className="bg-background-dark h-screen flex flex-col text-content font-display">
             <header className="sticky top-0 z-30 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
-                <button onClick={onBack} className="size-10 flex items-center justify-center rounded-full hover:bg-overlay/10">
+                <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
                     <span className="material-symbols-outlined">arrow_back</span>
                 </button>
                 <h1 className="flex-1 text-center font-bold pr-10">{t('trips.converterTitle')}</h1>
@@ -75,7 +75,7 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ onBack }) 
                         <button
                             type="button"
                             onClick={swap}
-                            className="size-12 shrink-0 rounded-xl bg-budget-primary/10 text-budget-primary flex items-center justify-center border border-budget-primary/20"
+                            className="touch-target size-12 shrink-0 rounded-xl bg-budget-primary/10 text-budget-primary flex items-center justify-center border border-budget-primary/20"
                             aria-label="Swap currencies"
                         >
                             <span className="material-symbols-outlined">swap_horiz</span>

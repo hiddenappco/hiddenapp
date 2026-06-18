@@ -5,6 +5,7 @@ import { useAuth } from './layout/AuthProvider';
 import { useTranslation } from '../hooks/useTranslation';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { EVENT_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { MediaListSkeleton } from './ui/ContentSkeleton';
 
 interface FairsCalendarProps {
   language: Language;
@@ -155,7 +156,7 @@ export const FairsCalendar: React.FC<FairsCalendarProps> = ({
           <h3 className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider mb-4 pl-1">{t('fairCalendar.upcoming')}</h3>
 
           {loading ? (
-            <div className="text-center py-10 text-content-subtle">{t('fairCalendar.loading')}</div>
+            <MediaListSkeleton count={3} />
           ) : (
             <div className="flex flex-col relative">
               {/* Timeline Vertical Line */}

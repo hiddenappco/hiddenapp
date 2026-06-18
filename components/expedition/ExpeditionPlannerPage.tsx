@@ -8,6 +8,11 @@ import { createExpedition } from '../../hooks/useCreateExpedition';
 import { ExpeditionWizard } from './ExpeditionWizard';
 import { translateExpeditionError } from '../../utils/expeditionErrors';
 import { isExpeditionPlannerLocked } from '../../utils/expeditionPlanner';
+import { useRevenueCat } from '../layout/RevenueCatProvider';
+import { ExpeditionPremiumGate } from './ExpeditionPremiumGate';
+import { computeExpeditionQuotaDisplay } from '../../utils/premiumAccess';
+import { useUserProfile } from '../../hooks/useSocial';
+import { useAuth } from '../layout/AuthProvider';
 
 interface ExpeditionPlannerPageProps {
     language: Language;
@@ -18,6 +23,9 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
     const { departmentId } = useParams<{ departmentId: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { user } = useAuth();
+    const { isPremium } = useRevenueCat();
+    const { data: profile, loading: profileLoading } = useUserProfile(user?.uid);
     const { data: department } = useDepartment(departmentId);
     const canonicalId = departmentId
         ? resolveEffectiveDepartmentId(departmentId, department)
@@ -25,6 +33,11 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
+    if (!profileLoading && !isPremium) {
+        return <ExpeditionPremiumGate onBack={onBack} />;
+    }
+
+    const quota = computeExpeditionQuotaDisplay(profile);
     const appLanguage = language === Language.English ? 'en' : 'es';
 
     const handleSubmit = async (payload: Parameters<typeof createExpedition>[0]) => {
@@ -111,6 +124,18 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-5 no-scrollbar flex flex-col">
+                {isPremium && quota.limit > 0 && (
+                    <p className="text-[11px] text-content-muted mb-4 rounded-xl border border-overlay/10 bg-surface-dark px-3 py-2">
+                        {t('expedition.quotaBanner')
+                            .replace('{remaining}', String(quota.remaining))
+                            .replace('{limit}', String(quota.limit))}
+                    </p>
+                )}
+                {!quota.allowed && isPremium && (
+                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
+                        {t('expedition.quotaExceeded')}
+                    </div>
+                )}
                 {error && (
                     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
                         {error}
@@ -121,7 +146,7 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
                     departmentName={department?.name || departmentId}
                     language={appLanguage}
                     onSubmit={handleSubmit}
-                    submitting={submitting}
+                    submitting={submitting || !quota.allowed}
                 />
             </div>
         </div>

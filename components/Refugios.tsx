@@ -7,6 +7,7 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { matchesLocalizedSearch } from '../utils/localizedContent';
 import { REFUGIO_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { MediaListSkeleton } from './ui/ContentSkeleton';
 
 interface RefugiosProps {
   language: Language;
@@ -75,7 +76,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
       <div className="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 flex items-center justify-between transition-colors duration-300 shrink-0">
         <button
           onClick={onMenuClick}
-          className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-secondary/90 shadow-sm border border-overlay/10 transition-colors active:scale-95"
+          className="touch-target flex items-center justify-center rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-secondary/90 shadow-sm border border-overlay/10 transition-colors active:scale-95"
         >
           <span className="material-symbols-outlined text-[20px]">menu</span>
         </button>
@@ -137,10 +138,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-content-subtle">
-            <div className="size-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-medium">{t('refugios.loading')}</p>
-          </div>
+          <MediaListSkeleton count={4} />
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {filteredRefugios.length === 0 && (

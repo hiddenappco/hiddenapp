@@ -10,6 +10,7 @@ import { Browser } from '@capacitor/browser';
 import { useTranslation } from '../hooks/useTranslation';
 import { EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
 import { TripBalances } from './trips/TripBalances';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 import type { ExpenseCategory, Trip } from '../types/trips';
 
 interface TripHistoryDetailProps {
@@ -25,7 +26,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
   const { expenses: firestoreExpenses } = useTripExpenses(id);
   const [isExporting, setIsExporting] = useState(false);
 
-  if (loadingTrip) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('common.loading')}</div>;
+  if (loadingTrip) return <PageDetailSkeleton />;
   if (!trip) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('trips.tripNotFound')}</div>;
 
   const getCategoryLabel = (category: ExpenseCategory) => t(EXPENSE_CATEGORY_KEYS[category]);

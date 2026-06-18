@@ -78,3 +78,10 @@ ANALISIS_FINANCIERO.md
 TECHNICAL_DOCUMENTATION.md
 metadata.json
 fix_imports.cjs
+
+# Modelo financiero DETALLADO — solo local (cifras de costos, márgenes, proveedores).
+# Versión pública para jueces / inversores: docs/UNIT_ECONOMICS_EN.md
+docs/UNIT_ECONOMICS.md
+docs/PREMIUM_PRICING.md
+hidden-app-unit-economics.canvas.tsx
+hidden-app-unit-economics*.canvas.tsx

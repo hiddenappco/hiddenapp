@@ -10,6 +10,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { RichTextContent } from './ui/RichTextContent';
 import { setLastDepartmentId } from '../utils/lastDepartment';
 import { isExpeditionPlannerLocked } from '../utils/expeditionPlanner';
+import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 interface DepartmentBriefingProps {
   language: Language;
@@ -55,7 +56,7 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
     [data]
   );
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('department.loading')}</div>;
+  if (loading) return <PageDetailSkeleton />;
   if (!data) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('department.notFound')}</div>;
 
   return (

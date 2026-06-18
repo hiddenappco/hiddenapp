@@ -13,6 +13,9 @@ import { TripGroupPanel } from './trips/TripGroupPanel';
 import { TripBalances } from './trips/TripBalances';
 import { CurrencyPicker } from './trips/CurrencyPicker';
 import { makeTempId } from '../services/tripLedgerStore';
+import { TRIP_LEDGER_LIMITS } from '../config/constants';
+
+const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
 
 interface TripExpensesProps {
   language: Language;
@@ -23,6 +26,7 @@ interface TripExpensesProps {
   onDeleteExpense: (expenseId: string, amount: number) => void;
   onFinishTrip: (total: number) => void;
   onOpenConverter: () => void;
+  pastTripCount?: number;
   pendingCount?: number;
   syncing?: boolean;
 }
@@ -106,6 +110,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   onDeleteExpense,
   onFinishTrip,
   onOpenConverter,
+  pastTripCount = 0,
   pendingCount = 0,
   syncing = false,
 }) => {
@@ -215,7 +220,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
-            className="text-content flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors cursor-pointer"
+            className="touch-target text-content flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[24px]">arrow_back</span>
           </button>
@@ -238,7 +243,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
 
         <button
           onClick={onOpenConverter}
-          className="flex items-center justify-between px-4 py-3 rounded-2xl bg-overlay/5 border border-overlay/10 hover:border-budget-primary/30 transition-colors"
+          className="touch-target flex items-center justify-between px-4 py-3.5 rounded-2xl bg-overlay/5 border border-overlay/10 hover:border-budget-primary/30 transition-colors min-h-[3.25rem] w-full"
         >
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-budget-primary">currency_exchange</span>
@@ -331,11 +336,16 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
           <div className="pt-4 pb-safe">
             <button
               onClick={() => {
+                if (pastTripCount >= MAX_PAST_TRIPS) {
+                  window.alert(t('trips.historyFull'));
+                  return;
+                }
                 if (window.confirm(t('trips.finishConfirm'))) {
                   onFinishTrip(totalSpent);
                 }
               }}
-              className="w-full h-14 bg-red-50 text-red-500 font-bold rounded-xl border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+              disabled={pastTripCount >= MAX_PAST_TRIPS}
+              className="w-full h-14 bg-red-50 text-red-500 font-bold rounded-xl border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-45 disabled:pointer-events-none"
             >
               <span className="material-symbols-outlined">flag</span>
               {t('trips.finishTrip')}
@@ -398,7 +408,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
                     <button
                       key={cat}
                       onClick={() => setNewCategory(cat)}
-                      className={`flex flex-col items-center gap-2 min-w-[72px] p-2 rounded-2xl border-2 transition-all ${
+                      className={`flex flex-col items-center gap-2 min-w-[4.5rem] min-h-[5.5rem] p-2 rounded-2xl border-2 transition-all touch-target ${
                         newCategory === cat
                           ? 'border-budget-primary bg-budget-primary/10'
                           : 'border-overlay/5 bg-overlay/5'
@@ -439,7 +449,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
                             key={m.uid}
                             type="button"
                             onClick={() => setPaidByMemberId(m.uid)}
-                            className={`w-full h-11 px-4 rounded-xl text-sm font-bold text-left transition-all border ${
+                            className={`w-full min-h-[2.75rem] touch-target px-4 rounded-xl text-sm font-bold text-left transition-all border ${
                               selected
                                 ? 'bg-budget-primary/15 border-budget-primary/40 text-content'
                                 : 'bg-overlay/5 border-overlay/10 text-content-muted hover:border-overlay/20'
@@ -465,7 +475,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
                             key={m.uid}
                             type="button"
                             onClick={() => toggleSplitMember(m.uid)}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            className={`touch-target min-h-[2.75rem] px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${
                               selected
                                 ? 'bg-budget-primary/15 border-budget-primary/40 text-budget-primary'
                                 : 'bg-overlay/5 border-overlay/10 text-content-muted'
@@ -495,14 +505,14 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 h-14 rounded-xl font-bold text-content-subtle hover:bg-gray-100 transition-colors"
+                  className="touch-target flex-1 h-14 rounded-xl font-bold text-content-subtle hover:bg-gray-100 transition-colors"
                 >
                   {t('trips.cancel')}
                 </button>
                 <button
                   onClick={handleSaveExpense}
                   disabled={!newAmount}
-                  className="flex-[2] h-14 rounded-xl bg-budget-primary text-white font-bold shadow-lg shadow-budget-primary/30 hover:bg-budget-primary-dark disabled:opacity-50 transition-all active:scale-[0.98]"
+                  className="touch-target flex-[2] h-14 rounded-xl bg-budget-primary text-white font-bold shadow-lg shadow-budget-primary/30 hover:bg-budget-primary-dark disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {t('trips.save')}
                 </button>

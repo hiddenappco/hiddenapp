@@ -31,6 +31,9 @@ import {
     getTripMirror,
     getActiveTripIdLocal,
 } from '../services/tripLedgerStore';
+import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from '../config/constants';
+
+const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
 
 const DEFAULT_IMAGE =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuBNhvg_gE0mA_8071n4_D0bdAERxgfIypflcDK22qUDNPyIT3eSxfl8s8feTtPIT3Dm7OZGcWr-dsgr8J35rvqO4W_hJdZkkKT8LTjjF-YC2u17XFEx3FuSPYoeVie9qCOxcXEKpN47z1g6DoW5ziJTFklUwipxT5ZHKR8RP591mT-J6SoUWbQi9vbURUu4aP9GvSbwY8Rz4Q4ezI9A9qVFQDfAeeAWrgqh2xyVq98uYHNG2ZfV_7rq_wWQYFkZ56Qs8zm4sbY_9hrw';
@@ -390,7 +393,13 @@ export const deleteExpenseFromTrip = async (tripId: string, expenseId: string, a
     });
 };
 
-export const finishTrip = async (tripId: string, totalSpent?: number) => {
+export const finishTrip = async (tripId: string, totalSpent?: number, userId?: string) => {
+    if (userId) {
+        const completed = await countCompletedTripsForUser(userId);
+        if (completed >= MAX_PAST_TRIPS) {
+            throw new Error(TRIP_HISTORY_FULL);
+        }
+    }
     const tripRef = doc(db, 'trips', tripId);
     await updateDoc(tripRef, {
         status: 'completed',
@@ -403,6 +412,28 @@ export const deleteTrip = async (tripId: string) => {
     const tripRef = doc(db, 'trips', tripId);
     await deleteDoc(tripRef);
 };
+
+async function countCompletedTripsForUser(userId: string): Promise<number> {
+    const memberQ = query(
+        collection(db, 'trips'),
+        where('memberIds', 'array-contains', userId),
+        where('status', '==', 'completed'),
+        limit(MAX_PAST_TRIPS + 1)
+    );
+    const legacyQ = query(
+        collection(db, 'trips'),
+        where('userId', '==', userId),
+        where('status', '==', 'completed'),
+        limit(MAX_PAST_TRIPS + 1)
+    );
+    const [memberSnap, legacySnap] = await Promise.all([getDocs(memberQ), getDocs(legacyQ)]);
+    const ids = new Set<string>();
+    for (const d of memberSnap.docs) ids.add(d.id);
+    for (const d of legacySnap.docs) ids.add(d.id);
+    return ids.size;
+}
+
+export { MAX_PAST_TRIPS };
 
 export const useTripExpenses = (tripId: string | undefined, isOnline = true) => {
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -483,11 +514,13 @@ export const usePastTrips = (userId: string | undefined) => {
                 byId.set(t.id, t);
             }
             setTrips(
-                Array.from(byId.values()).sort((a, b) => {
-                    const aTime = (a as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
-                    const bTime = (b as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
-                    return bTime - aTime;
-                })
+                Array.from(byId.values())
+                    .sort((a, b) => {
+                        const aTime = (a as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
+                        const bTime = (b as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
+                        return bTime - aTime;
+                    })
+                    .slice(0, MAX_PAST_TRIPS)
             );
             setLoading(false);
         };
@@ -496,14 +529,16 @@ export const usePastTrips = (userId: string | undefined) => {
             collection(db, 'trips'),
             where('memberIds', 'array-contains', userId),
             where('status', '==', 'completed'),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'desc'),
+            limit(MAX_PAST_TRIPS)
         );
 
         const legacyQ = query(
             collection(db, 'trips'),
             where('userId', '==', userId),
             where('status', '==', 'completed'),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'desc'),
+            limit(MAX_PAST_TRIPS)
         );
 
         const unsubMember = onSnapshot(

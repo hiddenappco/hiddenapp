@@ -24,7 +24,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full h-full min-h-0 flex flex-col overflow-hidden"
+            className="w-full h-full min-h-0 flex flex-col overflow-hidden bg-background-dark"
             style={{ willChange: 'opacity' }}
         >
             {children}

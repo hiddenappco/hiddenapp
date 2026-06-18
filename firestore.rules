@@ -20,6 +20,18 @@ service cloud.firestore {
         && (
           !('liveCallUsage' in request.resource.data)
           || (resource != null && request.resource.data.liveCallUsage == resource.data.liveCallUsage)
+        )
+        && (
+          !('liveTrialUsedSeconds' in request.resource.data)
+          || (resource != null && request.resource.data.liveTrialUsedSeconds == resource.data.liveTrialUsedSeconds)
+        )
+        && (
+          !('expeditionPlansUsed' in request.resource.data)
+          || (resource != null && request.resource.data.expeditionPlansUsed == resource.data.expeditionPlansUsed)
+        )
+        && (
+          !('rangerUsage' in request.resource.data)
+          || (resource != null && request.resource.data.rangerUsage == resource.data.rangerUsage)
         );
     }
 

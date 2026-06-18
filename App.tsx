@@ -22,6 +22,7 @@ import {
   getTripMirror,
   makeTempId,
 } from './services/tripLedgerStore';
+import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from './config/constants';
 
 import { AuthProvider, useAuth } from './components/layout/AuthProvider';
 import { RevenueCatProvider } from './components/layout/RevenueCatProvider';
@@ -196,17 +197,25 @@ const AppContent: React.FC = () => {
   };
 
   const handleFinishTrip = async (total: number) => {
-    if (!activeTrip) return;
+    if (!activeTrip || !user?.uid) return;
+    if ((pastTrips?.length ?? 0) >= TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS) {
+      window.alert(t('trips.historyFull'));
+      return;
+    }
     const useQueue = !isOnline || activeTrip.id.startsWith('local_');
     try {
       if (useQueue) {
         await queueFinishTrip(activeTrip.id, total);
         setLocalActiveTrip(null);
       } else {
-        await finishTrip(activeTrip.id, total);
+        await finishTrip(activeTrip.id, total, user.uid);
       }
       navigate('/budget');
     } catch (err) {
+      if (err instanceof Error && err.message === TRIP_HISTORY_FULL) {
+        window.alert(t('trips.historyFull'));
+        return;
+      }
       console.error('Error finishing trip:', err);
     }
   };

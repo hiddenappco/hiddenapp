@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
+import { SearchListSkeleton } from './ui/ContentSkeleton';
 import { useAuth } from './layout/AuthProvider';
 import { useUserFavorites, toggleFavorite, useIsFavorite } from '../hooks/useFirestore';
 
@@ -20,7 +21,11 @@ export const SavedFairs: React.FC<SavedFairsProps> = ({
   const { user } = useAuth();
   const { data: fairs, loading } = useUserFavorites(user?.uid, 'fair');
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content/40">{t('common.loading')}</div>;
+  if (loading) return (
+    <div className="h-screen w-full bg-background-dark p-4 pt-safe">
+      <SearchListSkeleton count={4} />
+    </div>
+  );
 
   return (
     <div className="bg-background-dark font-display text-content antialiased h-screen w-full overflow-y-auto no-scrollbar">

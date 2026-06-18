@@ -77,12 +77,14 @@ After the tag was created, the team continued shipping on `main`. Examples (not 
 | **Trip ledger (Bitácora v2)** | Solo/group trips, TRM rates, offline outbox, group splits, bilingual trip PDF |
 | **Thumb navigation** | Glass `BottomNav` on five hub routes, safe-area tokens, Android back behavior |
 | **UX / QA** | `docs/UI_FIELD_CONSTRAINTS.md`, connectivity copy, vault data transparency |
-| **Premium** | `docs/PREMIUM_ENTITLEMENTS.md`, `docs/PREMIUM_PRICING.md` |
+| **Premium** | `docs/PREMIUM_ENTITLEMENTS.md`, `docs/UNIT_ECONOMICS_EN.md` (public business model for judges) |
+| **Hardening (Jun 18)** | Premium quotas server-side, expedition revisions, trip history cap, lazy routes, i18n EN parity |
 
 ### Changelog (post-tag, `main`)
 
 | Date | Commit | Summary |
 |------|--------|---------|
+| 2026-06-18 | [`6be25ec`…`main`](https://github.com/hiddenappco/hiddenapp/compare/6be25ec...main) | **Pre-judging hardening:** Premium gates & quotas (Live trial 5 min, expedition hub 1/3, Ranger 5/10 daily) enforced in Cloud Functions + Firestore rules; expedition revision pipeline with included revision + quota consume; fix cascading free revisions; trip history capped at 10; PDF/LiveKit premium checks; lazy-loaded routes + Suspense; EN locale parity; public `UNIT_ECONOMICS_EN.md`; sensitive financial docs gitignored |
 | 2026-06-11 | [`cb77f91`](https://github.com/hiddenappco/hiddenapp/commit/cb77f91) | Expedition hub, Bitácora v2, thumb nav, submission docs |
 | 2026-06-11 | [`1cc398c`](https://github.com/hiddenappco/hiddenapp/commit/1cc398c) | GitHub Release draft notes for `v1.0-challenge-submission` |
 | 2026-06-16 | [`6c85652`](https://github.com/hiddenappco/hiddenapp/commit/6c85652) | **Live security:** Firebase token on `generateLiveKitToken`; `recordLiveCallSeconds` server-side; Firestore blocks client `liveCallUsage` writes |
@@ -93,8 +95,9 @@ After the tag was created, the team continued shipping on `main`. Examples (not 
 | 2026-06-16 | [`96136b5`](https://github.com/hiddenappco/hiddenapp/commit/96136b5) | **Client:** BottomNav types, `useCoupon` loading, PDF export error body |
 | 2026-06-16 | [`5e0e70c`](https://github.com/hiddenappco/hiddenapp/commit/5e0e70c) | **MCP:** do not clear global availability on transient catalog toolset failure |
 | 2026-06-16 | [`1c238c4`](https://github.com/hiddenappco/hiddenapp/commit/1c238c4) | **Live worker:** news title `title` with legacy `tittle` fallback |
+| 2026-06-17 | [`6be25ec`](https://github.com/hiddenappco/hiddenapp/commit/6be25ec) | Post-submission changelog; Live quota architecture docs |
 
-Deployed to production (Jun 16–17): Cloud Functions (LiveKit, expedition, chat, PDFs, triggers), Hosting, `firestore.rules`, and `hidden-agent-worker`.
+Deployed to production (Jun 16–18): Cloud Functions (LiveKit, expedition, chat, PDFs, triggers), Hosting, `firestore.rules`, and `hidden-agent-worker`.
 
 To see only post-submission commits:
 

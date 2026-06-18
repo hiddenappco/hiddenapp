@@ -7,13 +7,18 @@ import { runExpeditionPipeline } from '../adk/expedition/run';
 import type { ExpeditionRequest, GroundMobility } from '../adk/expedition/types';
 import { GROUND_MOBILITY_VALUES } from '../adk/expedition/types';
 import { normalizeAppLanguage } from '../adk/chat/briefing';
+import { hasActivePremium } from '../lib/premiumAccess';
+import { assertExpeditionQuota, consumeExpeditionQuota } from '../lib/expeditionQuota';
+import { MAX_EXPEDITION_DAYS, MAX_REVISION_NOTES_LENGTH } from '../lib/premiumLimits';
 
-const MAX_DAYS = 30;
+const MAX_DAYS = MAX_EXPEDITION_DAYS;
 
 function validateRequestBody(body: Record<string, unknown>): {
     departmentId: string;
     language: 'es' | 'en';
     request: ExpeditionRequest;
+    parentExpeditionId?: string;
+    revisionNotes?: string;
 } {
     const departmentId = String(body.departmentId || '').trim();
     if (!departmentId) throw new Error('MISSING_DEPARTMENT');
@@ -85,7 +90,18 @@ function validateRequestBody(body: Record<string, unknown>): {
         travelerNotes: raw.travelerNotes ? String(raw.travelerNotes).trim().slice(0, 1200) : undefined,
     };
 
-    return { departmentId, language, request };
+    const parentExpeditionId = body.parentExpeditionId
+        ? String(body.parentExpeditionId).trim()
+        : undefined;
+    const revisionNotes = body.revisionNotes
+        ? String(body.revisionNotes).trim().slice(0, MAX_REVISION_NOTES_LENGTH)
+        : undefined;
+
+    if (parentExpeditionId && !revisionNotes) {
+        throw new Error('MISSING_REVISION_NOTES');
+    }
+
+    return { departmentId, language, request, parentExpeditionId, revisionNotes };
 }
 
 /**
@@ -113,13 +129,89 @@ export const createExpedition = onRequest(
 
         try {
             const userId = await requireAuthUid(req);
+            const userSnap = await db.collection('users').doc(userId).get();
+            const userData = userSnap.data() ?? {};
+
+            if (!hasActivePremium(userData)) {
+                res.status(403).json({ error: 'PREMIUM_REQUIRED' });
+                return;
+            }
+
             const parsed = validateRequestBody(req.body as Record<string, unknown>);
             const { canonicalId } = await resolveDepartmentContext(db, parsed.departmentId);
 
-            const mustVisit = parsed.request.mustVisitDestinationIds ?? [];
+            let requestPayload = parsed.request;
+            let parentExpeditionId: string | undefined;
+            let revisionIncluded = false;
+
+            if (parsed.parentExpeditionId) {
+                const parentRef = db.collection('expeditions').doc(parsed.parentExpeditionId);
+                const parentSnap = await parentRef.get();
+                if (!parentSnap.exists) {
+                    res.status(404).json({ error: 'PARENT_EXPEDITION_NOT_FOUND' });
+                    return;
+                }
+
+                const parent = parentSnap.data()!;
+                if (parent.userId !== userId) {
+                    res.status(403).json({ error: 'FORBIDDEN' });
+                    return;
+                }
+                if (parent.status !== 'ready' || !parent.request) {
+                    res.status(400).json({ error: 'PARENT_EXPEDITION_NOT_READY' });
+                    return;
+                }
+
+                const revisionsUsed = Math.max(0, Math.floor(Number(parent.revisionsUsed ?? 0)));
+                revisionIncluded = revisionsUsed === 0;
+
+                if (!revisionIncluded) {
+                    const quota = await assertExpeditionQuota(db, userId);
+                    if (!quota.allowed) {
+                        res.status(403).json({
+                            error: quota.reason ?? 'EXPEDITION_QUOTA_EXCEEDED',
+                            remaining: quota.remaining,
+                            limit: quota.limit,
+                            resetAt: quota.resetAt,
+                        });
+                        return;
+                    }
+                    await consumeExpeditionQuota(db, userId);
+                }
+
+                const parentRequest = parent.request as ExpeditionRequest;
+                const priorNotes = String(parentRequest.travelerNotes || '').trim();
+                const revisionBlock = `[REVISION_REQUEST]\n${parsed.revisionNotes}`;
+                const mergedNotes = priorNotes ? `${priorNotes}\n\n${revisionBlock}` : revisionBlock;
+
+                requestPayload = {
+                    ...parentRequest,
+                    ...parsed.request,
+                    days: parsed.request.days || parentRequest.days,
+                    travelerNotes: mergedNotes,
+                };
+
+                parentExpeditionId = parsed.parentExpeditionId;
+                await parentRef.update({
+                    revisionsUsed: revisionsUsed + 1,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            } else {
+                const quota = await assertExpeditionQuota(db, userId);
+                if (!quota.allowed) {
+                    res.status(403).json({
+                        error: quota.reason ?? 'EXPEDITION_QUOTA_EXCEEDED',
+                        remaining: quota.remaining,
+                        limit: quota.limit,
+                        resetAt: quota.resetAt,
+                    });
+                    return;
+                }
+                await consumeExpeditionQuota(db, userId);
+            }
+
+            const mustVisit = requestPayload.mustVisitDestinationIds ?? [];
             if (mustVisit.length > 0) {
-                // Validate each id directly so valid must-visit destinations are never
-                // rejected just because they fall outside an arbitrary catalog window.
                 const uniqueIds = [...new Set(mustVisit)];
                 const refs = uniqueIds.map((id) => db.collection('destinations').doc(id));
                 const snaps = await db.getAll(...refs);
@@ -136,13 +228,22 @@ export const createExpedition = onRequest(
                 userId,
                 departmentId: canonicalId,
                 language: parsed.language,
-                request: parsed.request,
+                request: requestPayload,
                 status: 'queued',
+                parentExpeditionId: parentExpeditionId ?? null,
+                revisionNotes: parsed.revisionNotes ?? null,
+                revisionIncluded,
+                // Solo el plan original incluye 1 ajuste gratis. Un plan generado por
+                // revisión nace "con su ajuste ya usado" para no encadenar revisiones gratis.
+                revisionsUsed: parentExpeditionId ? 1 : 0,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            console.log(`[createExpedition] ${docRef.id} | ${canonicalId} | ${parsed.request.days} days`);
+            console.log(
+                `[createExpedition] ${docRef.id} | ${canonicalId} | ${requestPayload.days} days` +
+                    (parentExpeditionId ? ` | revision of ${parentExpeditionId}` : '')
+            );
 
             res.status(200).json({ expeditionId: docRef.id, status: 'queued' });
         } catch (err) {
@@ -152,6 +253,10 @@ export const createExpedition = onRequest(
             }
             const msg = String((err as Error).message || err);
             console.error('[createExpedition]', msg);
+            if (msg === 'EXPEDITION_QUOTA_EXCEEDED' || msg === 'PREMIUM_REQUIRED') {
+                res.status(403).json({ error: msg });
+                return;
+            }
             res.status(400).json({ error: msg });
         }
     }

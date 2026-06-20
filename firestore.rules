@@ -72,6 +72,27 @@ service cloud.firestore {
             && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds)
         );
       }
+
+      match /activity/{activityId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds != null
+            && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds)
+        );
+        allow create: if request.auth != null
+          && request.resource.data.actorUid == request.auth.uid
+          && (
+            get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid ||
+            get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
+            (get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds != null
+              && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds) ||
+            // A joining member (observer) may log their own "member_joined" event.
+            (request.resource.data.kind == 'member_joined'
+              && get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds != null
+              && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds)
+          );
+        allow update, delete: if false;
+      }
     }
 
     match /config/{docId} {

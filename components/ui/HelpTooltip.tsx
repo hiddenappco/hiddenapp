@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface HelpTooltipProps {
     /** Accessible name for the ? control */
@@ -9,6 +10,10 @@ interface HelpTooltipProps {
     align?: 'start' | 'end';
 }
 
+const VIEWPORT_PAD = 12;
+const GAP = 6;
+const MAX_WIDTH = 280;
+
 export const HelpTooltip: React.FC<HelpTooltipProps> = ({
     label,
     content,
@@ -16,15 +21,62 @@ export const HelpTooltip: React.FC<HelpTooltipProps> = ({
     align = 'start',
 }) => {
     const [open, setOpen] = useState(false);
-    const rootRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+    const reposition = useCallback(() => {
+        const trigger = triggerRef.current;
+        const tooltip = tooltipRef.current;
+        if (!trigger || !tooltip) return;
+
+        const tr = trigger.getBoundingClientRect();
+        const width = Math.min(MAX_WIDTH, window.innerWidth - VIEWPORT_PAD * 2);
+        const height = tooltip.offsetHeight;
+
+        let top = tr.bottom + GAP;
+        if (top + height > window.innerHeight - VIEWPORT_PAD) {
+            const above = tr.top - GAP - height;
+            top = above >= VIEWPORT_PAD
+                ? above
+                : Math.max(VIEWPORT_PAD, window.innerHeight - VIEWPORT_PAD - height);
+        }
+
+        let left = align === 'end' ? tr.right - width : tr.left;
+        if (left + width > window.innerWidth - VIEWPORT_PAD) {
+            left = window.innerWidth - VIEWPORT_PAD - width;
+        }
+        left = Math.max(VIEWPORT_PAD, left);
+
+        setPos({ top, left, width });
+    }, [align]);
+
+    useLayoutEffect(() => {
+        if (!open) {
+            setPos(null);
+            return;
+        }
+        reposition();
+        window.addEventListener('resize', reposition);
+        window.addEventListener('scroll', reposition, true);
+        return () => {
+            window.removeEventListener('resize', reposition);
+            window.removeEventListener('scroll', reposition, true);
+        };
+    }, [open, reposition, content]);
 
     useEffect(() => {
         if (!open) return;
 
         const onPointerDown = (event: PointerEvent) => {
-            if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-                setOpen(false);
+            const target = event.target as Node;
+            if (
+                triggerRef.current?.contains(target) ||
+                tooltipRef.current?.contains(target)
+            ) {
+                return;
             }
+            setOpen(false);
         };
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') setOpen(false);
@@ -38,36 +90,44 @@ export const HelpTooltip: React.FC<HelpTooltipProps> = ({
         };
     }, [open]);
 
-    const popoverAlign =
-        align === 'end' ? 'right-0' : 'left-0';
-
     return (
-        <div
-            ref={rootRef}
+        <span
             className={`relative inline-flex shrink-0 align-middle ${className}`}
             onClick={(e) => e.stopPropagation()}
         >
             <button
+                ref={triggerRef}
                 type="button"
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setOpen((prev) => !prev);
                 }}
-                className="touch-target size-5 min-w-[20px] rounded-full bg-overlay/10 border border-overlay/15 flex items-center justify-center text-content-muted hover:text-primary hover:border-primary/30 transition-colors"
+                className="relative z-[1] flex size-[18px] shrink-0 items-center justify-center rounded-full bg-overlay/10 border border-overlay/15 text-content-muted hover:text-primary hover:border-primary/30 transition-colors before:absolute before:-inset-2 before:content-['']"
                 aria-label={label}
                 aria-expanded={open}
             >
-                <span className="text-[11px] font-black leading-none select-none">?</span>
+                <span className="text-[10px] font-black leading-none select-none pointer-events-none">?</span>
             </button>
-            {open && (
-                <div
-                    role="tooltip"
-                    className={`absolute z-[60] top-full mt-1.5 ${popoverAlign} w-[min(280px,calc(100vw-2.5rem))] rounded-xl border border-overlay/15 bg-surface-dark shadow-xl shadow-black/30 p-3 text-[11px] leading-relaxed text-content-muted`}
-                >
-                    {content}
-                </div>
-            )}
-        </div>
+            {open &&
+                createPortal(
+                    <div
+                        ref={tooltipRef}
+                        role="tooltip"
+                        style={{
+                            position: 'fixed',
+                            top: pos?.top ?? -9999,
+                            left: pos?.left ?? VIEWPORT_PAD,
+                            width: pos?.width ?? Math.min(MAX_WIDTH, window.innerWidth - VIEWPORT_PAD * 2),
+                            visibility: pos ? 'visible' : 'hidden',
+                            zIndex: 10000,
+                        }}
+                        className="rounded-xl border border-overlay/15 bg-surface-dark shadow-xl shadow-black/30 p-3 text-[11px] leading-relaxed text-content-muted"
+                    >
+                        {content}
+                    </div>,
+                    document.body
+                )}
+        </span>
     );
 };

@@ -4,9 +4,9 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useRefugios, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { REFUGIO_SEARCH_FIELDS } from '../utils/localizeCatalog';
-import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { rankLocalizedSearch } from '../utils/localizedContent';
+import { REFUGIO_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { MediaListSkeleton } from './ui/ContentSkeleton';
 
 interface RefugiosProps {
@@ -45,9 +45,6 @@ export const Refugios: React.FC<RefugiosProps> = ({
     [refugios]
   );
 
-  const matchesSearchTerm = (ref: (typeof refugios)[0], term: string) =>
-    matchesLocalizedSearch(ref as Record<string, unknown>, term, [...REFUGIO_SEARCH_FIELDS]);
-
   const matchesType = (ref: (typeof refugios)[0]) => {
     if (selectedType === 'all') return true;
     const typesLower = ref.type?.map(t => t.toLowerCase()) || [];
@@ -55,17 +52,24 @@ export const Refugios: React.FC<RefugiosProps> = ({
   };
 
   const filteredRefugios = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchTerm.trim();
 
     if (!term && selectedType === 'all') {
       return [...browseableRefugios].sort(() => 0.5 - Math.random()).slice(0, 5);
     }
 
-    return browseableRefugios.filter(ref => {
-      if (!matchesType(ref)) return false;
-      if (term) return matchesSearchTerm(ref, term);
-      return true;
-    });
+    let pool = browseableRefugios.filter(matchesType);
+
+    if (term) {
+      pool = rankLocalizedSearch(
+        pool as Record<string, unknown>[],
+        term,
+        REFUGIO_PICKER_SEARCH_FIELDS,
+        50
+      ) as typeof pool;
+    }
+
+    return pool;
   }, [browseableRefugios, searchTerm, selectedType]);
 
   const isSuggestedView = !searchTerm.trim() && selectedType === 'all';
@@ -249,6 +253,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
             })}
           </div>
         )}
+        <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
       </div>
     </div>
   );

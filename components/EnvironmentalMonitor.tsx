@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDestinations, useDestination } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { useRevenueCat } from './layout/RevenueCatProvider';
@@ -9,9 +9,9 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
-import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { rankLocalizedSearch } from '../utils/localizedContent';
+import { DESTINATION_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { PageDetailSkeleton } from './ui/ContentSkeleton';
 
 import { EnvironmentalHeader } from './environmental/EnvironmentalHeader';
@@ -47,8 +47,15 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     const [shieldError, setShieldError] = useState<string | null>(null);
     const { data: selectedDestination } = useDestination(selectedId || undefined);
 
-    const filteredDestinations = destinations.filter((d) =>
-        matchesLocalizedSearch(d as Record<string, unknown>, searchTerm, [...DESTINATION_SEARCH_FIELDS])
+    const filteredDestinations = useMemo(
+        () =>
+            rankLocalizedSearch(
+                destinations as Record<string, unknown>[],
+                searchTerm,
+                DESTINATION_PICKER_SEARCH_FIELDS,
+                20
+            ),
+        [destinations, searchTerm]
     );
 
     useEffect(() => {
@@ -248,6 +255,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
 
                 <SatelliteRadar selectedDestination={selectedDestination} isMonitoring={isMonitoring} />
             </div>
+            <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full shrink-0`} aria-hidden="true" />
         </div>
     );
 };

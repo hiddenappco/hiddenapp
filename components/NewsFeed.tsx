@@ -4,8 +4,8 @@ import { NewsArticle } from '../types/content';
 import { useNews } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { NEWS_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { rankLocalizedSearch } from '../utils/localizedContent';
+import { NEWS_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 import { MediaListSkeleton } from './ui/ContentSkeleton';
 
@@ -50,22 +50,25 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
     essential: t('news.essential')
   };
 
-  const filteredNews = newsItems.filter(item => {
-    // Category Filter
-    if (activeFilter !== 'all') {
+  const filteredNews = React.useMemo(() => {
+    let pool = newsItems.filter(item => {
+      if (activeFilter === 'all') return true;
       const targetCategory = filterMap[activeFilter];
-      if (item.category !== targetCategory) return false;
+      return item.category === targetCategory;
+    });
+
+    const term = searchTerm.trim();
+    if (term) {
+      pool = rankLocalizedSearch(
+        pool as Record<string, unknown>[],
+        term,
+        NEWS_PICKER_SEARCH_FIELDS,
+        50
+      ) as typeof pool;
     }
 
-    // Search Filter
-    if (searchTerm) {
-      if (!matchesLocalizedSearch(item as Record<string, unknown>, searchTerm, [...NEWS_SEARCH_FIELDS])) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+    return pool;
+  }, [newsItems, activeFilter, searchTerm]);
 
   return (
     <div className="relative flex flex-col h-screen w-full overflow-hidden max-w-md mx-auto bg-background-dark font-display">

@@ -1,6 +1,6 @@
 # Hidden App — Capacidades por tipo de usuario (Jun 2026)
 
-Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (modelo de negocio y unit economics) y [`ARCHITECTURE.md`](./ARCHITECTURE.md) (implementación técnica).
+Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) / [`UNIT_ECONOMICS_ES.md`](./UNIT_ECONOMICS_ES.md) (modelo de negocio y unit economics) y [`ARCHITECTURE.md`](./ARCHITECTURE.md) (implementación técnica).
 
 > **Estado:** política **cerrada jun 2026** · **implementada en código** (jun 2026) salvo RevenueCat stores y `premiumExpiresAt` automático en compra.
 
@@ -117,7 +117,18 @@ Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PD
 
 - Tipos de cuenta, tabla comparativa Free vs Premium, 9 beneficios, precios referencia **USD**.
 - `PREMIUM_CHECKOUT_ENABLED = false` — CTA «Disponible pronto en tiendas» hasta Play/App Store + RevenueCat.
-- Tooltips `?` (`HelpTooltip`) en tipos de cuenta, filas de comparación y tarjetas de plan (`P0-PREMIUM-TOOLTIPS`).
+- Tooltips `?` (`HelpTooltip`) en tipos de cuenta, filas de comparación y tarjetas de plan (`P0-PREMIUM-TOOLTIPS`); portal con posicionamiento seguro en viewport.
+
+### 3.8 Upgrade invitado → cuenta oficial (Jun 2026)
+
+| | |
+|--|--|
+| **Dónde** | `ProfileSettings` → `GuestAccountUpgrade` |
+| **Métodos** | Google (`linkWithPopup`) o email + contraseña (`linkWithCredential`) |
+| **UID** | **No cambia** — viajes, favoritos e historial de expediciones se conservan |
+| **Firestore** | `isGuest: false`; email y displayName actualizados |
+| **Hackathon** | `GUEST_HACKATHON_PREMIUM = true` → `isPremium` se mantiene tras vincular |
+| **Post-hackathon** | `GUEST_HACKATHON_PREMIUM = false` → upgrade pasa a tier Free |
 
 ---
 
@@ -146,9 +157,12 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 | PDFs Premium (todos) | ✅ `pdf.ts` |
 | Bitácora grupal Premium | ✅ `CreateTrip` + rules |
 | Guest hackathon Premium | ✅ temporal |
-| Premium page USD + tooltips | ✅ `Premium.tsx` + `HelpTooltip` |
+| Premium page USD + tooltips | ✅ `Premium.tsx` + `HelpTooltip` (portal viewport-safe) |
 | Coach marks primera visita | ✅ `FeatureCoachmark` + `useFeatureTooltip` |
 | Bitácora historial offline | ✅ `tripLedgerStore` mirror (10 viajes) |
+| Feed actividad viajes grupales | ✅ `trips/{id}/activity` + `TripActivityFeed` |
+| Upgrade invitado → cuenta oficial | ✅ `GuestAccountUpgrade` + `AuthProvider` link |
+| ID usuario copiable en perfil | ✅ `ProfileUserIdBadge` |
 | Gemma inferencia MediaPipe | ✅ `gemmaEngine.ts` (opcional, WebGPU) |
 | Store checkout RevenueCat | ⏳ `PREMIUM_CHECKOUT_ENABLED = false` |
 | `premiumExpiresAt` en compra store | ⏳ RevenueCat pendiente |
@@ -159,5 +173,5 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 
 | Recurso | Ruta |
 |---------|------|
-| Modelo de negocio y unit economics | **[`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md)** |
+| Modelo de negocio y unit economics | **[`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md)** · **[`UNIT_ECONOMICS_ES.md`](./UNIT_ECONOMICS_ES.md)** |
 | Límites | [`config/premiumLimits.ts`](../config/premiumLimits.ts) |

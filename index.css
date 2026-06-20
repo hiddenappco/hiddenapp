@@ -175,6 +175,16 @@
     );
   }
 
+  /* Spacer inside flex scroll areas — more reliable than padding alone on WebKit/Capacitor */
+  .bottom-nav-scroll-spacer {
+    width: 100%;
+    flex-shrink: 0;
+    min-height: calc(
+      var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
+        env(safe-area-inset-bottom, 0px)
+    );
+  }
+
   .bottom-nav-fab-anchor {
     position: absolute;
     bottom: calc(

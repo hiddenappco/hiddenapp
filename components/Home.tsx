@@ -5,7 +5,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useDepartments, useDestinationCounts, resolveDestinationCount } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { formatDepartmentStatValue } from '../utils/departmentIdentity';
-import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { DepartmentListSkeleton } from './ui/ContentSkeleton';
 
 interface HomeProps {
@@ -75,6 +75,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
           <div className="h-5 w-48 mx-auto mb-2 bg-overlay/10 rounded-lg animate-pulse" />
           <div className="h-4 w-64 mx-auto mb-6 bg-overlay/10 rounded-lg animate-pulse" />
           <DepartmentListSkeleton count={3} />
+          <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
         </main>
       </div>
     );
@@ -231,6 +232,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
           <div className="flex flex-col items-center justify-center py-6 opacity-40">
             <div className="w-1 h-8 bg-gradient-to-b from-overlay/20 to-transparent rounded-full"></div>
           </div>
+          <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
         </div>
 
       </main>

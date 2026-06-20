@@ -53,15 +53,16 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 | `CreateTrip` | ✅ | Toggle viaje grupal (`w-11 h-6`, thumb `size-5`, `overflow-hidden`) |
 | `ExpeditionWizard` | ✅ | 5 pasos; paso 2 transporte terrestre obligatorio; `touch-target` en opciones de movilidad |
 | `ExpeditionDepartmentPicker` | ✅ | Skeleton departamentos; back `touch-target` |
-| `DepartmentBriefing` | ✅ | Barra dual CTA compacta + glass; skeleton detalle |
+| `DepartmentBriefing` | ✅ | Barra dual CTA + glass; CTA «Planificar aquí» → hub con dept preseleccionado; skeleton detalle |
 | `NavigationMenu` | ✅ | Departamentos · Destinos; Perfil en sección inferior |
 | `TripExpenses` | ✅ | `touch-target` en back, conversor, categorías, split, modal CTAs |
 | `JoinTrip` | ✅ | `touch-target` en back, toggles modo, CTA unirse |
 | `CurrencyConverter` | ✅ | `touch-target` en back y swap |
 | `LiveAgent` | ✅ | `touch-target` en back, iniciar llamada, colgar; `ControlBar` mute/hangup/record |
-| `Premium` | ✅ | Tooltips `?`; CTAs tienda deshabilitados hasta stores |
+| `Premium` | ✅ | Tooltips `?` (portal viewport-safe); light + desktop layout; CTAs tienda deshabilitados hasta stores |
+| `Profile` | ✅ | Badge ID copiable (`ProfileUserIdBadge`) |
 | `Budget` / `TripHistoryDetail` | ✅ | Modo claro; hint historial offline |
-| `Home` / `ManualSearch` / `Refugios` / `NewsFeed` / `Coupons` | ✅ | `bottom-nav-scroll-pad` donde aplica; skeletons en carga Firestore |
+| `Home` / `ManualSearch` / `Refugios` / `NewsFeed` / `Coupons` | ✅ | `bottom-nav-scroll-pad`; ranking búsqueda (`rankLocalizedSearch`); skeletons en carga |
 
 ## Conectividad (P0-OFFLINE-COPY)
 
@@ -81,7 +82,7 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 
 | ID | Componente | Pantallas |
 |----|------------|-----------|
-| `P0-PREMIUM-TOOLTIPS` | `HelpTooltip.tsx` | `/premium` — tipos de cuenta, comparativa, planes |
+| `P0-PREMIUM-TOOLTIPS` | `HelpTooltip.tsx` | `/premium` — tipos de cuenta, comparativa, planes; **portal** + clamp al viewport (no recorte lateral) |
 | `P0-TOOLTIP-ONCE` | `FeatureCoachmark.tsx` + `useFeatureTooltip.ts` | Bóveda, Monitor Ranger, Live, hub planificador (una vez; `localStorage`) |
 
 **Archivos:** `components/ui/HelpTooltip.tsx`, `components/ui/FeatureCoachmark.tsx`, `hooks/useFeatureTooltip.ts`.

@@ -313,7 +313,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                             <PageTransition>
                                 <ExpeditionDepartmentPicker
                                     {...commonProps}
-                                    onBack={() => navigate(-1)}
+                                    onMenuClick={() => setMenuOpen(true)}
                                 />
                             </PageTransition>
                         </OfflineGuardian>

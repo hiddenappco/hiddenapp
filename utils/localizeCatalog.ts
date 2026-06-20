@@ -40,6 +40,9 @@ export const DESTINATION_SEARCH_FIELDS = [
     'packingSummary',
 ] as const;
 
+/** Autocomplete / picker — name & place only (no body text). */
+export const DESTINATION_PICKER_SEARCH_FIELDS = ['title', 'name', 'location'] as const;
+
 export const COUPON_SEARCH_FIELDS = [
     'title',
     'description',
@@ -51,6 +54,9 @@ export const COUPON_SEARCH_FIELDS = [
     'category',
 ] as const;
 
+/** List search — title, place & category only (no long redemption copy). */
+export const COUPON_PICKER_SEARCH_FIELDS = ['title', 'location', 'category', 'discount'] as const;
+
 export const NEWS_SEARCH_FIELDS = [
     'title',
     'summary',
@@ -59,6 +65,9 @@ export const NEWS_SEARCH_FIELDS = [
     'author',
     'badge',
 ] as const;
+
+/** List search — headline fields only (no article body). */
+export const NEWS_PICKER_SEARCH_FIELDS = ['title', 'summary', 'category', 'badge'] as const;
 
 export const EVENT_SEARCH_FIELDS = [
     'name',
@@ -81,6 +90,9 @@ export const REFUGIO_SEARCH_FIELDS = [
     'restrictions',
     'pricingGuide',
 ] as const;
+
+/** List search — name, place & type only (no descriptions or amenities). */
+export const REFUGIO_PICKER_SEARCH_FIELDS = ['name', 'tagline', 'location', 'type'] as const;
 
 export function localizeDepartment(raw: RawDoc, lang: Language): Department {
     const doc = raw;

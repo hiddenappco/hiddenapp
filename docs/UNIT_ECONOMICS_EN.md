@@ -3,28 +3,31 @@
 Public overview of how Hidden App creates and captures value. This is the judge / investor facing
 summary of our business model and unit-economics philosophy. All figures in **USD**.
 
-> **Status (Jun 2026):** pricing and product limits are **finalized and implemented in code**.
-> Store billing (App Store / Play Store / RevenueCat) is the remaining operational step.
+> **Status (Jun 2026):** B2C pricing and product limits are **finalized and implemented in code**.
+> **B2B partner pricing** updated to **$15/mo** and **$150/yr** (policy Jun 2026; billing onboarding pending).
+> Store billing (App Store / Play Store / RevenueCat) is the remaining operational step for B2C.
 
 ---
 
 ## 1. Executive summary
 
 Hidden App is a hyperlocal travel companion for Colombia's hidden, nature-first destinations
-(hostels, glampings, coffee farms, eco-lodges, camping). We pair an AI hyperlocal agent with verified
-local catalog data, offline survival tooling, and a multi-agent trip planner.
+(hostels, glampings, coffee farms, eco-lodges, camping, and verified commercial allies). We pair an
+AI hyperlocal agent with verified local catalog data, offline survival tooling, and a multi-agent trip
+planner.
 
 We monetize through **two complementary revenue lines**:
 
 1. **B2C Premium (subscriptions)** — four plans on top of a generous Free tier.
-2. **B2B SaaS (Verified Refuge)** — a monthly fee for eco-lodging hosts who want verified status,
-   priority in AI recommendations, and the right to publish VIP coupons to travelers.
+2. **B2B SaaS (Verified Refuge & commercial allies)** — monthly or annual membership for hosts,
+   hotels, hostels, and local partners who want verified status, priority in AI recommendations, and
+   the right to publish VIP coupons to travelers.
 
 | Pillar | What it is | Headline |
 |--------|-----------|----------|
 | **B2C Premium** | Traveler subscriptions | Blended ARPU **~$7.33/mo** |
-| **B2B Verified Refuge** | Host SaaS subscription | **$10/mo** per host · billed direct (web) |
-| **Market (B2B, Colombia)** | Eco / nature lodging | TAM **~5,000** properties |
+| **B2B Verified Refuge** | Host / ally SaaS | **$15/mo** or **$150/yr** · billed direct (web) |
+| **Market (B2B, Colombia)** | Nature lodging + allies | TAM **~5,000** properties |
 | **Gross margin target** | Software product | **≥70%** at store rates · higher via direct/web |
 
 **Strategic edge — the "B2B shield":** B2B host revenue is structurally **decoupled** from traveler
@@ -38,12 +41,13 @@ infrastructure.
 
 - Colombia's best nature destinations are **fragmented and poorly digitized** — travelers lack
   reliable, real-time, hyperlocal information (logistics, safety, weather, coupons, lodging).
-- Local hosts (small eco-lodges, glampings, family farms) have **little affordable digital reach**.
+- Local hosts (small eco-lodges, glampings, family farms, hostels) and **commercial allies** have
+  **little affordable digital reach**.
 - Generic AI assistants **hallucinate** local details; Hidden grounds every answer in a **verified
   catalog** maintained per territory.
 
 Hidden sits at the intersection: a trusted hyperlocal layer travelers pay for, and a distribution
-channel hosts pay to be discovered in.
+channel hosts and allies pay to be discovered in.
 
 ---
 
@@ -78,18 +82,43 @@ lifetime; app stores are supported with standard marketplace fees.
 
 ---
 
-## 4. B2B — Verified Refuge (host SaaS)
+## 4. B2B — Verified Refuge & commercial allies (host SaaS)
 
-A second, higher-margin revenue line aimed at the eco-rural hospitality niche — explicitly **not**
-corporate city hotels.
+A second, higher-margin revenue line aimed at **eco-rural hospitality and verified commercial allies**
+in Colombia and Latin America — explicitly **not** large corporate city-hotel chains.
 
-**Price:** **$10/mo** per host, billed directly (web/transfer) — designed to be an "invisible cost"
-for the host (less than the revenue from selling a single bed for one night).
+### Pricing (Jun 2026)
 
-**What the host gets:**
+| Plan | Price (USD) | Effective / mo | Notes |
+|------|-------------|----------------|-------|
+| **Monthly** | **$15/mo** | $15.00 | Default; cancel anytime. |
+| **Annual** | **$150/yr** | $12.50 | **2 months free** vs. 12× monthly ($180 → $150). |
 
-- A **Verified Refuge** badge (trust signal).
-- **Algorithmic priority** when the hyperlocal AI agent recommends lodging.
+Billed directly (web / transfer / local payment rails) — no app-store fee on the B2B line.
+
+### Why $15/mo is “one night pays for the month” (Colombia / LATAM)
+
+In Colombia — and broadly across our first expansion markets in Latin America — even a **basic hostel
+bed** typically starts around **~COP 50,000/night** (~$14 USD at TRM ~3,500; official ~3,460 COP/USD
+as of Jun 2026). A single guest night
+at a partner property **covers the monthly membership**. The fee is designed to feel like an
+**invisible cost**: less than one booking, not a marketing budget line item.
+
+This framing holds for small hotels, hostels, glampings, and local allies whose average nightly rate
+sits in the same order of magnitude.
+
+### Why we added annual ($150/yr)
+
+- **Partner savings:** 2 months free encourages commitment and reduces churn friction.
+- **Hidden cash flow:** upfront annual payment improves **immediate cash** and **LTV predictability**
+  without discounting below a sustainable monthly anchor.
+- **Unit economics:** annual mix raises **cash collected per signup** even when recognized MRR is
+  slightly lower on a per-seat basis ($12.50/mo effective).
+
+### What the partner gets
+
+- A **Verified Refuge** badge (trust signal) and/or **commercial ally** placement in catalog.
+- **Algorithmic priority** when the hyperlocal AI agent recommends lodging or local services.
 - The right to publish **VIP coupons** into travelers' in-app ledger.
 
 ### Market sizing (Colombia)
@@ -97,23 +126,27 @@ for the host (less than the revenue from selling a single bed for one night).
 | Segment | Estimate |
 |---------|----------|
 | Registered lodging providers (Colombia) | **35,000+** |
-| Nature / rural niche (our target) | **~15%** |
+| Nature / rural niche + allied local businesses (our target) | **~15%** |
 | **Serviceable target (TAM)** | **~5,000 properties** |
 
-### Territorial go-to-market
+### Territorial go-to-market (monthly list-price MRR)
 
-We expand region by region, growing the verified host base as our catalog deepens:
+Illustrative model at **$15/mo** per paying partner (annual plans improve cash but reduce steady-state
+MRR per seat — see §5).
 
 | Phase | Territory | Target market | Capture | Paying hosts | Recurring revenue (MRR) | Annual (ARR) |
 |-------|-----------|--------------:|--------:|-------------:|------------------------:|-------------:|
-| 1 | Valle del Cauca | 350 | 20% | 70 | **$700/mo** | **$8,400** |
-| 2 | + Amazonas | 450 | 25% | 112 | **$1,120/mo** | **$13,440** |
-| 3 | + Antioquia | 1,200 | 30% | 360 | **$3,600/mo** | **$43,200** |
-| 4 | + Cundinamarca | 1,800 | 35% | 630 | **$6,300/mo** | **$75,600** |
-| 5 | National (32 depts.) | 5,000 | 40% | 2,000 | **$20,000/mo** | **$240,000** |
+| 1 | Valle del Cauca | 350 | 20% | 70 | **$1,050/mo** | **$12,600** |
+| 2 | + Amazonas | 450 | 25% | 112 | **$1,680/mo** | **$20,160** |
+| 3 | + Antioquia | 1,200 | 30% | 360 | **$5,400/mo** | **$64,800** |
+| 4 | + Cundinamarca | 1,800 | 35% | 630 | **$9,450/mo** | **$113,400** |
+| 5 | National (32 depts.) | 5,000 | 40% | 2,000 | **$30,000/mo** | **$360,000** |
 
-At national scale, the B2B line alone reaches **~$240K ARR** — a high-margin, defensible base that is
-independent of consumer subscription conversion.
+At national scale, the B2B line alone reaches **~$360K ARR** at list monthly pricing — a high-margin,
+defensible base that is independent of consumer subscription conversion.
+
+**Annual upside (illustrative):** if 30% of partners choose annual at Phase 5, upfront cash per cohort
+wave includes **~600 × $150 = $90K** collected immediately per renewal cycle, on top of monthly seats.
 
 ---
 
@@ -131,6 +164,10 @@ independent of consumer subscription conversion.
 - **The B2B shield.** Host revenue subsidizes the cost of serving free travelers. As host density
   rises, a growing share of Premium subscription revenue converts directly into net profit instead of
   paying for infrastructure.
+- **B2B pricing anchored to local economics.** $15/mo is justified by **one guest-night revenue** in
+  Colombia/LATAM, not by abstract SaaS comparables — improving conversion and reducing price objections.
+- **Annual B2B for cash velocity.** The $150/yr tier trades **~17% effective discount** (2 free months)
+  for **upfront liquidity** and lower annual churn — a favorable trade for a capital-efficient rollout.
 
 ---
 
@@ -165,13 +202,14 @@ verified.
 
 | Area | Status |
 |------|--------|
-| Pricing & entitlements in product/code | ✅ Live |
+| B2C pricing & entitlements in product/code | ✅ Live |
+| B2B partner pricing policy ($15/mo · $150/yr) | ✅ Documented Jun 2026 |
 | Quota & gating (planner, voice, ranger, PDFs, group ledger) | ✅ Live |
 | Premium UI & paywall | ✅ Live (`/premium`, USD reference, tooltips) |
-| App Store / Play Store / RevenueCat billing | ⏳ Pending — `PREMIUM_CHECKOUT_ENABLED = false` |
-| B2B Verified Refuge billing & host onboarding | ⏳ Planned |
+| App Store / Play Store / RevenueCat billing (B2C) | ⏳ Pending — `PREMIUM_CHECKOUT_ENABLED = false` |
+| B2B Verified Refuge billing & partner onboarding | ⏳ Planned |
 
 ---
 
 *Public business-model overview. Detailed internal cost modeling is maintained privately.*
-*Last updated: June 2026.*
+*Last updated: June 2026 — B2B pricing revision ($15/mo, $150/yr).*

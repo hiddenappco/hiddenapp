@@ -12,6 +12,7 @@ import {
     getTripMirror,
     cacheExpensesMirror,
     getExpensesMirror,
+    appendActivityMirror,
 } from '../services/tripLedgerStore';
 import {
     addExpenseToTrip,
@@ -20,7 +21,7 @@ import {
     createGroupTrip as createGroupTripRemote,
     finishTrip as finishTripRemote,
 } from './useTrips';
-import type { Expense } from '../types/trips';
+import type { Expense, TripActivityActor, TripActivityEntry } from '../types/trips';
 
 export function useTripSync(userId: string | undefined) {
     const isOnline = useNetworkStatus();
@@ -72,8 +73,9 @@ export function useTripSync(userId: string | undefined) {
                             continue;
                         } else if (entry.op === 'add_expense') {
                             const expense = entry.payload.expense as Expense;
+                            const actor = entry.payload.actor as TripActivityActor | undefined;
                             const { tempId } = entry;
-                            const realExpenseId = await addExpenseToTrip(entry.tripId, expense, tempId);
+                            const realExpenseId = await addExpenseToTrip(entry.tripId, expense, tempId, actor);
                             if (tempId && realExpenseId) {
                                 const mirror = await getExpensesMirror(entry.tripId);
                                 const updated = mirror.map((e) =>
@@ -82,9 +84,18 @@ export function useTripSync(userId: string | undefined) {
                                 await cacheExpensesMirror(entry.tripId, updated);
                             }
                         } else if (entry.op === 'delete_expense') {
-                            const { expenseId, amount } = entry.payload as { expenseId: string; amount: number };
+                            const { expenseId, amount, actor, note, category } = entry.payload as {
+                                expenseId: string;
+                                amount: number;
+                                actor?: TripActivityActor;
+                                note?: string;
+                                category?: Expense['category'];
+                            };
                             if (!expenseId.startsWith('temp_')) {
-                                await deleteExpenseFromTrip(entry.tripId, expenseId, amount);
+                                await deleteExpenseFromTrip(entry.tripId, expenseId, amount, actor, {
+                                    note,
+                                    category,
+                                });
                             }
                         } else if (entry.op === 'finish_trip') {
                             const { total } = entry.payload as { total: number };
@@ -133,18 +144,34 @@ export function useTripSync(userId: string | undefined) {
     );
 
     const queueAddExpense = useCallback(
-        async (tripId: string, expense: Expense, tempId: string) => {
+        async (tripId: string, expense: Expense, tempId: string, actor?: TripActivityActor) => {
             const mirror = await getExpensesMirror(tripId);
             await cacheExpensesMirror(tripId, [
                 { ...expense, id: tempId, pendingSync: true, localOnly: true },
                 ...mirror.filter((e) => e.id !== tempId),
             ]);
+            if (actor) {
+                const localActivity: TripActivityEntry = {
+                    id: makeTempId('local_act'),
+                    kind: 'expense_added',
+                    actorUid: actor.uid,
+                    actorName: actor.displayName,
+                    createdAt: Date.now(),
+                    expenseId: tempId,
+                    amountCOP: expense.amount,
+                    note: expense.note,
+                    category: expense.category,
+                    pendingSync: true,
+                    localOnly: true,
+                };
+                await appendActivityMirror(tripId, localActivity);
+            }
             await addOutboxEntry({
                 id: makeTempId('op'),
                 tripId,
                 op: 'add_expense',
                 tempId,
-                payload: { expense },
+                payload: { expense, actor },
                 createdAt: Date.now(),
             });
             await refreshPendingCount();
@@ -153,18 +180,41 @@ export function useTripSync(userId: string | undefined) {
     );
 
     const queueDeleteExpense = useCallback(
-        async (tripId: string, expenseId: string, amount: number) => {
+        async (
+            tripId: string,
+            expenseId: string,
+            amount: number,
+            actor?: TripActivityActor,
+            meta?: { note?: string; category?: Expense['category'] }
+        ) => {
             const mirror = await getExpensesMirror(tripId);
+            const removed = mirror.find((e) => e.id === expenseId);
             await cacheExpensesMirror(
                 tripId,
                 mirror.filter((e) => e.id !== expenseId)
             );
+            if (actor) {
+                const localActivity: TripActivityEntry = {
+                    id: makeTempId('local_act'),
+                    kind: 'expense_deleted',
+                    actorUid: actor.uid,
+                    actorName: actor.displayName,
+                    createdAt: Date.now(),
+                    expenseId,
+                    amountCOP: amount,
+                    note: meta?.note ?? removed?.note,
+                    category: meta?.category ?? removed?.category,
+                    pendingSync: true,
+                    localOnly: true,
+                };
+                await appendActivityMirror(tripId, localActivity);
+            }
             if (!expenseId.startsWith('temp_')) {
                 await addOutboxEntry({
                     id: makeTempId('op'),
                     tripId,
                     op: 'delete_expense',
-                    payload: { expenseId, amount },
+                    payload: { expenseId, amount, actor, note: meta?.note ?? removed?.note, category: meta?.category ?? removed?.category },
                     createdAt: Date.now(),
                 });
             } else {

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider, signInWithCredential, signInAnonymously } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider, signInWithCredential, signInAnonymously, linkWithCredential, linkWithPopup, EmailAuthProvider } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { NEW_USER_IDENTITY_FIELDS, GUEST_USER_PROFILE_FIELDS } from '../../utils/userIdentity';
+import { GUEST_HACKATHON_PREMIUM } from '../../utils/guestAccess';
 import { deactivateEnvironmentalShield } from '../../services/environmentalShield';
 
 interface AuthContextType {
@@ -15,6 +16,8 @@ interface AuthContextType {
     logout: () => Promise<void>;
     loginWithGoogle: () => Promise<void>;
     loginAsGuest: () => Promise<void>;
+    linkGuestWithGoogle: () => Promise<void>;
+    linkGuestWithEmail: (email: string, password: string) => Promise<void>;
     updateUserProfile: (name: string, photoURL?: string) => Promise<void>;
 }
 
@@ -26,6 +29,8 @@ const AuthContext = createContext<AuthContextType>({
     logout: async () => { },
     loginWithGoogle: async () => { },
     loginAsGuest: async () => { },
+    linkGuestWithGoogle: async () => { },
+    linkGuestWithEmail: async () => { },
     updateUserProfile: async () => { },
 });
 
@@ -163,6 +168,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const finalizeGuestUpgrade = async (linkedUser: User) => {
+        const userRef = doc(db, 'users', linkedUser.uid);
+        const existing = await getDoc(userRef);
+        const prev = existing.data();
+        const prevName =
+            typeof prev?.displayName === 'string' && prev.displayName.trim()
+                ? prev.displayName.trim()
+                : typeof prev?.name === 'string'
+                  ? prev.name.trim()
+                  : '';
+        const keepCustomName = prevName.length > 0 && prevName !== 'Guest Explorer';
+        const authName = linkedUser.displayName?.trim() || '';
+        const displayName = keepCustomName ? prevName : authName || prevName || 'Explorer';
+
+        if (!keepCustomName && displayName && linkedUser.displayName !== displayName) {
+            await updateProfile(linkedUser, { displayName });
+        }
+
+        await setDoc(
+            userRef,
+            {
+                email: linkedUser.email ?? '',
+                name: displayName,
+                displayName,
+                ...(linkedUser.photoURL ? { photoURL: linkedUser.photoURL } : {}),
+                isGuest: false,
+                // Hackathon: keep Premium after linking; post-hackathon set GUEST_HACKATHON_PREMIUM=false
+                ...(GUEST_HACKATHON_PREMIUM ? {} : { isPremium: false }),
+            },
+            { merge: true }
+        );
+    };
+
+    const assertAnonymousGuest = () => {
+        const current = auth.currentUser;
+        if (!current?.isAnonymous) {
+            throw new Error('NOT_GUEST');
+        }
+        return current;
+    };
+
+    const linkGuestWithGoogle = async () => {
+        const current = assertAnonymousGuest();
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const googleUser = await GoogleAuth.signIn();
+                const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+                const result = await linkWithCredential(current, credential);
+                await finalizeGuestUpgrade(result.user);
+            } else {
+                const provider = new GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                const result = await linkWithPopup(current, provider);
+                await finalizeGuestUpgrade(result.user);
+            }
+            if (auth.currentUser) {
+                setUser({ ...auth.currentUser });
+            }
+        } catch (error: unknown) {
+            console.error('Guest Google link error:', error);
+            throw error;
+        }
+    };
+
+    const linkGuestWithEmail = async (email: string, password: string) => {
+        const current = assertAnonymousGuest();
+        try {
+            const credential = EmailAuthProvider.credential(email.trim(), password);
+            const result = await linkWithCredential(current, credential);
+            await finalizeGuestUpgrade(result.user);
+            if (auth.currentUser) {
+                setUser({ ...auth.currentUser });
+            }
+        } catch (error: unknown) {
+            console.error('Guest email link error:', error);
+            throw error;
+        }
+    };
+
     const loginAsGuest = async () => {
         try {
             const userCredential = await signInAnonymously(auth);
@@ -203,7 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout, loginWithGoogle, loginAsGuest, updateUserProfile }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, logout, loginWithGoogle, loginAsGuest, linkGuestWithGoogle, linkGuestWithEmail, updateUserProfile }}>
             {!loading && children}
         </AuthContext.Provider>
     );

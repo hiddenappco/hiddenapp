@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language } from '../types/core';
 import { Trip, Expense, TripCurrency, ExpenseCategory } from '../types/trips';
-import { useTripExpenses, canEditTrip } from '../hooks/useFirestore';
+import { useTripExpenses, useTripActivity, canEditTrip } from '../hooks/useFirestore';
 import { useTranslation } from '../hooks/useTranslation';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -11,6 +11,7 @@ import { convertToCop, formatCop, formatForeign } from '../utils/currency';
 import { TripSyncBanner } from './trips/TripSyncBanner';
 import { TripGroupPanel } from './trips/TripGroupPanel';
 import { TripBalances } from './trips/TripBalances';
+import { TripActivityFeed } from './trips/TripActivityFeed';
 import { CurrencyPicker } from './trips/CurrencyPicker';
 import { makeTempId } from '../services/tripLedgerStore';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
@@ -23,7 +24,11 @@ interface TripExpensesProps {
   userId?: string;
   onBack: () => void;
   onAddExpense: (expense: Expense, tempId: string) => void;
-  onDeleteExpense: (expenseId: string, amount: number) => void;
+  onDeleteExpense: (
+    expenseId: string,
+    amount: number,
+    meta?: { note?: string; category?: ExpenseCategory }
+  ) => void;
   onFinishTrip: (total: number) => void;
   onOpenConverter: () => void;
   pastTripCount?: number;
@@ -34,7 +39,7 @@ interface TripExpensesProps {
 const ExpenseCard: React.FC<{
   expense: Expense;
   trip: Trip;
-  onDelete: (id: string, amount: number) => void;
+  onDelete: (id: string, amount: number, note?: string, category?: ExpenseCategory) => void;
   canEdit: boolean;
   getCategoryLabel: (category: ExpenseCategory) => string;
   formatCurrency: (amount: number, expense: Expense) => string;
@@ -63,7 +68,7 @@ const ExpenseCard: React.FC<{
         dragElastic={0.1}
         onDragEnd={(_, info) => {
           if (canEdit && info.offset.x < -80) {
-            onDelete(expense.id, expense.amount);
+            onDelete(expense.id, expense.amount, expense.note, expense.category);
           }
         }}
         className="relative flex items-center gap-4 p-3 bg-surface-dark border border-overlay/5 rounded-2xl shadow-sm z-10 touch-pan-x"
@@ -75,7 +80,7 @@ const ExpenseCard: React.FC<{
           <p className="font-bold text-content text-base truncate">{expense.note}</p>
           <p className="text-xs text-content-muted font-medium">
             {getCategoryLabel(expense.category)} • {expense.time}
-            {expense.pendingSync && ' • ⏳'}
+            {expense.pendingSync && ` • ${t('trips.activityPending')}`}
           </p>
           {expense.currency && expense.currency !== 'COP' && expense.amountOriginal != null && (
             <p className="text-[10px] text-content-subtle">
@@ -120,6 +125,10 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   const isOnline = useNetworkStatus();
   const { rates } = useExchangeRates();
   const { expenses: rawExpenses } = useTripExpenses(trip.id, isOnline);
+  const { activity, loading: activityLoading } = useTripActivity(
+    trip.type === 'group' ? trip.id : undefined,
+    isOnline
+  );
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const canEdit = canEditTrip(trip, userId);
   const isOwner = trip.ownerId === userId || trip.userId === userId;
@@ -199,11 +208,11 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
     setNewNote('');
   };
 
-  const handleDelete = (expenseId: string, amount: number) => {
+  const handleDelete = (expenseId: string, amount: number, note?: string, category?: ExpenseCategory) => {
     if (!canEdit) return;
     if (window.confirm(t('trips.deleteExpenseConfirm'))) {
       setDeletedIds((prev) => [...prev, expenseId]);
-      onDeleteExpense(expenseId, amount);
+      onDeleteExpense(expenseId, amount, { note, category });
     }
   };
 
@@ -300,7 +309,10 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
         </div>
 
         {trip.type === 'group' && (
-          <TripBalances trip={trip} expenses={firestoreExpenses} currentUid={userId} />
+          <>
+            <TripBalances trip={trip} expenses={firestoreExpenses} currentUid={userId} />
+            <TripActivityFeed activity={activity} loading={activityLoading} />
+          </>
         )}
 
         <div className="flex flex-col gap-4">

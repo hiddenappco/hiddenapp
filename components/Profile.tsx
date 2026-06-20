@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { ExplorerProgress } from './ExplorerProgress';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import { ProfileUserIdentityCards } from './profile/ProfileUserIdentityCards';
+import { ProfileUserIdBadge } from './profile/ProfileUserIdBadge';
 
 interface ProfileProps {
   language: Language;
@@ -153,6 +154,8 @@ export const Profile: React.FC<ProfileProps> = ({
             )}
           </div>
         </div>
+
+        <ProfileUserIdBadge userId={user?.uid} />
 
         <ProfileUserIdentityCards profile={profile} onPremiumClick={onPremiumClick} />
 

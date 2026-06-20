@@ -13,6 +13,28 @@ export type ExpenseCategory =
 
 export type TripMemberRole = 'owner' | 'editor' | 'observer';
 
+export type TripActivityKind = 'expense_added' | 'expense_deleted' | 'member_joined';
+
+export interface TripActivityActor {
+    uid: string;
+    displayName: string;
+}
+
+export interface TripActivityEntry {
+    id: string;
+    kind: TripActivityKind;
+    actorUid: string;
+    actorName: string;
+    /** Epoch ms for display; Firestore Timestamp when read from cloud */
+    createdAt: number;
+    expenseId?: string;
+    amountCOP?: number;
+    note?: string;
+    category?: ExpenseCategory;
+    pendingSync?: boolean;
+    localOnly?: boolean;
+}
+
 export interface TripMember {
     uid: string;
     displayName: string;

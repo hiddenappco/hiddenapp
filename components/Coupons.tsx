@@ -5,8 +5,8 @@ import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { useTranslation } from '../hooks/useTranslation';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { COUPON_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { rankLocalizedSearch } from '../utils/localizedContent';
+import { COUPON_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
 import { MediaListSkeleton } from './ui/ContentSkeleton';
 
@@ -57,22 +57,23 @@ export const Coupons: React.FC<CouponsProps> = ({
       return [...coupons].sort(() => 0.5 - Math.random()).slice(0, 5);
     }
 
-    return coupons.filter(c => {
-      // 1. Category Filter
-      if (activeFilter !== 'all') {
-        const targetCategory = filterMap[activeFilter];
-        if (c.category !== targetCategory) return false;
-      }
-
-      // 2. Search Filter
-      if (searchTerm) {
-        if (!matchesLocalizedSearch(c as Record<string, unknown>, searchTerm, [...COUPON_SEARCH_FIELDS])) {
-          return false;
-        }
-      }
-
-      return true;
+    let pool = coupons.filter(c => {
+      if (activeFilter === 'all') return true;
+      const targetCategory = filterMap[activeFilter];
+      return c.category === targetCategory;
     });
+
+    const term = searchTerm.trim();
+    if (term) {
+      pool = rankLocalizedSearch(
+        pool as Record<string, unknown>[],
+        term,
+        COUPON_PICKER_SEARCH_FIELDS,
+        50
+      ) as typeof pool;
+    }
+
+    return pool;
   }, [coupons, searchTerm, activeFilter]);
 
   const regularCoupons = filteredCoupons.filter(c => !c.isPremium);

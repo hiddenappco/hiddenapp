@@ -9,6 +9,24 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 import { RichTextContent } from './ui/RichTextContent';
 import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { formatCop } from '../utils/currency';
+
+function formatLodgingPrice(amount: number, currency?: string): string {
+    const code = (currency || 'COP').toUpperCase();
+    if (code === 'COP') return formatCop(amount);
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: code,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
+function formatLodgingRange(min?: number, max?: number, currency?: string): string {
+    if (min != null && max != null) return `${formatLodgingPrice(min, currency)} – ${formatLodgingPrice(max, currency)}`;
+    if (min != null) return formatLodgingPrice(min, currency);
+    if (max != null) return formatLodgingPrice(max, currency);
+    return '—';
+}
 
 interface RefugioDetailProps {
   language: Language;
@@ -289,9 +307,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
                       {t('refugio.ratesRange')}
                     </span>
                     <span className="text-sm font-extrabold text-primary">
-                      {pricingData.precio_minimo ? `$${pricingData.precio_minimo.toLocaleString()}` : ''}
-                      {pricingData.precio_minimo && pricingData.precio_maximo ? ' - ' : ''}
-                      {pricingData.precio_maximo ? `$${pricingData.precio_maximo.toLocaleString()}` : ''} {pricingData.moneda || 'COP'}
+                      {formatLodgingRange(pricingData.precio_minimo, pricingData.precio_maximo, pricingData.moneda)}
                     </span>
                   </div>
                 )}
@@ -301,7 +317,9 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
                       <div className="flex justify-between items-start gap-2">
                         <p className="text-sm font-bold text-content leading-snug">{item.acomodacion}</p>
                         <p className="text-sm font-extrabold text-primary shrink-0">
-                          ${item.valor_noche ? item.valor_noche.toLocaleString() : '--'} {pricingData.moneda || 'COP'}
+                          {item.valor_noche != null
+                            ? formatLodgingPrice(item.valor_noche, pricingData.moneda)
+                            : '—'}
                         </p>
                       </div>
                       {item.incluye && (
@@ -329,7 +347,13 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-extrabold text-primary">
-                        {p.precio ? `$${p.precio}` : (p.precio_min && p.precio_max ? `$${p.precio_min} - $${p.precio_max}` : `$${p.precio_min || p.precio_max || 'Consultar'}`)}
+                        {p.precio != null
+                          ? formatLodgingPrice(p.precio, p.moneda)
+                          : p.precio_min != null && p.precio_max != null
+                            ? formatLodgingRange(p.precio_min, p.precio_max, p.moneda)
+                            : p.precio_min != null || p.precio_max != null
+                              ? formatLodgingPrice(p.precio_min ?? p.precio_max, p.moneda)
+                              : t('refugio.priceOnRequest')}
                       </p>
                       <p className="text-[9px] text-content-subtle font-medium">{p.unidad || 'por noche'}</p>
                     </div>
@@ -368,7 +392,11 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
                         </div>
                         {precio !== undefined && precio !== null && (
                           <p className="text-xs font-extrabold text-primary shrink-0">
-                            {precio === 0 || precio === '0' ? t('common.free') : `$${precio.toLocaleString()} COP`}
+                            {precio === 0 || precio === '0'
+                              ? t('common.free')
+                              : Number.isFinite(Number(precio))
+                                ? formatCop(Number(precio))
+                                : String(precio)}
                           </p>
                         )}
                       </div>

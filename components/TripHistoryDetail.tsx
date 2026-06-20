@@ -10,6 +10,7 @@ import { Browser } from '@capacitor/browser';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
+import { formatCop } from '../utils/currency';
 import { TripBalances } from './trips/TripBalances';
 import { PageDetailSkeleton } from './ui/ContentSkeleton';
 import type { ExpenseCategory, Trip } from '../types/trips';
@@ -36,9 +37,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
 
   const totalSpent = firestoreExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
-  };
+  const formatCurrency = (amount: number) => formatCop(amount);
 
   // Calculate stats for breakdown
   const stats = Object.keys(categoriesConfig).map(catKey => {

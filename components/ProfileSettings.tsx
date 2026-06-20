@@ -14,6 +14,9 @@ import {
   dismissPackLanguageAlert,
   shouldShowPackLanguageAlert,
 } from '../utils/offgridPackLanguageAlert';
+import { resetAllFeatureTooltips } from '../hooks/useFeatureTooltip';
+import { GuestAccountUpgrade } from './profile/GuestAccountUpgrade';
+import { isGuestProfile } from '../utils/userIdentity';
 
 interface ProfileSettingsProps {
   language: Language;
@@ -58,6 +61,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: prop
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [coachmarksReset, setCoachmarksReset] = useState(false);
+  const [guestUpgradeDone, setGuestUpgradeDone] = useState(false);
+
+  const needsGuestUpgrade =
+    !guestUpgradeDone && (user?.isAnonymous === true || isGuestProfile(profile));
 
   // Cropper State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -231,6 +239,22 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: prop
           </div>
 
           <form className="flex flex-col w-full px-5 pb-8 gap-6">
+            {guestUpgradeDone ? (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex gap-3 items-start">
+                <span className="material-symbols-outlined text-emerald-400 text-[22px] shrink-0">verified_user</span>
+                <div>
+                  <p className="text-sm font-bold text-content">{t('settings.guestUpgrade.successTitle')}</p>
+                  <p className="text-xs text-content-muted mt-1 leading-relaxed">
+                    {t('settings.guestUpgrade.successBody')}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {needsGuestUpgrade ? (
+              <GuestAccountUpgrade onUpgraded={() => setGuestUpgradeDone(true)} />
+            ) : null}
+
             <div>
               <h3 className="text-xl font-bold mb-4 text-content">{texts.personalInfo}</h3>
               <div className="flex flex-col gap-4">
@@ -250,6 +274,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: prop
                     className="w-full rounded-xl border border-overlay/5 bg-background-dark text-content-subtle h-12 px-4 font-medium cursor-not-allowed"
                     type="email"
                     value={user?.email || ''}
+                    placeholder={needsGuestUpgrade ? t('settings.guestUpgrade.emailPending') : undefined}
                     disabled
                   />
                 </label>
@@ -414,6 +439,26 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language: prop
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold mb-2 text-content">{t('settings.appTips')}</h3>
+              <p className="text-xs text-content-muted mb-3 leading-relaxed">{t('settings.resetCoachmarksHint')}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  resetAllFeatureTooltips();
+                  setCoachmarksReset(true);
+                  window.setTimeout(() => setCoachmarksReset(false), 4000);
+                }}
+                className="w-full min-h-[44px] rounded-xl border border-overlay/10 bg-surface-dark text-content font-semibold text-sm flex items-center justify-center gap-2 hover:border-primary/30 hover:bg-overlay/5 transition-colors active:scale-[0.98]"
+              >
+                <span className="material-symbols-outlined text-[20px] text-primary">tips_and_updates</span>
+                {t('settings.resetCoachmarks')}
+              </button>
+              {coachmarksReset && (
+                <p className="mt-2 text-xs text-emerald-400 font-medium">{t('settings.resetCoachmarksDone')}</p>
               )}
             </div>
 

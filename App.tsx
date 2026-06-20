@@ -90,6 +90,13 @@ const AppContent: React.FC = () => {
 
   const activeTrip = firestoreActiveTrip || localActiveTrip;
 
+  const actorDisplayName =
+    userProfile?.displayName || userProfile?.name || user?.displayName || t('trips.traveler');
+
+  const tripActor = user?.uid
+    ? { uid: user.uid, displayName: actorDisplayName }
+    : undefined;
+
   useEffect(() => {
     if (user) {
       requestNotificationPermission(user.uid);
@@ -167,23 +174,27 @@ const AppContent: React.FC = () => {
     const useQueue = !isOnline || activeTrip.id.startsWith('local_');
     try {
       if (useQueue) {
-        await queueAddExpense(activeTrip.id, expense, tempId);
+        await queueAddExpense(activeTrip.id, expense, tempId, tripActor);
       } else {
-        await addExpenseToTrip(activeTrip.id, expense);
+        await addExpenseToTrip(activeTrip.id, expense, undefined, tripActor);
       }
     } catch (err) {
       console.error('Error adding expense:', err);
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string, amount: number) => {
+  const handleDeleteExpense = async (
+    expenseId: string,
+    amount: number,
+    meta?: { note?: string; category?: Expense['category'] }
+  ) => {
     if (!activeTrip) return;
     const useQueue = !isOnline || activeTrip.id.startsWith('local_');
     try {
       if (useQueue) {
-        await queueDeleteExpense(activeTrip.id, expenseId, amount);
+        await queueDeleteExpense(activeTrip.id, expenseId, amount, tripActor, meta);
       } else {
-        await deleteExpenseFromTrip(activeTrip.id, expenseId, amount);
+        await deleteExpenseFromTrip(activeTrip.id, expenseId, amount, tripActor, meta);
       }
     } catch (err) {
       console.error('Error deleting expense:', err);

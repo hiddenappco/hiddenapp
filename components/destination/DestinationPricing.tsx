@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
-import { Language } from '../../types/core';
+import { formatCop } from '../../utils/currency';
 
 const isLodgingCategory = (categoria: string) => {
     const c = (categoria || '').toLowerCase();
@@ -14,13 +14,9 @@ interface PricingGuideProps {
 export const DestinationPricing: React.FC<PricingGuideProps> = ({
     pricingGuide,
 }) => {
-    const { t, language } = useTranslation();
+    const { t } = useTranslation();
 
     if (!pricingGuide || pricingGuide.length === 0) return null;
-
-    const formatter = new Intl.NumberFormat(
-        language === Language.English ? 'en-US' : 'es-CO'
-    );
 
     const dayTripMin = pricingGuide.filter(i => !isLodgingCategory(i.categoria)).reduce((acc, curr) => acc + curr.precio_min, 0);
     const dayTripMax = pricingGuide.filter(i => !isLodgingCategory(i.categoria)).reduce((acc, curr) => acc + curr.precio_max, 0);
@@ -51,7 +47,7 @@ export const DestinationPricing: React.FC<PricingGuideProps> = ({
                         <div className="flex items-center gap-2 mt-2 pt-3 border-t border-overlay/5">
                             <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-[16px]">sell</span>
                             <span className="text-content font-mono font-medium text-sm">
-                                ${formatter.format(priceItem.precio_min)} - ${formatter.format(priceItem.precio_max)}
+                                {formatCop(priceItem.precio_min)} – {formatCop(priceItem.precio_max)}
                             </span>
                         </div>
                     </div>
@@ -68,9 +64,9 @@ export const DestinationPricing: React.FC<PricingGuideProps> = ({
                             {t('destination.dayTrip')}
                         </p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-content font-bold text-xl">${formatter.format(dayTripMin)}</span>
+                            <span className="text-content font-bold text-xl">{formatCop(dayTripMin)}</span>
                             <span className="text-content-muted text-sm">{t('destination.to')}</span>
-                            <span className="text-content font-bold text-xl">${formatter.format(dayTripMax)}</span>
+                            <span className="text-content font-bold text-xl">{formatCop(dayTripMax)}</span>
                         </div>
                     </div>
 
@@ -81,9 +77,9 @@ export const DestinationPricing: React.FC<PricingGuideProps> = ({
                                 {t('destination.withStay')}
                             </p>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-blue-600 dark:text-blue-400 font-bold text-xl">${formatter.format(withStayMin)}</span>
+                                <span className="text-blue-600 dark:text-blue-400 font-bold text-xl">{formatCop(withStayMin)}</span>
                                 <span className="text-content-muted text-sm">{t('destination.to')}</span>
-                                <span className="text-blue-600 dark:text-blue-400 font-bold text-xl">${formatter.format(withStayMax)}</span>
+                                <span className="text-blue-600 dark:text-blue-400 font-bold text-xl">{formatCop(withStayMax)}</span>
                             </div>
                         </div>
                     )}

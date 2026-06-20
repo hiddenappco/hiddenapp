@@ -109,9 +109,6 @@ export const Login: React.FC<LoginProps> = ({
                 <span className="material-symbols-outlined text-[20px]">explore</span>
                 <span>{t('login.btnGuest')}</span>
               </button>
-              <p className="mt-2 text-center text-[11px] font-medium text-content-muted">
-                {t('login.guestHint')}
-              </p>
               <div className="relative py-4">
                 <div aria-hidden="true" className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>

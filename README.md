@@ -7,10 +7,10 @@
 | | |
 |---|---|
 | **Official submission snapshot** (tag / branch `submission`) | **Frozen** at commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) — **June 11, 2026, 15:35 (-0500)**. Tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) is **immutable** — do not move it. |
-| **Active development** (branch `main`) | **Live product** — latest hardening **June 20, 2026** (Gemma on-device, offline trip history, premium UX, production deploy). Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). Default branch for contributors and post-challenge reviewers. |
+| **Active development** (branch `main`) | **Live product** — sprint **20 Jun 2026**: feed de actividad en viajes grupales, ranking de búsqueda en catálogo, upgrade invitado→cuenta oficial, ID copiable en perfil, atajo planificador 2 toques, política B2B documentada. Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). |
 | **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
-| **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B, market sizing (English, judge-facing) |
+| **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B ($15/mo · $150/yr), market sizing (English, judge-facing) |
 
 ### Quick start for judges
 
@@ -59,8 +59,10 @@ Hidden App connects adventurers with remote destinations that mainstream platfor
 | **Expedition Planner** | Dedicated hub (`/expedition/plan`) with department picker + **5-step wizard**; **«Mis planes anteriores»** (20 plans, real-time list); multi-agent pipeline grounded in catalog fichas including **`planningNotes`**, `groundMobility`, Google Routes legs (up to 45), coupon widgets, COP budget, mobility badge in result + expedition PDF |
 | **Modo Live** | Full-duplex voice via LiveKit + Gemini Multimodal Live; token and usage quota via authenticated Cloud Functions (`generateLiveKitToken`, `recordLiveCallSeconds`) |
 | **Off-Grid Vault** | Downloadable department packs (SQLite) for offline search and chat; optional **MediaPipe Gemma 2B IT GPU** (~1.29 GB) for on-device generative chat (WebGPU) |
-| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, **completed-trip history offline** (mirror up to 10), bilingual trip PDF |
-| **Premium** | `/premium` — account types, Free vs Premium compare table, USD reference pricing; store checkout disabled until Play/App Store (`PREMIUM_CHECKOUT_ENABLED`) |
+| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, **completed-trip history offline** (mirror up to 10), **group activity feed** (`trips/{id}/activity` — expense added/deleted, member joined), bilingual trip PDF |
+| **Catalog search** | Relevance-ranked picker search (`rankLocalizedSearch`) on Monitor, Destinations, Refugios, Coupons, News, and expedition must-visit — title/name/location only; accent-insensitive multi-word queries |
+| **Guest upgrade** | Anonymous guest links Google or email/password in Profile Settings without changing UID (`linkWithCredential`); `isGuest: false` while hackathon Premium bypass remains (`GUEST_HACKATHON_PREMIUM`) |
+| **Premium** | `/premium` — account types, Free vs Premium compare table, USD reference pricing; store checkout disabled until Play/App Store (`PREMIUM_CHECKOUT_ENABLED`); contextual `HelpTooltip` with viewport-safe portal positioning |
 | **Exchange rates** | Daily official TRM (datos.gov.co) + EUR cross-rate; `getExchangeRates` + `scheduledExchangeRates` cache in `config/exchangeRates` |
 | **i18n** | Spanish / English UI, bilingual Firestore content (`*_en` fields), and bilingual trip PDF export |
 | **Thumb navigation** | Floating glass bottom bar on 5 hub routes (Destinations · Monitor · Departments · Ledger · Refuges); full catalog in the lateral drawer; safe-area spacing on iOS/Android |
@@ -266,7 +268,8 @@ gcloud run deploy hidden-agent-worker --source . --region us-central1
 | [docs/SUBMISSION.md](./docs/SUBMISSION.md) | **Challenge snapshot** — tag, branch, checkout, post-submission changelog |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System diagrams, ADK orchestration, agents, client navigation, deployment |
 | [docs/UI_FIELD_CONSTRAINTS.md](./docs/UI_FIELD_CONSTRAINTS.md) | Touch targets, thumb-zone bar, safe-area tokens, tooltips P0 (P0 QA checklist) |
-| [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) | **Business model & unit economics** — pricing, B2B, market, projections |
+| [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) | **Business model & unit economics** — pricing, B2B ($15/mo · $150/yr), market, projections (EN) |
+| [docs/UNIT_ECONOMICS_ES.md](./docs/UNIT_ECONOMICS_ES.md) | **Modelo de negocio y unit economics** — misma política B2B, mercado Colombia/LATAM (ES) |
 | [docs/PREMIUM_ENTITLEMENTS.md](./docs/PREMIUM_ENTITLEMENTS.md) | Feature matrix by tier — Guest · Free · Premium (Jun 2026) |
 | [docs/SESION_TRABAJO.md](./docs/SESION_TRABAJO.md) | Session log — latest product work (Spanish, internal) |
 | [roadmap_integraciones.md](./roadmap_integraciones.md) | Integration roadmap — tasks & completion status |

@@ -38,13 +38,13 @@ interface ExpeditionDepartmentPickerProps {
 
     language: Language;
 
-    onBack: () => void;
+    onMenuClick: () => void;
 
 }
 
 
 
-export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProps> = ({ language, onBack }) => {
+export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProps> = ({ language, onMenuClick }) => {
 
     const { t } = useTranslation();
 
@@ -152,33 +152,39 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
 
         <div className="flex flex-col h-screen bg-background-dark text-content overflow-hidden">
 
-            <header className="shrink-0 flex items-center gap-3 px-4 pt-safe-hero pb-3 border-b border-overlay/10">
+            <header className="sticky top-0 z-50 shrink-0 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/10">
 
-                <button
+                <div className="flex items-center gap-2 min-w-0 flex-1">
 
-                    type="button"
+                    <button
 
-                    onClick={onBack}
+                        type="button"
 
-                    className="touch-target rounded-full bg-overlay/10 flex items-center justify-center"
+                        onClick={onMenuClick}
 
-                >
+                        className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-[#0a1f35] shadow-sm border border-overlay/10 transition-colors active:scale-95 shrink-0"
 
-                    <span className="material-symbols-outlined">arrow_back</span>
+                    >
 
-                </button>
+                        <span className="material-symbols-outlined text-2xl">menu</span>
 
-                <div className="min-w-0 flex-1">
+                    </button>
 
-                    <p className="text-[9px] font-black uppercase tracking-widest text-primary">
+                    <div className="min-w-0 flex-1">
 
-                        {t('expedition.hubTitle')}
+                        <p className="text-[9px] font-black uppercase tracking-widest text-primary">
 
-                    </p>
+                            {t('expedition.hubTitle')}
 
-                    <h1 className="font-bold text-base">{t('expedition.pickDepartmentTitle')}</h1>
+                        </p>
+
+                        <h1 className="font-bold text-base truncate">{t('expedition.pickDepartmentTitle')}</h1>
+
+                    </div>
 
                 </div>
+
+                <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain shrink-0 ml-2" />
 
             </header>
 

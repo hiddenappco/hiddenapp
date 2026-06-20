@@ -4,9 +4,9 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useDestinations, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { DESTINATION_SEARCH_FIELDS } from '../utils/localizeCatalog';
-import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { rankLocalizedSearch } from '../utils/localizedContent';
+import { DESTINATION_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { SearchListSkeleton } from './ui/ContentSkeleton';
 
 interface ManualSearchProps {
@@ -23,15 +23,17 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
   const { data: destinations, loading } = useDestinations();
 
   const filteredResults = React.useMemo(() => {
-    if (!searchTerm.trim()) {
+    const term = searchTerm.trim();
+    if (!term) {
       return [...destinations].sort(() => 0.5 - Math.random()).slice(0, 5);
     }
 
-    const term = searchTerm.toLowerCase();
-
-    return destinations.filter((item) =>
-      matchesLocalizedSearch(item as Record<string, unknown>, term, [...DESTINATION_SEARCH_FIELDS])
-    );
+    return rankLocalizedSearch(
+      destinations as Record<string, unknown>[],
+      term,
+      DESTINATION_PICKER_SEARCH_FIELDS,
+      50
+    ) as typeof destinations;
   }, [destinations, searchTerm]);
 
   return (
@@ -154,10 +156,11 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
         )}
 
         {/* Footer Hint */}
-        <div className="mt-8 pb-8 flex flex-col items-center gap-4 opacity-20">
+        <div className="mt-8 flex flex-col items-center gap-4 opacity-20">
           <span className="material-symbols-outlined text-5xl text-content">travel_explore</span>
           <p className="text-content text-xs text-center max-w-xs font-medium tracking-wide leading-relaxed">{t('explore.footerHint')}</p>
         </div>
+        <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
       </div>
     </div>
   );

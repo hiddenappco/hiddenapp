@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import type { Destination } from '../../types/content';
 import { useTranslation } from '../../hooks/useTranslation';
-import { matchesLocalizedSearch } from '../../utils/localizedContent';
-import { DESTINATION_SEARCH_FIELDS } from '../../utils/localizeCatalog';
+import { rankLocalizedSearch } from '../../utils/localizedContent';
+import { DESTINATION_PICKER_SEARCH_FIELDS } from '../../utils/localizeCatalog';
 
 const MIN_QUERY_LEN = 2;
 const MAX_RESULTS = 8;
@@ -29,13 +29,12 @@ export const ExpeditionMustVisitPicker: React.FC<ExpeditionMustVisitPickerProps>
     const searchResults = useMemo(() => {
         const q = query.trim();
         if (q.length < MIN_QUERY_LEN) return [];
-        const term = q.toLowerCase();
-        return destinations
-            .filter((d) => !selectedIds.includes(d.id))
-            .filter((d) =>
-                matchesLocalizedSearch(d as Record<string, unknown>, term, [...DESTINATION_SEARCH_FIELDS])
-            )
-            .slice(0, MAX_RESULTS);
+        return rankLocalizedSearch(
+            destinations.filter((d) => !selectedIds.includes(d.id)) as Record<string, unknown>[],
+            q,
+            DESTINATION_PICKER_SEARCH_FIELDS,
+            MAX_RESULTS
+        ) as Destination[];
     }, [query, destinations, selectedIds]);
 
     const addDestination = (id: string) => {

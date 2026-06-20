@@ -138,6 +138,83 @@ function collectSearchTexts(value: unknown): string[] {
     return [];
 }
 
+/** Lowercase, strip accents, collapse whitespace — for consistent catalog search. */
+export function normalizeSearchText(value: string): string {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+const SEARCH_WORD_SPLIT = /[\s:,\-–—/|()]+/;
+
+function scoreTokenInText(text: string, token: string): number {
+    const norm = normalizeSearchText(text);
+    if (!norm || !token) return 0;
+    if (norm === token) return 100;
+    if (norm.startsWith(token)) return 90;
+    const words = norm.split(SEARCH_WORD_SPLIT).filter(Boolean);
+    if (words.some((w) => w.startsWith(token))) return 75;
+    if (norm.includes(token)) return 50;
+    return 0;
+}
+
+const DEFAULT_SEARCH_FIELD_WEIGHTS: Record<string, number> = {
+    title: 1.25,
+    name: 1.25,
+    location: 1,
+};
+
+/**
+ * Relevance score for autocomplete / picker UIs. All query tokens must match.
+ * Higher = better (exact title > prefix > word prefix > substring).
+ */
+export function scoreLocalizedSearch(
+    doc: LocalizableDoc,
+    term: string,
+    fields: readonly string[],
+    fieldWeights: Record<string, number> = DEFAULT_SEARCH_FIELD_WEIGHTS
+): number {
+    const tokens = normalizeSearchText(term).split(' ').filter(Boolean);
+    if (tokens.length === 0 || !doc) return 0;
+
+    let total = 0;
+    for (const token of tokens) {
+        let best = 0;
+        for (const field of fields) {
+            const weight = fieldWeights[field] ?? 1;
+            for (const key of [field, `${field}_en`]) {
+                for (const text of collectSearchTexts(doc[key])) {
+                    best = Math.max(best, scoreTokenInText(text, token) * weight);
+                }
+            }
+        }
+        if (best === 0) return 0;
+        total += best;
+    }
+    return total;
+}
+
+/** Filter + sort by relevance; for destination pickers (title / name / location). */
+export function rankLocalizedSearch<T extends Record<string, unknown>>(
+    items: T[],
+    term: string,
+    fields: readonly string[],
+    limit = 20
+): T[] {
+    const q = term.trim();
+    if (!q) return [];
+
+    return items
+        .map((item) => ({ item, score: scoreLocalizedSearch(item, q, fields) }))
+        .filter((row) => row.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map((row) => row.item);
+}
+
 /**
  * Case-insensitive search across Spanish and English variants of catalog text fields.
  */
@@ -146,14 +223,14 @@ export function matchesLocalizedSearch(
     term: string,
     fields: string[]
 ): boolean {
-    const q = term.trim().toLowerCase();
+    const q = normalizeSearchText(term);
     if (!q) return true;
     if (!doc) return false;
 
     for (const field of fields) {
         for (const key of [field, `${field}_en`]) {
             for (const text of collectSearchTexts(doc[key])) {
-                if (text.toLowerCase().includes(q)) return true;
+                if (normalizeSearchText(text).includes(q)) return true;
             }
         }
     }

@@ -20,6 +20,7 @@ export const BOTTOM_NAV_TAB_ROUTES: Record<BottomNavTab, string> = {
 /** CSS classes — spacing tokens live in index.css (:root --bottom-nav-*) */
 export const BOTTOM_NAV_HOST_CLASS = 'bottom-nav-host';
 export const BOTTOM_NAV_SCROLL_PADDING = 'bottom-nav-scroll-pad';
+export const BOTTOM_NAV_SCROLL_SPACER = 'bottom-nav-scroll-spacer';
 export const BOTTOM_NAV_SCROLL_WITH_FAB = 'bottom-nav-scroll-pad-fab';
 export const BOTTOM_NAV_FAB_ANCHOR = 'bottom-nav-fab-anchor';
 

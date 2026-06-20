@@ -15,6 +15,7 @@ import {
     getDocs,
     arrayUnion,
     getDoc,
+    addDoc,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { generateTripCode } from '../utils/tripCode';
@@ -24,6 +25,10 @@ import type {
     TripCurrency,
     TripMember,
     TripMemberRole,
+    TripActivityActor,
+    TripActivityEntry,
+    TripActivityKind,
+    ExpenseCategory,
 } from '../types/trips';
 import {
     cacheExpensesMirror,
@@ -35,6 +40,8 @@ import {
     pruneCompletedTripsMirror,
     removeTripMirror,
     cacheTripMirror,
+    cacheActivityMirror,
+    getActivityMirror,
 } from '../services/tripLedgerStore';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from '../config/constants';
 
@@ -194,6 +201,13 @@ async function addMemberToTrip(
         members: [...members, member],
         updatedAt: serverTimestamp(),
     });
+
+    // Activity log is secondary — never let it break a successful join.
+    try {
+        await logTripActivity(tripId, 'member_joined', { uid: userId, displayName });
+    } catch (err) {
+        console.error('Failed to log member_joined activity:', err);
+    }
     return tripId;
 }
 
@@ -371,10 +385,43 @@ export const useTrip = (tripId: string | undefined, isOnline = true) => {
     return { trip, loading };
 };
 
+function activityTimestampMs(raw: unknown): number {
+    if (typeof raw === 'number') return raw;
+    if (raw && typeof raw === 'object' && 'seconds' in raw) {
+        return (raw as { seconds: number }).seconds * 1000;
+    }
+    if (raw && typeof raw === 'object' && 'toDate' in raw && typeof (raw as { toDate: () => Date }).toDate === 'function') {
+        return (raw as { toDate: () => Date }).toDate().getTime();
+    }
+    return Date.now();
+}
+
+export async function logTripActivity(
+    tripId: string,
+    kind: TripActivityKind,
+    actor: TripActivityActor,
+    details?: {
+        expenseId?: string;
+        amountCOP?: number;
+        note?: string;
+        category?: ExpenseCategory;
+    }
+): Promise<void> {
+    if (tripId.startsWith('local_')) return;
+    await addDoc(collection(db, 'trips', tripId, 'activity'), {
+        kind,
+        actorUid: actor.uid,
+        actorName: actor.displayName,
+        ...details,
+        createdAt: serverTimestamp(),
+    });
+}
+
 export const addExpenseToTrip = async (
     tripId: string,
     expense: Expense,
-    clientId?: string
+    clientId?: string,
+    actor?: TripActivityActor
 ): Promise<string> => {
     const expenseRef = clientId?.startsWith('temp_')
         ? doc(db, 'trips', tripId, 'expenses', clientId)
@@ -394,10 +441,25 @@ export const addExpenseToTrip = async (
         updatedAt: now,
     });
 
+    if (actor) {
+        await logTripActivity(tripId, 'expense_added', actor, {
+            expenseId: expenseRef.id,
+            amountCOP: expense.amount,
+            note: expense.note,
+            category: expense.category,
+        });
+    }
+
     return expenseRef.id;
 };
 
-export const deleteExpenseFromTrip = async (tripId: string, expenseId: string, amount: number) => {
+export const deleteExpenseFromTrip = async (
+    tripId: string,
+    expenseId: string,
+    amount: number,
+    actor?: TripActivityActor,
+    details?: { note?: string; category?: ExpenseCategory }
+) => {
     const expenseRef = doc(db, 'trips', tripId, 'expenses', expenseId);
     const tripRef = doc(db, 'trips', tripId);
 
@@ -407,6 +469,15 @@ export const deleteExpenseFromTrip = async (tripId: string, expenseId: string, a
         totalSpent: increment(-amount),
         updatedAt: serverTimestamp(),
     });
+
+    if (actor) {
+        await logTripActivity(tripId, 'expense_deleted', actor, {
+            expenseId,
+            amountCOP: amount,
+            note: details?.note,
+            category: details?.category,
+        });
+    }
 };
 
 export const finishTrip = async (tripId: string, totalSpent?: number, userId?: string) => {
@@ -509,6 +580,89 @@ export const useTripExpenses = (tripId: string | undefined, isOnline = true) => 
     }, [tripId, isOnline, mergeLocal]);
 
     return { expenses, loading };
+};
+
+const ACTIVITY_LIMIT = 40;
+
+export const useTripActivity = (tripId: string | undefined, isOnline = true) => {
+    const [activity, setActivity] = useState<TripActivityEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const mergeLocal = useCallback(async (remote: TripActivityEntry[]) => {
+        if (!tripId) return remote;
+        const local = await getActivityMirror(tripId);
+        const pendingLocal = local.filter((e) => e.pendingSync || e.localOnly);
+        // Dedup by stable identity (kind + expenseId/actor), NOT createdAt:
+        // the local optimistic timestamp never equals the server timestamp, so
+        // including it would leave a duplicate after the expense syncs.
+        const identity = (e: TripActivityEntry) => `${e.kind}:${e.expenseId ?? e.actorUid}`;
+        const remoteKeys = new Set(remote.map(identity));
+        const merged = [
+            ...pendingLocal.filter((e) => !remoteKeys.has(identity(e))),
+            ...remote,
+        ];
+        return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, ACTIVITY_LIMIT);
+    }, [tripId]);
+
+    useEffect(() => {
+        if (!tripId) {
+            setActivity([]);
+            setLoading(false);
+            return;
+        }
+
+        const loadMirror = async () => {
+            const mirror = await getActivityMirror(tripId);
+            if (mirror.length) setActivity(mirror.slice(0, ACTIVITY_LIMIT));
+            if (!isOnline) setLoading(false);
+        };
+        void loadMirror();
+
+        if (!isOnline || tripId.startsWith('local_')) {
+            setLoading(false);
+            return;
+        }
+
+        const q = query(
+            collection(db, 'trips', tripId, 'activity'),
+            orderBy('createdAt', 'desc'),
+            limit(ACTIVITY_LIMIT)
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            async (snapshot) => {
+                const items: TripActivityEntry[] = snapshot.docs.map((d) => {
+                    const data = d.data();
+                    return {
+                        id: d.id,
+                        kind: data.kind as TripActivityKind,
+                        actorUid: data.actorUid as string,
+                        actorName: data.actorName as string,
+                        createdAt: activityTimestampMs(data.createdAt),
+                        expenseId: data.expenseId as string | undefined,
+                        amountCOP: data.amountCOP as number | undefined,
+                        note: data.note as string | undefined,
+                        category: data.category as ExpenseCategory | undefined,
+                    };
+                });
+                const merged = await mergeLocal(items);
+                setActivity(merged);
+                await cacheActivityMirror(tripId, merged);
+                setLoading(false);
+            },
+            async (err) => {
+                console.error('Error fetching trip activity:', err);
+                const mirror = await getActivityMirror(tripId);
+                setActivity(mirror.slice(0, ACTIVITY_LIMIT));
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [tripId, isOnline, mergeLocal]);
+
+    return { activity, loading };
 };
 
 export const usePastTrips = (userId: string | undefined, isOnline = true) => {

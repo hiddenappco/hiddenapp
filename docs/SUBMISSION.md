@@ -74,18 +74,20 @@ After the tag was created, the team continued shipping on `main`. Examples (not 
 | Area | Post-submission work |
 |------|----------------------|
 | **Expedition Planner** | Hub `/expedition/plan`, 5-step wizard, multi-agent pipeline (`createExpedition`), coupon widgets, expedition PDF |
-| **Trip ledger (Bitácora v2)** | Solo/group trips, TRM rates, offline outbox, group splits, bilingual trip PDF |
+| **Trip ledger (Bitácora v2)** | Solo/group trips, TRM rates, offline outbox, group splits, **activity feed**, bilingual trip PDF |
+| **Catalog search** | Relevance-ranked picker search across Monitor, Destinations, Refugios, Coupons, News |
+| **Guest upgrade** | Link anonymous guest to Google/email without UID change (`ProfileSettings`) |
 | **Thumb navigation** | Glass `BottomNav` on five hub routes, safe-area tokens, Android back behavior |
 | **UX / QA** | `docs/UI_FIELD_CONSTRAINTS.md`, connectivity copy, vault data transparency |
 | **Premium** | `docs/PREMIUM_ENTITLEMENTS.md`, `docs/UNIT_ECONOMICS_EN.md` (public business model for judges) |
 | **Hardening (Jun 18)** | Premium quotas server-side, expedition revisions, trip history cap, lazy routes, i18n EN parity |
-| **Product sprint (Jun 18–20)** | Premium page USD + tooltips; coach marks; bitácora historial offline; Gemma MediaPipe; Ranger ∞ Premium; deploy full stack |
+| **Product sprint (Jun 18–20)** | Premium page USD + tooltips; coach marks; bitácora historial offline; Gemma MediaPipe; Ranger ∞ Premium; group activity feed; catalog search ranking; guest account upgrade; deploy full stack |
 
 ### Changelog (post-tag, `main`)
 
 | Date | Commit | Summary |
 |------|--------|---------|
-| 2026-06-20 | `main` | **Post-judging product sprint:** production deploy (hosting, Firestore, 25 functions). Premium page (USD, checkout disabled). P0 tooltips + coach marks. Offline completed-trip mirror (IndexedDB). MediaPipe Gemma 2B optional on-device inference (streaming + prompt template fix). Ranger unlimited for Premium. Expedition «Mis planes anteriores». Destination PDF enrichment. |
+| 2026-06-20 | `main` | **Sprint cierre 20 jun:** feed actividad viajes grupales (`trips/{id}/activity`, `TripActivityFeed`, mirror offline). Ranking búsqueda catálogo (`rankLocalizedSearch` — Monitor, Destinos, Refugios, Cupones, Noticias, picker expedición). Upgrade invitado→cuenta oficial sin cambiar UID. ID copiable en perfil. CTA «Planificar aquí» en briefing departamento (planificador 2 toques). Política B2B USD 15/mo · 150/yr (`UNIT_ECONOMICS_ES`). Deploy hosting + Firestore rules. |
 | 2026-06-18 | [`6be25ec`…`main`](https://github.com/hiddenappco/hiddenapp/compare/6be25ec...main) | **Pre-judging hardening:** Premium gates & quotas (Live trial 5 min, expedition hub 1/3, Ranger 5/10 daily) enforced in Cloud Functions + Firestore rules; expedition revision pipeline with included revision + quota consume; fix cascading free revisions; trip history capped at 10; PDF/LiveKit premium checks; lazy-loaded routes + Suspense; EN locale parity; public `UNIT_ECONOMICS_EN.md`; sensitive financial docs gitignored |
 | 2026-06-11 | [`cb77f91`](https://github.com/hiddenappco/hiddenapp/commit/cb77f91) | Expedition hub, Bitácora v2, thumb nav, submission docs |
 | 2026-06-11 | [`1cc398c`](https://github.com/hiddenappco/hiddenapp/commit/1cc398c) | GitHub Release draft notes for `v1.0-challenge-submission` |

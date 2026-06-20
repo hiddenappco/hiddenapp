@@ -101,6 +101,21 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
           </div>
         )}
 
+        {!plannerLocked && (
+          <button
+            type="button"
+            onClick={() => navigate(`/expedition/plan/${effectiveDeptId}`)}
+            className="mb-8 flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-4 text-left transition-colors hover:bg-primary/15 active:bg-primary/20"
+          >
+            <span className="material-symbols-outlined text-primary text-2xl shrink-0">explore</span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-content">{t('department.plannerCtaHere')}</p>
+              <p className="text-xs text-content-muted">{t('department.plannerCtaHereHint', { name: data.name })}</p>
+            </div>
+            <span className="material-symbols-outlined text-content-muted shrink-0">chevron_right</span>
+          </button>
+        )}
+
         <div className="grid grid-cols-2 gap-2 mb-6">
           <div className="flex items-center gap-2.5 rounded-xl border border-overlay/10 bg-surface-dark px-3 py-2.5 shadow-sm">
             <span className="material-symbols-outlined text-primary text-[20px] shrink-0">thermostat</span>
@@ -297,7 +312,7 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
               {plannerLocked ? 'lock' : 'explore'}
             </span>
             <span className="text-center text-[11px] font-semibold leading-tight sm:text-xs">
-              {plannerLocked ? t('expedition.plannerComingSoon') : t('department.plannerCta')}
+              {plannerLocked ? t('expedition.plannerComingSoon') : t('department.plannerCtaHere')}
             </span>
           </button>
           <button

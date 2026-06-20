@@ -2,7 +2,7 @@ import React from 'react';
 import { Language } from '../types/core';
 import { Trip } from '../types/trips';
 import { useTranslation } from '../hooks/useTranslation';
-import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
+import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { PaywallRoiCard } from './trips/PaywallRoiCard';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
 
@@ -258,7 +258,7 @@ export const Budget: React.FC<BudgetProps> = ({
               </div>
             )}
           </div>
-          <div className="shrink-0 h-2 w-full" aria-hidden="true" />
+          <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
         </section>
 
       </main>

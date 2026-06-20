@@ -1,9 +1,9 @@
-import type { Expense, Trip } from '../types/trips';
+import type { Expense, Trip, TripActivityEntry } from '../types/trips';
 import type { ExchangeRates } from '../types/trips';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const DB_NAME = 'hidden_trip_ledger';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export type OutboxOp =
     | 'add_expense'
@@ -39,6 +39,10 @@ function openDb(): Promise<IDBDatabase> {
             }
             if (!db.objectStoreNames.contains('meta')) {
                 db.createObjectStore('meta', { keyPath: 'key' });
+            }
+            if (!db.objectStoreNames.contains('activity')) {
+                const store = db.createObjectStore('activity', { keyPath: 'id' });
+                store.createIndex('tripId', 'tripId', { unique: false });
             }
         };
     });
@@ -138,18 +142,20 @@ export async function removeTripMirror(tripId: string): Promise<void> {
     await withStore('trips', 'readwrite', (store) => store.delete(tripId));
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction('expenses', 'readwrite');
-        const store = tx.objectStore('expenses');
-        const index = store.index('tripId');
-        const range = IDBKeyRange.only(tripId);
-        const cursorReq = index.openCursor(range);
-        cursorReq.onsuccess = () => {
-            const cursor = cursorReq.result;
-            if (cursor) {
-                store.delete(cursor.primaryKey);
-                cursor.continue();
-            }
-        };
+        const tx = db.transaction(['expenses', 'activity'], 'readwrite');
+        for (const storeName of ['expenses', 'activity'] as const) {
+            const store = tx.objectStore(storeName);
+            const index = store.index('tripId');
+            const range = IDBKeyRange.only(tripId);
+            const cursorReq = index.openCursor(range);
+            cursorReq.onsuccess = () => {
+                const cursor = cursorReq.result;
+                if (cursor) {
+                    store.delete(cursor.primaryKey);
+                    cursor.continue();
+                }
+            };
+        }
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
@@ -262,4 +268,63 @@ export async function getExchangeRatesLocal(): Promise<ExchangeRates | null> {
 
 export function makeTempId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+type StoredActivity = TripActivityEntry & { tripId: string };
+
+export async function appendActivityMirror(tripId: string, entry: TripActivityEntry): Promise<void> {
+    await withStore('activity', 'readwrite', (store) =>
+        store.put({ ...entry, tripId } satisfies StoredActivity)
+    );
+}
+
+export async function getActivityMirror(tripId: string): Promise<TripActivityEntry[]> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('activity', 'readonly');
+        const index = tx.objectStore('activity').index('tripId');
+        const req = index.getAll(tripId);
+        req.onsuccess = () => {
+            const rows = (req.result || []) as StoredActivity[];
+            resolve(
+                rows
+                    .map(({ tripId: _, ...rest }) => rest)
+                    .sort((a, b) => b.createdAt - a.createdAt)
+            );
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+export async function cacheActivityMirror(tripId: string, entries: TripActivityEntry[]): Promise<void> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('activity', 'readwrite');
+        const store = tx.objectStore('activity');
+        const index = store.index('tripId');
+        const range = IDBKeyRange.only(tripId);
+        const nextIds = new Set(entries.map((e) => e.id));
+        const cursorReq = index.openCursor(range);
+        cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (cursor) {
+                const row = cursor.value as StoredActivity;
+                if (!nextIds.has(row.id) && !row.pendingSync) {
+                    store.delete(cursor.primaryKey);
+                }
+                cursor.continue();
+            }
+        };
+        for (const entry of entries) {
+            store.put({ ...entry, tripId } satisfies StoredActivity);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+export async function prunePendingActivityForExpense(tripId: string, expenseId: string): Promise<void> {
+    const mirror = await getActivityMirror(tripId);
+    const kept = mirror.filter((e) => e.expenseId !== expenseId || !e.pendingSync);
+    await cacheActivityMirror(tripId, kept);
 }

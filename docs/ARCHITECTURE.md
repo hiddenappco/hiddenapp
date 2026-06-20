@@ -220,6 +220,32 @@ Two complementary layers keep field use **one-hand friendly** without duplicatin
 
 Checklist and touch-target rules: [`docs/UI_FIELD_CONSTRAINTS.md`](./UI_FIELD_CONSTRAINTS.md).
 
+### Catalog search (picker ranking)
+
+Shared utilities in `utils/localizedContent.ts` (`normalizeSearchText`, `scoreLocalizedSearch`, `rankLocalizedSearch`) and field sets in `utils/localizeCatalog.ts` (`*_PICKER_SEARCH_FIELDS`).
+
+| Surface | Picker fields | Notes |
+|---------|---------------|-------|
+| Environmental Monitor | `title`, `name`, `location` | No long descriptions in query |
+| ManualSearch (Destinos) | same | Replaces naive `includes` on body text |
+| ExpeditionMustVisitPicker | same | Wizard step 3 |
+| Refugios | `name`, `tagline`, `location`, `type` | Jun 2026 |
+| Coupons | `title`, `location`, `category`, `discount` | Jun 2026 |
+| NewsFeed | `title`, `summary`, `category`, `badge` | Jun 2026 |
+
+Ranking: exact match → prefix → word prefix → substring; all query tokens must match; accent-insensitive.
+
+### Guest → official account
+
+`AuthProvider` exposes `linkGuestWithGoogle` / `linkGuestWithEmail` (Firebase `linkWithPopup` / `linkWithCredential`). UID is preserved so trips, favorites, and expedition history stay attached.
+
+| Step | Behavior |
+|------|----------|
+| UI | `GuestAccountUpgrade` in `ProfileSettings` (ES/EN) |
+| Firestore | `users.isGuest: false`; email/displayName updated |
+| Hackathon | `GUEST_HACKATHON_PREMIUM = true` in `utils/guestAccess.ts` keeps `isPremium` after upgrade |
+| Post-hackathon | Set flag `false` so upgraded guests become Free tier |
+
 ---
 
 ## The agents
@@ -391,20 +417,24 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 | **Currency** | Canonical ledger in **COP**; expenses may be entered in COP, USD, or EUR with `amountOriginal`, `exchangeRate`, `exchangeRateDate` |
 | **TRM** | `functions/src/api/exchangeRates.ts` — daily TRM from datos.gov.co, EUR via Frankfurter; cached in `config/exchangeRates`; client hook `useExchangeRates` |
 | **Group splits** | `paidByMemberId`, `splitAmong[]`; balance math in `utils/tripBalances.ts`; `TripBalances` panel + settlements in bilingual PDF (`functions/src/pdf/tripTemplate.ts`) |
-| **Offline** | `services/tripLedgerStore.ts` mirrors active trip + expenses in IndexedDB; completed-trip history mirrored locally (up to 10); outbox ops (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect (re-reads outbox after `create_trip` remaps local ids); expense mirror sync avoids deleting rows still in the incoming set; `TripSyncBanner` shows pending count |
+| **Group activity** | Subcollection `trips/{tripId}/activity` (create-only, immutable); kinds `expense_added`, `expense_deleted`, `member_joined`; UI `TripActivityFeed` on active group trips |
+| **Offline** | `tripLedgerStore` mirrors active trip + expenses + activity in IndexedDB; completed-trip history (up to 10); outbox (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect; `TripSyncBanner` pending count |
+| **Offline activity** | Optimistic activity entries + outbox actor payload; dedup on sync by `kind:expenseId` |
 | **Join by code** | `joinTripByCode` reads trip data from `QuerySnapshot.docs[0]`, not the snapshot itself |
 | **Offline routes** | `/budget`, `/create-trip`, `/current-trip`, `/trips/converter`, `/trip-history/:id` work without `OfflineGuardian`; group join (`/trips/join`) requires network |
 | **Offline hub CTA** | `SignalLostFallback` links to Off-Grid vault and trip ledger |
 
-**Frontend:** `Budget`, `CreateTrip`, `TripExpenses`, `JoinTrip`, `CurrencyConverter`, `TripHistoryDetail`, `components/trips/*`  
-**Hooks:** `useTrips`, `useTripSync`, `useExchangeRates`  
+**Frontend:** `Budget`, `CreateTrip`, `TripExpenses`, `JoinTrip`, `CurrencyConverter`, `TripHistoryDetail`, `components/trips/*` (`TripActivityFeed`, `TripBalances`, …)  
+**Hooks:** `useTrips` (`useTripActivity`, `logTripActivity`), `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
 **Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **descartado** · ~~offline mirror of completed trip history~~ **hecho (Jun 2026)** · conflict UI for concurrent offline edits.
 
 ### Premium membership (pricing Jun 2026)
 
-Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — `/premium` shows **USD reference prices** and `PREMIUM_CHECKOUT_ENABLED = false` («Disponible pronto en tiendas»).
+Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (public EN) and [`UNIT_ECONOMICS_ES.md`](./UNIT_ECONOMICS_ES.md) (internal ES); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — `/premium` shows **USD reference prices** and `PREMIUM_CHECKOUT_ENABLED = false` («Disponible pronto en tiendas»).
+
+**B2C (traveler) — Jun 2026:**
 
 | Plan | USD | Role |
 |------|-----|------|
@@ -413,7 +443,18 @@ Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT
 | Anual | $79.99 | 2 months free vs 12× monthly |
 | Vitalicio | $149.99 | Founder lifetime |
 
-**UX (Jun 2026):** `HelpTooltip` on account types, compare table, and plan cards (`P0-PREMIUM-TOOLTIPS`). `users.isPremium` in Firestore remains source of truth until store billing ships.
+**B2B (hosts & commercial allies) — Jun 2026:**
+
+| Plan | USD | Role |
+|------|-----|------|
+| Mensual | $15/mo | Verified Refuge / ally membership |
+| Anual | $150/yr | 2 months free vs 12× monthly; upfront cash |
+
+B2B billed direct (web/transfer). Rationale: ~one guest-night revenue in Colombia/LATAM (~COP 50k) covers the monthly fee. Onboarding & billing **planned**, not in app checkout yet.
+
+**UX (Jun 2026):** `HelpTooltip` on account types, compare table, and plan cards (`P0-PREMIUM-TOOLTIPS`) — portal + viewport clamp (Jun 20). `users.isPremium` in Firestore remains source of truth until store billing ships.
+
+**Profile (Jun 2026):** `ProfileUserIdBadge` — copyable Firebase UID above identity block (support, group trips, hackathon demos).
 
 ---
 

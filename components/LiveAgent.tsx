@@ -30,6 +30,8 @@ import { OrbRanger } from './live/OrbRanger';
 import { ControlBar } from './live/ControlBar';
 import { LiveCallQuotaBar } from './live/LiveCallQuotaBar';
 import { useTranslation } from '../hooks/useTranslation';
+import { FeatureCoachmark } from './ui/FeatureCoachmark';
+import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 
 // ─── Elegant Call Sound Utilities (Web Audio API — no external files) ─────────
 const playCallSound = (type: 'connect' | 'hangup') => {
@@ -84,6 +86,7 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { t } = useTranslation();
+    const liveCoachmark = useFeatureTooltip('live');
     const { data: department } = useDepartment(contextId || undefined);
     const { data: assistant } = useAssistant(contextId || undefined);
 
@@ -339,6 +342,17 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
                     </div>
                     <div className="size-10"></div>
                 </header>
+
+                {liveCoachmark.visible && (
+                    <div className="px-4 pt-3 z-20">
+                        <FeatureCoachmark
+                            title={t('coachmark.liveTitle')}
+                            body={t('coachmark.liveBody')}
+                            dismissLabel={t('coachmark.dismiss')}
+                            onDismiss={liveCoachmark.dismiss}
+                        />
+                    </div>
+                )}
 
                 {/* Body Content */}
                 <div className="flex-1 flex flex-col items-center justify-center px-8 text-center z-10 gap-8">

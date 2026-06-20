@@ -11,3 +11,4 @@ export * from './useTrips';
 export * from './useContent';
 export * from './useSocial';
 export * from './useChat';
+export * from './useUserExpeditions';

@@ -4,6 +4,8 @@ export const HIDDEN_LOGO_URL = 'https://i.imgur.com/WtlATYR.png';
 export const HIDDEN_QR_URL = 'https://i.imgur.com/a5vwrIi.png';
 
 export const PDF_CACHE_DAYS = 7;
+/** Shared catalog destination PDFs — longer TTL; invalidated by content fingerprint. */
+export const DESTINATION_PDF_CACHE_DAYS = 90;
 
 /** Inner content padding — applied in CSS; Puppeteer page margins stay at 0 so the dark background fills the sheet. */
 export const PDF_MARGIN_MM = {

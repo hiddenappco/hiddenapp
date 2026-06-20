@@ -6,6 +6,8 @@ import {
     pickLocalizedStringArray,
     type AppLanguage,
 } from './localizedContent';
+import { pickLocalizedPackingGuide } from './packingGuide';
+import { normalizeDestinationCoordinates, normalizeDestinationStats } from './destinationFields';
 
 type RawDoc = Record<string, unknown>;
 
@@ -46,16 +48,14 @@ export function localizeDepartment(raw: RawDoc, lang: AppLanguage): Record<strin
 
 export function localizeDestination(raw: RawDoc, lang: AppLanguage): Record<string, unknown> {
     const doc = raw;
-    const packingGuide =
-        pickLocalizedRawField(
-            {
-                ...doc,
-                packingGuide: doc.packingGuide ?? doc.packingGuige,
-                packingGuide_en: doc.packingGuide_en ?? doc.packingGuige_en,
-            },
-            'packingGuide',
-            lang
-        ) ?? doc.packingGuide ?? doc.packingGuige;
+    const packing = pickLocalizedPackingGuide(
+        {
+            ...doc,
+            packingGuide: doc.packingGuide ?? doc.packingGuige,
+            packingGuide_en: doc.packingGuide_en ?? doc.packingGuige_en,
+        },
+        lang
+    );
 
     return {
         ...raw,
@@ -67,10 +67,12 @@ export function localizeDestination(raw: RawDoc, lang: AppLanguage): Record<stri
         gettingThere: pickLocalizedObjectArray(doc, 'gettingThere', lang),
         pricingGuide: pickLocalizedObjectArray(doc, 'pricingGuide', lang),
         packingSummary:
-            pickLocalized(doc, 'packingSummary', lang) || String(raw.packingSummary || ''),
+            packing?.summary || pickLocalized(doc, 'packingSummary', lang) || String(raw.packingSummary || ''),
         planningNotes:
             pickLocalized(doc, 'planningNotes', lang) || String(raw.planningNotes || ''),
-        packingGuide,
+        packingGuide: packing?.categories?.length ? packing.categories : [],
+        stats: normalizeDestinationStats(raw),
+        coordinates: normalizeDestinationCoordinates(raw),
     };
 }
 

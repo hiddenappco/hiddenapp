@@ -9,6 +9,7 @@ import { GROUND_MOBILITY_VALUES } from '../adk/expedition/types';
 import { normalizeAppLanguage } from '../adk/chat/briefing';
 import { hasActivePremium } from '../lib/premiumAccess';
 import { assertExpeditionQuota, consumeExpeditionQuota } from '../lib/expeditionQuota';
+import { assertUserExpeditionHistoryCapacity } from '../lib/expeditionHistory';
 import { MAX_EXPEDITION_DAYS, MAX_REVISION_NOTES_LENGTH } from '../lib/premiumLimits';
 
 const MAX_DAYS = MAX_EXPEDITION_DAYS;
@@ -224,6 +225,8 @@ export const createExpedition = onRequest(
                 }
             }
 
+            await assertUserExpeditionHistoryCapacity(db, userId);
+
             const docRef = await db.collection('expeditions').add({
                 userId,
                 departmentId: canonicalId,
@@ -253,7 +256,11 @@ export const createExpedition = onRequest(
             }
             const msg = String((err as Error).message || err);
             console.error('[createExpedition]', msg);
-            if (msg === 'EXPEDITION_QUOTA_EXCEEDED' || msg === 'PREMIUM_REQUIRED') {
+            if (
+                msg === 'EXPEDITION_QUOTA_EXCEEDED' ||
+                msg === 'PREMIUM_REQUIRED' ||
+                msg === 'EXPEDITION_HISTORY_FULL'
+            ) {
                 res.status(403).json({ error: msg });
                 return;
             }

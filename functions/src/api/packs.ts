@@ -1,5 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { db, storage } from "../config/firebase";
 import initSqlJs from "sql.js";
 import { v4 as uuidv4 } from "uuid";
@@ -527,11 +528,66 @@ export const generateDepartmentPack = onRequest(
  * This ensures the offline pack.db always reflects the latest state of the database.
  */
 
+const DESTINATION_PDF_INVALIDATION_KEYS = [
+  "title",
+  "title_en",
+  "name",
+  "location",
+  "location_en",
+  "description",
+  "description_en",
+  "aiTip",
+  "aiTip_en",
+  "activities",
+  "activities_en",
+  "gettingThere",
+  "gettingThere_en",
+  "pricingGuide",
+  "pricingGuide_en",
+  "packingGuide",
+  "packingGuide_en",
+  "packingGuige",
+  "packingGuige_en",
+  "packingSummary",
+  "packingSummary_en",
+  "planningNotes",
+  "planningNotes_en",
+  "heroImage",
+  "image",
+  "gallery",
+  "galleryImages",
+  "coordinates",
+  "stats",
+  "statsHiking",
+  "statsSignal",
+  "statsTemp",
+  "status",
+] as const;
+
+function destinationPdfSourceChanged(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>
+): boolean {
+  return DESTINATION_PDF_INVALIDATION_KEYS.some(
+    (key) => JSON.stringify(before[key] ?? null) !== JSON.stringify(after[key] ?? null)
+  );
+}
+
 // Rebuild when a destination is created, updated, or deleted
 export const onDestinationWritePack = onDocumentWritten("destinations/{id}", async (event) => {
-  const data = event.data?.after?.data() || event.data?.before?.data();
+  const before = event.data?.before?.data() as Record<string, unknown> | undefined;
+  const after = event.data?.after?.data() as Record<string, unknown> | undefined;
+  const docId = event.params.id;
+
+  if (before && after && after.pdfCache && destinationPdfSourceChanged(before, after)) {
+    await db.collection("destinations").doc(docId).update({
+      pdfCache: FieldValue.delete(),
+    });
+  }
+
+  const data = after || before;
   if (data && data.departmentId) {
-    await buildPackForDepartment(data.departmentId);
+    await buildPackForDepartment(String(data.departmentId));
   }
 });
 

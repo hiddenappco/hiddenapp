@@ -65,7 +65,7 @@ export const Budget: React.FC<BudgetProps> = ({
   }
 
   return (
-    <div className="bg-background-dark font-display antialiased text-content h-screen w-full overflow-hidden flex flex-col dark">
+    <div className="bg-background-dark font-display antialiased text-content h-screen w-full overflow-hidden flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/10 transition-colors">
         <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ export const Budget: React.FC<BudgetProps> = ({
             /* Active Trip Card - Modern Redesign */
             <div
               onClick={onOpenTrip}
-              className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#121d2b] to-[#0a1525] p-7 shadow-2xl border border-white/[0.08] group cursor-pointer active:scale-[0.98] transition-all"
+              className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-surface-dark to-card-dark dark:from-[#121d2b] dark:to-[#0a1525] p-7 shadow-xl border border-overlay/10 dark:border-white/[0.08] group cursor-pointer active:scale-[0.98] transition-all"
             >
               {/* Decorative Glow */}
               <div className="absolute -top-24 -right-24 size-56 bg-budget-primary/10 blur-[60px] rounded-full group-hover:bg-budget-primary/20 transition-all duration-500"></div>
@@ -160,18 +160,18 @@ export const Budget: React.FC<BudgetProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-end justify-between border-t border-white/[0.05] pt-5 mt-auto">
+                <div className="flex items-end justify-between border-t border-overlay/10 dark:border-white/[0.05] pt-5 mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-content/30 text-[9px] font-bold uppercase tracking-[0.15em] mb-1.5">{t('budget.totalSpent')}</span>
+                    <span className="text-content-muted text-[9px] font-bold uppercase tracking-[0.15em] mb-1.5">{t('budget.totalSpent')}</span>
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-3xl font-black text-content tracking-tighter">
                         {calculateTotal(activeTrip)}
                       </span>
-                      <span className="text-content/20 text-xs font-bold">COP</span>
+                      <span className="text-content-muted text-xs font-bold">COP</span>
                     </div>
                   </div>
 
-                  <button className="flex items-center justify-center size-14 bg-white/[0.03] hover:bg-budget-primary text-white rounded-[20px] transition-all border border-overlay/10 group-hover:border-budget-primary/30 group-hover:shadow-[0_0_20px_rgba(255,108,82,0.3)]">
+                  <button className="flex items-center justify-center size-14 bg-overlay/5 hover:bg-budget-primary text-content hover:text-white rounded-[20px] transition-all border border-overlay/10 group-hover:border-budget-primary/30 group-hover:shadow-[0_0_20px_rgba(255,108,82,0.3)]">
                     <span className="material-symbols-outlined text-[26px]">payments</span>
                   </button>
                 </div>
@@ -181,14 +181,14 @@ export const Budget: React.FC<BudgetProps> = ({
             /* Empty State */
             <div
               onClick={onCreateTrip}
-              className="rounded-[32px] border-2 border-dashed border-overlay/10 p-10 flex flex-col items-center justify-center text-center gap-4 cursor-pointer hover:bg-white/[0.02] hover:border-budget-primary/25 transition-all group"
+              className="rounded-[32px] border-2 border-dashed border-overlay/15 p-10 flex flex-col items-center justify-center text-center gap-4 cursor-pointer hover:bg-overlay/5 hover:border-budget-primary/25 transition-all group"
             >
               <div className="size-14 rounded-[20px] bg-overlay/5 flex items-center justify-center group-hover:bg-budget-primary/20 transition-all">
-                <span className="material-symbols-outlined text-2xl text-content/25 group-hover:text-budget-primary">add_location_alt</span>
+                <span className="material-symbols-outlined text-2xl text-content-muted group-hover:text-budget-primary">add_location_alt</span>
               </div>
               <div>
-                <p className="text-content/40 font-medium text-sm">{t('budget.noActive')}</p>
-                <p className="text-content/30 text-xs mt-1">{t('budget.startOneHint')}</p>
+                <p className="text-content-muted font-medium text-sm">{t('budget.noActive')}</p>
+                <p className="text-content-subtle text-xs mt-1">{t('budget.startOneHint')}</p>
               </div>
             </div>
           )}
@@ -196,11 +196,18 @@ export const Budget: React.FC<BudgetProps> = ({
 
         {/* History Section */}
         <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between mb-1 px-1">
+          <div className="flex items-center justify-between mb-1 px-1 gap-2">
             <h3 className="text-content/30 text-[10px] font-bold uppercase tracking-[0.2em]">{t('budget.history')}</h3>
-            <span className="text-[10px] font-bold text-content/25 tabular-nums">
-              {pastTrips.length}/{MAX_PAST_TRIPS}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {!isOnline && pastTrips.length > 0 && (
+                <span className="text-[9px] font-bold text-blue-300/80 uppercase tracking-wide hidden sm:inline">
+                  {t('trips.historyOfflineHint')}
+                </span>
+              )}
+              <span className="text-[10px] font-bold text-content/25 tabular-nums">
+                {pastTrips.length}/{MAX_PAST_TRIPS}
+              </span>
+            </div>
           </div>
 
           {pastTrips.length >= MAX_PAST_TRIPS && (
@@ -215,7 +222,7 @@ export const Budget: React.FC<BudgetProps> = ({
                 <div
                   key={trip.id}
                   onClick={() => onOpenHistoryTrip(trip)}
-                  className="flex items-center gap-4 p-4 rounded-[22px] bg-white/[0.02] border border-white/[0.05] shadow-sm cursor-pointer hover:bg-white/[0.04] hover:border-overlay/10 transition-all group"
+                  className="flex items-center gap-4 p-4 rounded-[22px] bg-surface-dark border border-overlay/10 shadow-sm cursor-pointer hover:bg-overlay/5 hover:border-overlay/15 transition-all group"
                 >
                   {/* Icon Representation */}
                   <div className="size-12 rounded-xl bg-surface-dark flex items-center justify-center border border-overlay/5 shrink-0 group-hover:border-budget-primary/20 transition-colors">

@@ -68,7 +68,7 @@ flowchart TB
         A1["Hyperlocal Chat<br/>Gemini 2.5 Flash · widgets"]
         A2["Hyperlocal Live<br/>Gemini Multimodal Live"]
         A3["Environmental Ranger<br/>weather + activity progress"]
-        A4["Off-Grid Vault<br/>local RAG · no network"]
+        A4["Off-Grid Vault<br/>local RAG + Gemma optional"]
         A5["Expedition Planner<br/>4 sequential LlmAgents · dedicated hub"]
     end
 
@@ -230,7 +230,7 @@ Checklist and touch-target rules: [`docs/UI_FIELD_CONSTRAINTS.md`](./UI_FIELD_CO
 | Environmental Ranger (text) | Cloud Functions `environmentalAgent` | Gemini 2.5 Flash | Yes — structured JSON; also callable as `getLiveConditions` tool from the chat |
 | Expedition Planner (pipeline) | Cloud Functions `createExpedition` + `onExpeditionCreate` | Gemini 2.5 Pro × 3 + Flash writer | Yes — curator → logistics → budget → writer; dedicated `/expedition/plan` hub |
 | Hyperlocal Live (voice) | Cloud Run `hidden-agent-worker` | Gemini Multimodal Live | No — LiveKit Agents |
-| Off-Grid Vault | Client (Capacitor + sql.js) | Local RAG / Gemma (roadmap) | No — edge offline |
+| Off-Grid Vault | Client (Capacitor + sql.js) | Local RAG + MediaPipe Gemma 2B GPU | No — edge offline |
 
 ---
 
@@ -367,7 +367,18 @@ See [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md) for guest bypass poli
 
 ### Off-Grid Vault
 
-Client-side SQLite department packs (`sql.js` + Capacitor). Local RAG and guided search without network; optional on-device Gemma on the roadmap.
+Client-side SQLite department packs (`sql.js` + Capacitor). Local RAG and guided search without network; optional **MediaPipe Gemma 2B IT GPU int4** (`@mediapipe/tasks-genai`, WebGPU) when the model is installed.
+
+| Piece | Path / config |
+|-------|----------------|
+| Model config | `config/gemma.ts` — `storageDownloadUrl` → Firebase Storage `gemma-2b-it-gpu-int4.bin` (~1.29 GB) |
+| Override URL | `VITE_GEMMA_MODEL_URL` or Firestore `config/gemmaModel.downloadUrl` |
+| Download / install | `services/gemmaModelStore.ts` — axios download; accepts `.bin` or `.tar.gz` (`utils/extractGemmaArchive.ts` + `fflate`) |
+| Inference | `services/gemmaEngine.ts` — `LlmInference` GPU delegate; streaming in `OfflineChat.tsx` |
+| Orchestration | `services/localLlmService.ts` — Gemma + RAG context; fallback to guided search if WebGPU/model missing |
+| Uninstall | `removeGemmaModel()` + UI «Liberar» in `OffGridVault.tsx` |
+
+Gemma is **optional** — vault search and pack-based chat work without it.
 
 ### Trip ledger (Bitácora v2)
 
@@ -380,7 +391,7 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 | **Currency** | Canonical ledger in **COP**; expenses may be entered in COP, USD, or EUR with `amountOriginal`, `exchangeRate`, `exchangeRateDate` |
 | **TRM** | `functions/src/api/exchangeRates.ts` — daily TRM from datos.gov.co, EUR via Frankfurter; cached in `config/exchangeRates`; client hook `useExchangeRates` |
 | **Group splits** | `paidByMemberId`, `splitAmong[]`; balance math in `utils/tripBalances.ts`; `TripBalances` panel + settlements in bilingual PDF (`functions/src/pdf/tripTemplate.ts`) |
-| **Offline** | `services/tripLedgerStore.ts` mirrors active trip in IndexedDB; outbox ops (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect (re-reads outbox after `create_trip` remaps local ids); expense mirror sync avoids deleting rows still in the incoming set; `TripSyncBanner` shows pending count |
+| **Offline** | `services/tripLedgerStore.ts` mirrors active trip + expenses in IndexedDB; completed-trip history mirrored locally (up to 10); outbox ops (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect (re-reads outbox after `create_trip` remaps local ids); expense mirror sync avoids deleting rows still in the incoming set; `TripSyncBanner` shows pending count |
 | **Join by code** | `joinTripByCode` reads trip data from `QuerySnapshot.docs[0]`, not the snapshot itself |
 | **Offline routes** | `/budget`, `/create-trip`, `/current-trip`, `/trips/converter`, `/trip-history/:id` work without `OfflineGuardian`; group join (`/trips/join`) requires network |
 | **Offline hub CTA** | `SignalLostFallback` links to Off-Grid vault and trip ledger |
@@ -389,20 +400,20 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 **Hooks:** `useTrips`, `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
-**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **descartado** · offline mirror of completed trip history · conflict UI for concurrent offline edits.
+**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **descartado** · ~~offline mirror of completed trip history~~ **hecho (Jun 2026)** · conflict UI for concurrent offline edits.
 
 ### Premium membership (pricing Jun 2026)
 
-Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — UI shows COP fallbacks on `/premium`.
+Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — `/premium` shows **USD reference prices** and `PREMIUM_CHECKOUT_ENABLED = false` («Disponible pronto en tiendas»).
 
-| Plan | USD | COP (~3.600) | Role |
-|------|-----|--------------|------|
-| Pase Viaje | $4.99 | ~$17.900 | 10 days, no auto-renewal — reduces monthly subscription friction |
-| Mensual | $7.99 | ~$28.900 | Full Premium recurring |
-| Anual | $79.99 | ~$287.900 | 2 months free vs 12× monthly |
-| Vitalicio | $149.99 | ~$539.900 | ~2× annual; limited founder slots |
+| Plan | USD | Role |
+|------|-----|------|
+| Pase Viaje | $4.99 | 10 days, no auto-renewal |
+| Mensual | $7.99 | Full Premium recurring |
+| Anual | $79.99 | 2 months free vs 12× monthly |
+| Vitalicio | $149.99 | Founder lifetime |
 
-Same feature set on all paid tiers; duration differs. Group trip ledger, expedition planner, Live voice, coupons, and offline PDFs are core Premium value props. `users.isPremium` in Firestore remains source of truth until store billing ships.
+**UX (Jun 2026):** `HelpTooltip` on account types, compare table, and plan cards (`P0-PREMIUM-TOOLTIPS`). `users.isPremium` in Firestore remains source of truth until store billing ships.
 
 ---
 
@@ -460,7 +471,8 @@ API keys (Gemini, Maps, weather providers, LiveKit) are **not** in the public re
 | Cloud Functions | `cd functions && npm run build && firebase deploy --only functions` |
 | Trip TRM + PDF | `firebase deploy --only functions:getExchangeRates,functions:scheduledExchangeRates,functions:generateTripPdf` |
 | Firestore rules/indexes | `firebase deploy --only firestore:indexes,firestore:rules` |
-| Firebase Hosting | `firebase deploy --only hosting` |
+| Firebase Hosting | `npm run build && firebase deploy --only hosting` |
+| Full backend | `firebase deploy --only hosting,functions,firestore:rules,firestore:indexes,storage` — if Cloud Run CPU quota fails, deploy functions one-by-one |
 | Live agent worker | `gcloud run deploy hidden-agent-worker --source ./agent-worker` |
 
 Secrets (Firebase): `GEMINI_API_KEY`, `GOOGLE_MAPS_API_KEY`, `ACCUWEATHER_API_KEY`, `STORMGLASS_API_KEY`.

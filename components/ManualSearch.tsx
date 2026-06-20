@@ -64,7 +64,6 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
               placeholder={t('explore.placeholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              autoFocus
             />
             {searchTerm ? (
               <button

@@ -30,6 +30,11 @@ import {
     getExpensesMirror,
     getTripMirror,
     getActiveTripIdLocal,
+    cachePastTripsMirror,
+    listCompletedTripsMirror,
+    pruneCompletedTripsMirror,
+    removeTripMirror,
+    cacheTripMirror,
 } from '../services/tripLedgerStore';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from '../config/constants';
 
@@ -319,7 +324,7 @@ export const useActiveTrip = (userId: string | undefined, isOnline = true) => {
     return { trip, loading };
 };
 
-export const useTrip = (tripId: string | undefined) => {
+export const useTrip = (tripId: string | undefined, isOnline = true) => {
     const [trip, setTrip] = useState<Trip | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -329,12 +334,23 @@ export const useTrip = (tripId: string | undefined) => {
             return;
         }
 
+        const loadMirror = async () => {
+            const mirror = await getTripMirror(tripId);
+            if (mirror) setTrip(mirror);
+            if (!isOnline) setLoading(false);
+        };
+        loadMirror();
+
+        if (!isOnline) return;
+
         const tripRef = doc(db, 'trips', tripId);
         const unsubscribe = onSnapshot(
             tripRef,
             (docSnap) => {
                 if (docSnap.exists()) {
-                    setTrip({ id: docSnap.id, ...docSnap.data() } as Trip);
+                    const next = { id: docSnap.id, ...docSnap.data() } as Trip;
+                    setTrip(next);
+                    void cacheTripMirror(next);
                 } else {
                     getTripMirror(tripId).then((mirror) => setTrip(mirror));
                 }
@@ -350,7 +366,7 @@ export const useTrip = (tripId: string | undefined) => {
         );
 
         return () => unsubscribe();
-    }, [tripId]);
+    }, [tripId, isOnline]);
 
     return { trip, loading };
 };
@@ -495,9 +511,10 @@ export const useTripExpenses = (tripId: string | undefined, isOnline = true) => 
     return { expenses, loading };
 };
 
-export const usePastTrips = (userId: string | undefined) => {
+export const usePastTrips = (userId: string | undefined, isOnline = true) => {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
+    const [fromCache, setFromCache] = useState(false);
 
     useEffect(() => {
         if (!userId) {
@@ -508,22 +525,43 @@ export const usePastTrips = (userId: string | undefined) => {
         let memberTrips: Trip[] = [];
         let legacyTrips: Trip[] = [];
 
-        const mergeTrips = () => {
+        const applyMerged = async (source: 'remote' | 'cache') => {
             const byId = new Map<string, Trip>();
             for (const t of [...memberTrips, ...legacyTrips]) {
                 byId.set(t.id, t);
             }
-            setTrips(
-                Array.from(byId.values())
-                    .sort((a, b) => {
-                        const aTime = (a as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
-                        const bTime = (b as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
-                        return bTime - aTime;
-                    })
-                    .slice(0, MAX_PAST_TRIPS)
-            );
+            const merged = Array.from(byId.values())
+                .sort((a, b) => {
+                    const aTime = (a as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
+                    const bTime = (b as Trip & { createdAt?: { seconds: number } }).createdAt?.seconds || 0;
+                    return bTime - aTime;
+                })
+                .slice(0, MAX_PAST_TRIPS);
+            setTrips(merged);
+            setFromCache(source === 'cache');
+            if (source === 'remote' && merged.length > 0) {
+                await cachePastTripsMirror(merged);
+                await pruneCompletedTripsMirror(userId, new Set(merged.map((t) => t.id)));
+            }
             setLoading(false);
         };
+
+        const loadLocal = async () => {
+            const mirror = await listCompletedTripsMirror(userId, MAX_PAST_TRIPS);
+            if (mirror.length) {
+                memberTrips = mirror;
+                legacyTrips = [];
+                await applyMerged('cache');
+            } else if (!isOnline) {
+                setTrips([]);
+                setFromCache(true);
+                setLoading(false);
+            }
+        };
+
+        loadLocal();
+
+        if (!isOnline) return;
 
         const memberQ = query(
             collection(db, 'trips'),
@@ -548,11 +586,11 @@ export const usePastTrips = (userId: string | undefined) => {
                     ...(d.data() as Omit<Trip, 'id'>),
                     id: d.id,
                 }));
-                mergeTrips();
+                void applyMerged('remote');
             },
             (err) => {
                 console.error('Error fetching past trips (memberIds):', err);
-                setLoading(false);
+                void loadLocal();
             }
         );
 
@@ -563,10 +601,11 @@ export const usePastTrips = (userId: string | undefined) => {
                     ...(d.data() as Omit<Trip, 'id'>),
                     id: d.id,
                 }));
-                mergeTrips();
+                void applyMerged('remote');
             },
             (err) => {
                 console.error('Error fetching past trips (legacy):', err);
+                void loadLocal();
             }
         );
 
@@ -574,7 +613,7 @@ export const usePastTrips = (userId: string | undefined) => {
             unsubMember();
             unsubLegacy();
         };
-    }, [userId]);
+    }, [userId, isOnline]);
 
-    return { trips, loading };
+    return { trips, loading, fromCache };
 };

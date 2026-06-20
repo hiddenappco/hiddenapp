@@ -3,7 +3,8 @@
 export const CHAT_FREE_DAILY_MESSAGES = 10;
 
 export const RANGER_FREE_DAILY = 5;
-export const RANGER_PREMIUM_DAILY = 10;
+/** `null` = unlimited daily Ranger queries (premium / hackathon guest). */
+export const RANGER_PREMIUM_DAILY: number | null = null;
 
 export const LIVE_PREMIUM_MONTHLY_SECONDS = 30 * 60;
 export const LIVE_TRIAL_SECONDS = 5 * 60;

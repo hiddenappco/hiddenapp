@@ -6,9 +6,13 @@ import { AuthError, requireAuthUid } from '../lib/verifyAuth';
 import { generateTripPdfHtml } from '../pdf/tripTemplate';
 import { generateDestinationPdfHtml } from '../pdf/destinationTemplate';
 import { generateExpeditionPdfHtml } from '../pdf/expeditionTemplate';
-import { renderHtmlToPdfBuffer, uploadUserPdf } from '../pdf/renderPdf';
+import { renderHtmlToPdfBuffer, uploadCatalogDestinationPdf, uploadUserPdf } from '../pdf/renderPdf';
 import type { PdfLanguage } from '../pdf/shared';
 import { hasActivePremium } from '../lib/premiumAccess';
+import {
+    destinationPdfFingerprint,
+    isDestinationPdfCacheValid,
+} from '../lib/destinationPdfCache';
 
 async function userIsPremium(uid: string): Promise<boolean> {
     const snap = await db.collection('users').doc(uid).get();
@@ -136,6 +140,17 @@ export const generateDestinationPdf = onRequest(
             }
 
             const raw = { id: destDoc.id, ...destDoc.data() } as Record<string, unknown>;
+            const cached = isDestinationPdfCacheValid(raw, lang);
+            if (cached) {
+                res.status(200).json({
+                    success: true,
+                    pdfUrl: cached.url,
+                    pdfExpiresAt: cached.expiresAt.toISOString(),
+                    cached: true,
+                });
+                return;
+            }
+
             const localized = localizeDestination(raw, lang);
             const heroImage = String(raw.heroImage || raw.image || '').trim();
             if (heroImage) localized.heroImage = heroImage;
@@ -157,13 +172,24 @@ export const generateDestinationPdf = onRequest(
             }
 
             const html = generateDestinationPdfHtml(localized, departmentName, lang);
-            const timestamp = Date.now();
-            await handlePdfRequest(
-                res,
-                html,
-                uid,
-                `users/${uid}/pdfs/destination_${destinationId}_${lang}_${timestamp}.pdf`
-            );
+            const buffer = await renderHtmlToPdfBuffer(html);
+            const { url, expiresAt } = await uploadCatalogDestinationPdf(destinationId, lang, buffer);
+            const fingerprint = destinationPdfFingerprint(raw, lang);
+
+            await db.collection('destinations').doc(destinationId).update({
+                [`pdfCache.${lang}`]: {
+                    url,
+                    expiresAt,
+                    fingerprint,
+                },
+            });
+
+            res.status(200).json({
+                success: true,
+                pdfUrl: url,
+                pdfExpiresAt: expiresAt.toISOString(),
+                cached: false,
+            });
         } catch (error) {
             if (error instanceof AuthError) {
                 res.status(401).json({ error: 'MISSING_AUTHORIZATION' });

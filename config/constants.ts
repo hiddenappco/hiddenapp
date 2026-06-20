@@ -60,4 +60,11 @@ export const TRIP_LEDGER_LIMITS = {
     MAX_PAST_TRIPS: 10,
 } as const;
 
+/** Planificador — itinerarios guardados por usuario (Firestore `expeditions`). */
+export const EXPEDITION_HISTORY_LIMIT = 20;
+export const EXPEDITION_HISTORY_FULL = 'EXPEDITION_HISTORY_FULL';
+
+/** Set true when Google Play / App Store + RevenueCat products are live. */
+export const PREMIUM_CHECKOUT_ENABLED = false;
+
 export const TRIP_HISTORY_FULL = 'TRIP_HISTORY_FULL';

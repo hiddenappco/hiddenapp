@@ -325,6 +325,7 @@ export const useDestination = (id: string | undefined) => {
                         packingGuide_en: raw.packingGuide_en ?? raw.packingGuige_en,
                         packingSummary: raw.packingSummary,
                         packingSummary_en: raw.packingSummary_en,
+                        pdfCache: raw.pdfCache as Destination['pdfCache'],
                     } as Destination;
                 };
 

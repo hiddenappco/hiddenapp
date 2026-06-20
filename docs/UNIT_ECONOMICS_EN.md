@@ -67,7 +67,7 @@ friction of committing to a subscription for a one-week trip.
 | Capability | Free | Premium |
 |-----------|------|---------|
 | Hyperlocal text chat | Daily limit | Unlimited |
-| AI environmental ranger | Limited / day | Higher daily allowance |
+| AI environmental ranger | 5 queries / day | Unlimited |
 | Live voice agent | Short one-time trial | Monthly voice allowance |
 | AI Expedition Planner (hub) | Not included | Included (quota by plan) |
 | Offline PDFs, group ledger, Premium coupons | No | Yes |
@@ -167,8 +167,8 @@ verified.
 |------|--------|
 | Pricing & entitlements in product/code | ✅ Live |
 | Quota & gating (planner, voice, ranger, PDFs, group ledger) | ✅ Live |
-| Premium UI & paywall | ✅ Live |
-| App Store / Play Store / RevenueCat billing | ⏳ Pending operational setup |
+| Premium UI & paywall | ✅ Live (`/premium`, USD reference, tooltips) |
+| App Store / Play Store / RevenueCat billing | ⏳ Pending — `PREMIUM_CHECKOUT_ENABLED = false` |
 | B2B Verified Refuge billing & host onboarding | ⏳ Planned |
 
 ---

@@ -59,6 +59,8 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 | `JoinTrip` | ✅ | `touch-target` en back, toggles modo, CTA unirse |
 | `CurrencyConverter` | ✅ | `touch-target` en back y swap |
 | `LiveAgent` | ✅ | `touch-target` en back, iniciar llamada, colgar; `ControlBar` mute/hangup/record |
+| `Premium` | ✅ | Tooltips `?`; CTAs tienda deshabilitados hasta stores |
+| `Budget` / `TripHistoryDetail` | ✅ | Modo claro; hint historial offline |
 | `Home` / `ManualSearch` / `Refugios` / `NewsFeed` / `Coupons` | ✅ | `bottom-nav-scroll-pad` donde aplica; skeletons en carga Firestore |
 
 ## Conectividad (P0-OFFLINE-COPY)
@@ -72,8 +74,17 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 
 - Tamaño pack antes de descargar (`formatPackSize` + modal).
 - Advertencia en **datos móviles** (`useNetworkDetails().isCellular`).
-- **Gemma 4**: solo Wi‑Fi + modal de confirmación (~1.5 GB).
+- **Gemma 4**: solo Wi‑Fi + modal de confirmación (~**1.29 GB** `.bin`); botón **Liberar** desinstala modelo.
 - Estado «compilando pack» cuando no hay `sizeBytes`.
+
+## Tooltips y onboarding (P0) ✅ Jun 2026
+
+| ID | Componente | Pantallas |
+|----|------------|-----------|
+| `P0-PREMIUM-TOOLTIPS` | `HelpTooltip.tsx` | `/premium` — tipos de cuenta, comparativa, planes |
+| `P0-TOOLTIP-ONCE` | `FeatureCoachmark.tsx` + `useFeatureTooltip.ts` | Bóveda, Monitor Ranger, Live, hub planificador (una vez; `localStorage`) |
+
+**Archivos:** `components/ui/HelpTooltip.tsx`, `components/ui/FeatureCoachmark.tsx`, `hooks/useFeatureTooltip.ts`.
 
 ## Cómo extender
 

@@ -4,7 +4,7 @@
  * Hybrid Local LLM Engine for the Off-Grid Tactical Terminal.
  * 
  * Architecture (dual offline product — see TAREA_4_ARQUITECTURA_OFFLINE_DUAL.md):
- * 1. Primary Engine (WebGPU + MediaPipe/WebLLM): Full Gemma 4 inference on-device (TODO).
+ * 1. Primary Engine (WebGPU + MediaPipe): Gemma 2B IT GPU int4 on-device via `@mediapipe/tasks-genai`.
  * 2. Fallback Engine (Guided local search): Structured RAG responder — default for all devices;
  *    used when Gemma is not installed, WebGPU is unavailable, or inference is not wired yet.
  * 
@@ -18,6 +18,13 @@ import { Language } from '../types/core';
 import { es } from '../locales/es';
 import { en } from '../locales/en';
 import type { TranslationType } from '../locales/es';
+import {
+  disposeGemmaSession,
+  ensureGemmaSession,
+  generateGemmaResponse,
+  sanitizeGemmaOutput,
+} from './gemmaEngine';
+import { isGemmaModelReady, resolveGemmaModelAssetPath } from './gemmaModelStore';
 
 const getLocale = (language: Language): TranslationType =>
   language === Language.English ? en : es;
@@ -944,19 +951,35 @@ export function assemblePrompt(
     systemBlock += `\n\n${emptyLabel}`;
   }
 
-  return `<start_of_turn>system\n${systemBlock}<end_of_turn>\n<start_of_turn>user\n${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
+  // Gemma's chat template has no `system` role: fold the instructions +
+  // context into the single user turn, then open the model turn.
+  return `<start_of_turn>user\n${systemBlock}\n\n${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
 }
 
 // ─── Engine Detection ───────────────────────────────────────────────────────
 
+export interface InitializeOptions {
+  preferGemma?: boolean;
+}
+
 /**
- * Checks if the device supports WebGPU, which is required
- * for on-device Gemma 4 inference via MediaPipe/WebLLM.
+ * Checks WebGPU + installed model binary for Gemma inference.
  */
-export async function detectEngineCapability(): Promise<EngineMode> {
+export async function detectEngineCapability(
+  options: InitializeOptions = {}
+): Promise<EngineMode> {
+  if (!options.preferGemma) {
+    return 'fallback';
+  }
+
+  if (!(await isGemmaModelReady())) {
+    console.log('[LocalLLM] Gemma model not installed. Using fallback engine.');
+    return 'fallback';
+  }
+
   try {
     if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
-      const gpu = (navigator as any).gpu;
+      const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
       if (gpu) {
         const adapter = await gpu.requestAdapter();
         if (adapter) {
@@ -968,7 +991,7 @@ export async function detectEngineCapability(): Promise<EngineMode> {
   } catch (err) {
     console.warn('[LocalLLM] WebGPU detection failed:', err);
   }
-  
+
   console.log('[LocalLLM] WebGPU not available. Using fallback quick-search engine.');
   return 'fallback';
 }
@@ -1097,36 +1120,45 @@ export class LocalLlmService {
   private isReady: boolean = false;
   private isLoading: boolean = false;
   private error: string | null = null;
+  private modelAssetPath: string | null = null;
 
-  /**
-   * Initialize the service by detecting the best available engine.
-   */
-  async initialize(): Promise<EngineStatus> {
+  async initialize(options: InitializeOptions = {}): Promise<EngineStatus> {
     this.isLoading = true;
     this.error = null;
 
     try {
-      this.engineMode = await detectEngineCapability();
-      
+      this.engineMode = await detectEngineCapability(options);
+
       if (this.engineMode === 'gemma') {
-        // In a production build, this is where you would initialize
-        // the MediaPipe LLM Inference API or WebLLM runtime.
-        // For now, we mark it as ready since the model file is managed
-        // by the installGemma/uninstallGemma flow in useOffGrid.
-        console.log('[LocalLLM] Gemma engine initialized (pending model load).');
+        this.modelAssetPath = await resolveGemmaModelAssetPath();
+        await ensureGemmaSession(this.modelAssetPath);
+        console.log('[LocalLLM] Gemma MediaPipe session ready.');
+      } else {
+        this.modelAssetPath = null;
       }
 
       this.isReady = true;
-    } catch (err: any) {
-      this.error = err.message || 'Unknown engine initialization error';
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown engine initialization error';
+      this.error = message;
       this.engineMode = 'fallback';
-      this.isReady = true; // Fallback is always ready
-      console.error('[LocalLLM] Initialization error, falling back:', err);
+      this.modelAssetPath = null;
+      disposeGemmaSession();
+      this.isReady = true;
+      console.error('[LocalLLM] Gemma init failed, falling back:', err);
     } finally {
       this.isLoading = false;
     }
 
     return this.getStatus();
+  }
+
+  async dispose(): Promise<void> {
+    disposeGemmaSession();
+    this.modelAssetPath = null;
+    this.engineMode = 'fallback';
+    this.isReady = false;
+    this.error = null;
   }
 
   /**
@@ -1148,43 +1180,40 @@ export class LocalLlmService {
   async generateResponse(
     userMessage: string,
     ragContext: RagContext | null,
-    language: Language
+    language: Language,
+    onPartial?: (chunk: string) => void
   ): Promise<LlmResponse> {
-    if (this.engineMode === 'gemma') {
+    if (this.engineMode === 'gemma' && this.modelAssetPath) {
       try {
-        // Assemble the full prompt with RAG context
         const prompt = assemblePrompt(userMessage, ragContext, language);
-        
-        // In production, this would call the MediaPipe/WebLLM inference API:
-        // const result = await this.llmSession.generateResponse(prompt);
-        // For now, we use the fallback since the actual WebGPU inference
-        // pipeline requires the model binary to be loaded into GPU memory.
-        console.log('[LocalLLM] Gemma inference prompt assembled:', prompt.substring(0, 200) + '...');
-        
-        // TODO: Replace with actual MediaPipe LLM Inference call
-        // when the model binary integration is complete.
-        const fallbackText = generateFallbackResponse(userMessage, ragContext, language);
-        
-        return {
-          text: fallbackText,
-          engineUsed: 'fallback', // Will change to 'gemma' when inference is wired
-          ragContext
-        };
-      } catch (err: any) {
+        // MediaPipe streams *incremental* chunks; accumulate them so the UI
+        // shows the growing answer instead of only the latest token.
+        let streamed = '';
+        const raw = await generateGemmaResponse(
+          this.modelAssetPath,
+          prompt,
+          onPartial
+            ? (partial) => {
+                if (partial) {
+                  streamed += partial;
+                  onPartial(sanitizeGemmaOutput(streamed));
+                }
+              }
+            : undefined
+        );
+        const text = sanitizeGemmaOutput(raw || streamed);
+        if (text.length > 0) {
+          return { text, engineUsed: 'gemma', ragContext };
+        }
+      } catch (err) {
         console.error('[LocalLLM] Gemma inference failed, using fallback:', err);
-        return {
-          text: generateFallbackResponse(userMessage, ragContext, language),
-          engineUsed: 'fallback',
-          ragContext
-        };
       }
     }
 
-    // Fallback engine
     return {
       text: generateFallbackResponse(userMessage, ragContext, language),
       engineUsed: 'fallback',
-      ragContext
+      ragContext,
     };
   }
 }

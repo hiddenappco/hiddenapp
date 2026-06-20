@@ -31,6 +31,9 @@ export default defineConfig(() => {
               if (id.includes('framer-motion')) {
                 return 'vendor-motion';
               }
+              if (id.includes('@mediapipe/tasks-genai')) {
+                return 'vendor-mediapipe';
+              }
               return 'vendor';
             }
           }

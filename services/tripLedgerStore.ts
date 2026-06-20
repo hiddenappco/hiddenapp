@@ -1,5 +1,6 @@
 import type { Expense, Trip } from '../types/trips';
 import type { ExchangeRates } from '../types/trips';
+import { TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const DB_NAME = 'hidden_trip_ledger';
 const DB_VERSION = 1;
@@ -84,6 +85,74 @@ export async function setActiveTripIdLocal(tripId: string | null): Promise<void>
 
 export async function cacheTripMirror(trip: Trip): Promise<void> {
     await withStore('trips', 'readwrite', (store) => store.put(trip));
+}
+
+export async function listAllTripsMirror(): Promise<Trip[]> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('trips', 'readonly');
+        const req = tx.objectStore('trips').getAll();
+        req.onsuccess = () => resolve((req.result as Trip[]) || []);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function tripSortTime(trip: Trip): number {
+    const created = trip as Trip & { createdAt?: { seconds?: number } };
+    if (created.createdAt?.seconds) return created.createdAt.seconds * 1000;
+    const finished = trip as Trip & { finishedAt?: { seconds?: number } };
+    if (finished.finishedAt?.seconds) return finished.finishedAt.seconds * 1000;
+    return 0;
+}
+
+export function userOwnsTrip(trip: Trip, userId: string): boolean {
+    if (trip.userId === userId || trip.ownerId === userId) return true;
+    return trip.memberIds?.includes(userId) ?? false;
+}
+
+export async function listCompletedTripsMirror(
+    userId: string,
+    limit = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS
+): Promise<Trip[]> {
+    const all = await listAllTripsMirror();
+    return all
+        .filter((t) => t.status === 'completed' && userOwnsTrip(t, userId))
+        .sort((a, b) => tripSortTime(b) - tripSortTime(a))
+        .slice(0, limit);
+}
+
+export async function cachePastTripsMirror(trips: Trip[]): Promise<void> {
+    await Promise.all(trips.map((trip) => cacheTripMirror(trip)));
+}
+
+export async function pruneCompletedTripsMirror(userId: string, keepIds: Set<string>): Promise<void> {
+    const all = await listAllTripsMirror();
+    for (const trip of all) {
+        if (trip.status === 'completed' && userOwnsTrip(trip, userId) && !keepIds.has(trip.id)) {
+            await removeTripMirror(trip.id);
+        }
+    }
+}
+
+export async function removeTripMirror(tripId: string): Promise<void> {
+    await withStore('trips', 'readwrite', (store) => store.delete(tripId));
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('expenses', 'readwrite');
+        const store = tx.objectStore('expenses');
+        const index = store.index('tripId');
+        const range = IDBKeyRange.only(tripId);
+        const cursorReq = index.openCursor(range);
+        cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (cursor) {
+                store.delete(cursor.primaryKey);
+                cursor.continue();
+            }
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
 }
 
 export async function getTripMirror(tripId: string): Promise<Trip | null> {

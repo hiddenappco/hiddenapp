@@ -21,6 +21,8 @@ import {
   getActiveTripIdLocal,
   getTripMirror,
   makeTempId,
+  removeTripMirror,
+  setActiveTripIdLocal,
 } from './services/tripLedgerStore';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from './config/constants';
 
@@ -51,7 +53,7 @@ const AppContent: React.FC = () => {
   useEnvironmentalShieldLifecycle(user?.uid);
 
   const { trip: firestoreActiveTrip } = useActiveTrip(user?.uid, isOnline);
-  const { trips: pastTrips } = usePastTrips(user?.uid);
+  const { trips: pastTrips } = usePastTrips(user?.uid, isOnline);
   const { data: userProfile } = useUserProfile(user?.uid);
 
   const [localActiveTrip, setLocalActiveTrip] = useState<Trip | null>(null);
@@ -191,6 +193,7 @@ const AppContent: React.FC = () => {
   const handleDeleteTrip = async (tripId: string) => {
     try {
       await deleteTrip(tripId);
+      await removeTripMirror(tripId);
     } catch (err) {
       console.error('Error deleting trip:', err);
     }
@@ -209,6 +212,8 @@ const AppContent: React.FC = () => {
         setLocalActiveTrip(null);
       } else {
         await finishTrip(activeTrip.id, total, user.uid);
+        await cacheTripMirror({ ...activeTrip, status: 'completed', totalSpent: total });
+        await setActiveTripIdLocal(null);
       }
       navigate('/budget');
     } catch (err) {

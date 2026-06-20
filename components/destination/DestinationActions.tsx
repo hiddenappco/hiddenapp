@@ -3,6 +3,7 @@ import React from 'react';
 interface DestinationActionsProps {
     onDownloadPdf: () => void;
     onOpenMap: () => void;
+    onPremiumClick?: () => void;
     isPremium: boolean;
     pdfLoading?: boolean;
     texts: {
@@ -11,12 +12,14 @@ interface DestinationActionsProps {
         viewMap: string;
         pdfLocked?: string;
         pdfGenerating?: string;
+        pdfPremiumBadge?: string;
     };
 }
 
 export const DestinationActions: React.FC<DestinationActionsProps> = ({
     onDownloadPdf,
     onOpenMap,
+    onPremiumClick,
     isPremium,
     pdfLoading = false,
     texts,
@@ -27,8 +30,12 @@ export const DestinationActions: React.FC<DestinationActionsProps> = ({
             : texts.downloadPdf
         : texts.downloadPremium;
 
-    const handlePdf = () => {
-        if (!isPremium || pdfLoading) return;
+    const handlePdfClick = () => {
+        if (pdfLoading) return;
+        if (!isPremium) {
+            onPremiumClick?.();
+            return;
+        }
         onDownloadPdf();
     };
 
@@ -36,20 +43,29 @@ export const DestinationActions: React.FC<DestinationActionsProps> = ({
         <div className="px-5 py-4 grid grid-cols-2 gap-3">
             <button
                 type="button"
-                disabled={!isPremium || pdfLoading}
-                onClick={handlePdf}
+                disabled={pdfLoading}
+                onClick={handlePdfClick}
                 title={!isPremium ? texts.pdfLocked : undefined}
-                aria-disabled={!isPremium || pdfLoading}
-                className={`font-bold py-3.5 px-3 rounded-xl flex items-center justify-center gap-2 text-sm truncate transition-all ${
+                className={`relative font-bold py-3.5 px-3 rounded-xl flex items-center justify-center gap-2 text-sm truncate transition-all active:scale-[0.98] overflow-hidden ${
                     isPremium && !pdfLoading
-                        ? 'bg-primary hover:bg-orange-600 text-white shadow-lg shadow-orange-900/20 active:scale-[0.98]'
-                        : 'bg-overlay/10 text-content/40 border border-overlay/10 cursor-not-allowed opacity-70'
-                }`}
+                        ? 'bg-primary hover:bg-orange-600 text-white shadow-lg shadow-orange-900/20'
+                        : 'bg-gradient-to-br from-primary/15 via-surface-dark to-amber-500/10 text-content border border-primary/35 hover:border-primary/55 hover:from-primary/20 shadow-[0_0_20px_rgba(255,108,82,0.12)]'
+                } ${pdfLoading ? 'opacity-70 cursor-wait' : ''}`}
             >
-                <span className="material-symbols-outlined text-[20px]">
-                    {pdfLoading ? 'hourglass_empty' : isPremium ? 'description' : 'lock'}
+                {!isPremium && (
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-primary/20 border border-primary/30 px-1.5 py-0.5">
+                        <span className="material-symbols-outlined text-[10px] text-primary leading-none">
+                            workspace_premium
+                        </span>
+                        <span className="text-[8px] font-black uppercase tracking-wider text-primary leading-none">
+                            {texts.pdfPremiumBadge || 'Premium'}
+                        </span>
+                    </span>
+                )}
+                <span className="material-symbols-outlined text-[20px] shrink-0">
+                    {pdfLoading ? 'hourglass_empty' : isPremium ? 'description' : 'workspace_premium'}
                 </span>
-                {pdfLabel}
+                <span className="truncate">{pdfLabel}</span>
             </button>
             <button
                 type="button"

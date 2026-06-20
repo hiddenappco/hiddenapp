@@ -179,6 +179,10 @@ export function useTripSync(userId: string | undefined) {
 
     const queueFinishTrip = useCallback(
         async (tripId: string, total: number) => {
+            const existing = await getTripMirror(tripId);
+            if (existing) {
+                await cacheTripMirror({ ...existing, status: 'completed', totalSpent: total });
+            }
             await addOutboxEntry({
                 id: makeTempId('op'),
                 tripId,

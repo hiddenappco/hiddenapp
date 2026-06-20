@@ -7,6 +7,7 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { Browser } from '@capacitor/browser';
 import { exportDestinationToPdf } from '../services/pdfExportService';
 import { Language } from '../types/core';
+import { readDestinationPdfCacheUrl } from '../utils/pdfCache';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { GettingThereItem, PricingItem } from '../types/content';
 import { useTranslation } from '../hooks/useTranslation';
@@ -151,7 +152,9 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     }
     setPdfLoading(true);
     try {
-      const url = await exportDestinationToPdf(finalId, language === Language.English ? 'en' : 'es');
+      const lang = language === Language.English ? 'en' : 'es';
+      const cachedUrl = readDestinationPdfCacheUrl(destination?.pdfCache, lang);
+      const url = cachedUrl ?? (await exportDestinationToPdf(finalId, lang));
       await Browser.open({ url });
     } catch (err) {
       const code = String((err as Error).message || '');
@@ -169,9 +172,10 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     closed: t('destination.closed'),
     verified: t('destination.verified'),
     downloadPdf: t('destination.downloadPdf'),
-    downloadPremium: t('destination.downloadPremium'),
-    pdfLocked: t('destination.pdfLocked'),
-    pdfGenerating: t('destination.pdfGenerating'),
+        downloadPremium: t('destination.downloadPremium'),
+        pdfLocked: t('destination.pdfLocked'),
+        pdfGenerating: t('destination.pdfGenerating'),
+        pdfPremiumBadge: t('destination.pdfPremiumBadge'),
     loading: t('destination.loading'),
     notFound: t('destination.notFound'),
     aboutTitle: t('destination.about'),
@@ -230,6 +234,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
         <DestinationActions
           onDownloadPdf={handleDownloadPdf}
           onOpenMap={handleOpenMap}
+          onPremiumClick={() => navigate('/premium')}
           isPremium={isPremium}
           pdfLoading={pdfLoading}
           texts={texts}

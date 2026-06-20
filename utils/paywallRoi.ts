@@ -1,7 +1,10 @@
 import type { Coupon, Destination, PricingItem } from '../types/content';
 
-/** COP list price for Trip Pass — aligned with `Premium.tsx` fallback. */
-export const TRIP_PASS_COP = 17_900;
+/** USD list price for Trip Pass — aligned with `Premium.tsx` fallback. */
+export const TRIP_PASS_USD = 4.99;
+
+/** Legacy COP anchor for coupon savings math (catalog prices are in COP). */
+export const TRIP_PASS_COP = Math.round(TRIP_PASS_USD * 3_600);
 
 /** Conservative anchor when no `pricingGuide` is linked to the coupon. */
 const DEFAULT_ANCHOR_COP = 120_000;

@@ -97,6 +97,10 @@ export interface Destination {
     packingSummary?: string;
     packingSummary_en?: string;
     isCoastal?: "Sí" | "No";
+    pdfCache?: {
+        es?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string };
+        en?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string };
+    };
 }
 
 export interface AppEvent { 

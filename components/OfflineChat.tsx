@@ -82,7 +82,8 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
     downloadedPacks,
     executeOfflineRag,
     getEngineStatus,
-    initializeEngine
+    initializeEngine,
+    gemmaInstalled,
   } = useOffGrid();
 
   const { data: departments = [] } = useDepartments();
@@ -102,6 +103,7 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
   useEffect(() => {
     const startEngine = async () => {
       try {
+        setIsInitializing(true);
         const status = await initializeEngine();
         setEngineMode(status.mode);
       } catch (err) {
@@ -111,7 +113,7 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
       }
     };
     startEngine();
-  }, [initializeEngine]);
+  }, [initializeEngine, gemmaInstalled]);
 
   // Set default active department if downloaded packs exist
   useEffect(() => {
@@ -206,30 +208,45 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
 
     setIsGenerating(true);
 
-    try {
-      // Execute the offline RAG search and local model prompt injection
-      const response = await executeOfflineRag(activeDeptKey, userQuery, language);
-      
-      const botMsg: Message = {
-        id: `bot-${Date.now()}`,
-        sender: 'bot',
-        text: response.text,
-        timestamp: new Date(),
-        engine: response.engineUsed
-      };
+    const botId = `bot-${Date.now()}`;
+    const placeholderMsg: Message = {
+      id: botId,
+      sender: 'bot',
+      text: '',
+      timestamp: new Date(),
+    };
+    setMessages([...updatedMessages, placeholderMsg]);
 
-      const finalMessages = [...updatedMessages, botMsg];
+    try {
+      const response = await executeOfflineRag(activeDeptKey, userQuery, language, (partial) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === botId ? { ...m, text: partial, engine: 'gemma' as const } : m))
+        );
+      });
+
+      const finalMessages = [
+        ...updatedMessages,
+        {
+          id: botId,
+          sender: 'bot' as const,
+          text: response.text,
+          timestamp: new Date(),
+          engine: response.engineUsed,
+        },
+      ];
       setMessages(finalMessages);
       saveChatHistory(finalMessages);
     } catch (error) {
       console.error("Offline RAG execution failed:", error);
-      const errorMsg: Message = {
-        id: `bot-${Date.now()}`,
-        sender: 'bot',
-        text: t('vault.offlineQueryError'),
-        timestamp: new Date()
-      };
-      const finalMessages = [...updatedMessages, errorMsg];
+      const finalMessages = [
+        ...updatedMessages,
+        {
+          id: botId,
+          sender: 'bot' as const,
+          text: t('vault.offlineQueryError'),
+          timestamp: new Date(),
+        },
+      ];
       setMessages(finalMessages);
       saveChatHistory(finalMessages);
     } finally {

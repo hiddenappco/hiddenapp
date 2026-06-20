@@ -27,6 +27,14 @@ import {
   syncPackLanguageAlertAfterDownload,
   type PackLanguageAlertState,
 } from '@/utils/offgridPackLanguageAlert';
+import { GEMMA_CONFIG } from '@/config/gemma';
+import {
+  downloadGemmaModel,
+  GemmaDownloadUrlMissingError,
+  getGemmaModelSizeBytes,
+  isGemmaModelReady,
+  removeGemmaModel,
+} from '@/services/gemmaModelStore';
 
 // Helper to convert base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -110,9 +118,8 @@ export const useOffGrid = () => {
         const usedBytes = estimate.usage || 0;
         const totalBytes = estimate.quota || 1024 * 1024 * 1024; // Default 1GB
 
-        // If Gemma is installed, let's simulate the 1.5GB (1536 MB) used in the UI
-        const gemmaUsage = gemmaInstalled ? 1500 * 1024 * 1024 : 0;
-        const finalUsed = usedBytes + gemmaUsage;
+        const gemmaBytes = gemmaInstalled ? await getGemmaModelSizeBytes() : 0;
+        const finalUsed = usedBytes + gemmaBytes;
         const finalTotal = Math.max(totalBytes, finalUsed + 2000 * 1024 * 1024); // Ensure total is larger than used
 
         setStorageEstimate({
@@ -122,9 +129,11 @@ export const useOffGrid = () => {
         });
       } else {
         // Fallback simulation
-        const gemmaUsage = gemmaInstalled ? 1500 : 0;
+        const gemmaMb = gemmaInstalled
+          ? Math.round((await getGemmaModelSizeBytes()) / (1024 * 1024)) || GEMMA_CONFIG.approxSizeMb
+          : 0;
         const packsUsage = Object.keys(downloadedPacks).length * 2.5; // ~2.5MB per pack
-        const used = Math.round(50 + gemmaUsage + packsUsage);
+        const used = Math.round(50 + gemmaMb + packsUsage);
         setStorageEstimate({
           used,
           total: 8192, // 8GB simulated total
@@ -139,20 +148,10 @@ export const useOffGrid = () => {
   // Load state on mount
   useEffect(() => {
     const syncGemmaInstallState = async () => {
-      const flagged = localStorage.getItem('offgrid_gemma_installed') === 'true';
-      if (!flagged) {
-        setGemmaInstalled(false);
-        return;
-      }
-      try {
-        await Filesystem.stat({
-          path: 'models/gemma4.bin',
-          directory: Directory.Data,
-        });
-        setGemmaInstalled(true);
-      } catch {
-        localStorage.removeItem('offgrid_gemma_installed');
-        setGemmaInstalled(false);
+      const ready = await isGemmaModelReady();
+      setGemmaInstalled(ready);
+      if (!ready) {
+        localStorage.removeItem(GEMMA_CONFIG.storageKey);
       }
     };
     syncGemmaInstallState();
@@ -262,7 +261,7 @@ export const useOffGrid = () => {
     return () => unsubscribe();
   }, [downloadedPacks, network.isOnline]);
 
-  // Gemma 4 Install Simulation
+  // Gemma — real MediaPipe model download + on-device inference
   const installGemma = async () => {
     if (gemmaInstalled || installingGemma) return;
     if (!network.isOnline) return;
@@ -270,7 +269,7 @@ export const useOffGrid = () => {
       console.warn('[OffGrid] Gemma install blocked: Wi-Fi required');
       await LocalNotifications.schedule({
         notifications: [{
-          title: 'Instalación Gemma 4',
+          title: 'Instalación Gemma',
           body: 'Conéctate a Wi-Fi para descargar el motor de chat (~1.5 GB).',
           id: getNotificationId('gemma4_wifi_required'),
           schedule: { at: new Date(Date.now() + 50) },
@@ -281,92 +280,74 @@ export const useOffGrid = () => {
 
     setInstallingGemma(true);
     setGemmaProgress(0);
-    
     const notifId = getNotificationId('gemma4_install');
-    
-    // Simulate download of 1.5GB model file in chunks
-    const interval = setInterval(async () => {
-      setGemmaProgress((prev) => {
-        const next = prev + 5;
-        
-        // Update local notification progress
-        LocalNotifications.schedule({
-          notifications: [
-            {
-               title: 'Asistente de Viaje Gemma 4',
-              body: `Instalando motor de inferencia local: ${next}%`,
-              id: notifId,
-              schedule: { at: new Date(Date.now() + 50) },
-              ongoing: true
-            }
-          ]
-        }).catch(err => console.warn(err));
 
-        if (next >= 100) {
-          clearInterval(interval);
-          
-          // Complete installation: Write a placeholder model file to the private sandbox
-          Filesystem.writeFile({
-            path: 'models/gemma4.bin',
-            data: 'GEMMA_LOCAL_MODEL_PLACEHOLDER_1.5GB',
-            directory: Directory.Data,
-            encoding: Encoding.UTF8,
-            recursive: true
-          }).then(() => {
-            localStorage.setItem('offgrid_gemma_installed', 'true');
-            setGemmaInstalled(true);
-            setInstallingGemma(false);
-            
-            // Success notification
-            LocalNotifications.schedule({
-              notifications: [
-                {
-                  title: 'Asistente de Viaje Gemma 4',
-                  body: '¡Guía inteligente instalado y listo para su uso Off-Grid!',
-                  id: notifId,
-                  schedule: { at: new Date(Date.now() + 50) }
-                }
-              ]
-            }).catch(err => console.warn(err));
-          }).catch(err => {
-            console.error("Error saving gemma file:", err);
-            setInstallingGemma(false);
-          });
-          
-          return 100;
-        }
-        return next;
+    try {
+      await downloadGemmaModel((percent) => {
+        setGemmaProgress(percent);
+        LocalNotifications.schedule({
+          notifications: [{
+            title: 'Motor Gemma (MediaPipe)',
+            body: `Descargando modelo local: ${percent}%`,
+            id: notifId,
+            schedule: { at: new Date(Date.now() + 50) },
+            ongoing: true,
+          }],
+        }).catch(() => {});
       });
-    }, 300);
+
+      setGemmaInstalled(true);
+      await localLlm.initialize({ preferGemma: true });
+
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: 'Motor Gemma listo',
+          body: 'Inferencia local activa. El chat offline usará Gemma cuando haya WebGPU.',
+          id: notifId,
+          schedule: { at: new Date(Date.now() + 50) },
+        }],
+      }).catch(() => {});
+    } catch (err) {
+      console.error('[OffGrid] Gemma install failed:', err);
+      await removeGemmaModel();
+      setGemmaInstalled(false);
+
+      const body =
+        err instanceof GemmaDownloadUrlMissingError
+          ? 'Falta configurar la URL del modelo (Firestore config/gemmaModel o VITE_GEMMA_MODEL_URL).'
+          : err instanceof Error && err.message === 'GEMMA_MODEL_TOO_SMALL'
+            ? 'El archivo descargado no es un modelo válido.'
+            : err instanceof Error && err.message === 'GEMMA_BIN_NOT_FOUND_IN_ARCHIVE'
+              ? 'El archivo comprimido no contiene el modelo .bin esperado.'
+              : 'No se pudo descargar el motor Gemma. Revisa tu conexión e inténtalo de nuevo.';
+
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: 'Error al instalar Gemma',
+          body,
+          id: getNotificationId('gemma4_install_error'),
+          schedule: { at: new Date(Date.now() + 50) },
+        }],
+      }).catch(() => {});
+    } finally {
+      setInstallingGemma(false);
+    }
   };
 
-  // Gemma 4 Uninstall/Delete
   const uninstallGemma = async () => {
-    try {
-      // Remove model file from Capacitor Filesystem
-      await Filesystem.deleteFile({
-        path: 'models/gemma4.bin',
-        directory: Directory.Data
-      });
-    } catch (e) {
-      console.warn("[OffGrid] Model file did not exist or was already deleted:", e);
-    }
-    
-    localStorage.removeItem('offgrid_gemma_installed');
+    await localLlm.dispose();
+    await removeGemmaModel();
     setGemmaInstalled(false);
     setGemmaProgress(0);
-    
-    // Notify user
+
     await LocalNotifications.schedule({
-      notifications: [
-        {
-          title: 'Espacio Liberado',
-          body: 'El motor Gemma 4 (1.5 GB) ha sido desinstalado completamente.',
-          id: getNotificationId('gemma4_uninstall'),
-          schedule: { at: new Date(Date.now() + 50) }
-        }
-      ]
-    });
+      notifications: [{
+        title: 'Espacio liberado',
+        body: 'El motor Gemma local ha sido desinstalado.',
+        id: getNotificationId('gemma4_uninstall'),
+        schedule: { at: new Date(Date.now() + 50) },
+      }],
+    }).catch(() => {});
   };
 
   // Download Department Pack
@@ -584,7 +565,8 @@ export const useOffGrid = () => {
   const executeOfflineRag = async (
     departmentId: string,
     userQuery: string,
-    language: Language = Language.Spanish
+    language: Language = Language.Spanish,
+    onPartial?: (chunk: string) => void
   ): Promise<LlmResponse> => {
     const packLang = toPackLang(language);
 
@@ -655,7 +637,7 @@ export const useOffGrid = () => {
     );
 
     // 5. Generate response via the active engine
-    const response = await localLlm.generateResponse(userQuery, ragContext, language);
+    const response = await localLlm.generateResponse(userQuery, ragContext, language, onPartial);
 
     return response;
   };
@@ -700,9 +682,10 @@ export const useOffGrid = () => {
   /**
    * Initialize the local LLM engine (called once when entering the terminal).
    */
-  const initializeEngine = async (): Promise<EngineStatus> => {
-    return await localLlm.initialize();
-  };
+  const initializeEngine = useCallback(async (): Promise<EngineStatus> => {
+    const modelReady = await isGemmaModelReady();
+    return localLlm.initialize({ preferGemma: modelReady });
+  }, []);
 
   return {
     downloadedPacks,

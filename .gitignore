@@ -83,5 +83,6 @@ fix_imports.cjs
 # Versión pública para jueces / inversores: docs/UNIT_ECONOMICS_EN.md
 docs/UNIT_ECONOMICS.md
 docs/PREMIUM_PRICING.md
+docs/SESION_TRABAJO.md
 hidden-app-unit-economics.canvas.tsx
 hidden-app-unit-economics*.canvas.tsx

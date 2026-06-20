@@ -21,6 +21,8 @@ import { TacticalThread, type TacticalMessage } from './environmental/TacticalTh
 import { TelemetryGrid } from './environmental/TelemetryGrid';
 import { SatelliteRadar } from './environmental/SatelliteRadar';
 import { EnvironmentalThinkingBanner } from './environmental/EnvironmentalThinkingBanner';
+import { FeatureCoachmark } from './ui/FeatureCoachmark';
+import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 
 interface EnvironmentalMonitorProps {
     language: Language;
@@ -29,6 +31,7 @@ interface EnvironmentalMonitorProps {
 
 export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ language, onMenuClick }) => {
     const { t } = useTranslation();
+    const rangerCoachmark = useFeatureTooltip('ranger');
     const { user } = useAuth();
     const { isPremium } = useRevenueCat();
     const { data: profile } = useUserProfile(user?.uid);
@@ -192,6 +195,17 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
                 </p>
             )}
 
+            {rangerCoachmark.visible && (
+                <div className="px-4 pb-2">
+                    <FeatureCoachmark
+                        title={t('coachmark.rangerTitle')}
+                        body={t('coachmark.rangerBody')}
+                        dismissLabel={t('coachmark.dismiss')}
+                        onDismiss={rangerCoachmark.dismiss}
+                    />
+                </div>
+            )}
+
             <EnvironmentalThinkingBanner visible={isAnalyzing} />
 
             <div className={`p-4 flex flex-col gap-4 transition-opacity duration-300 ${isAnalyzing ? 'opacity-75' : 'opacity-100'}`}>
@@ -212,6 +226,21 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
                     setQuery={setQuery}
                     handleQuerySubmit={handleQuerySubmit}
                 />
+
+                {isMonitoring && (
+                    <p
+                        className={`text-[10px] font-medium tracking-wide px-1 ${
+                            rangerQuota.unlimited ? 'text-primary/80' : 'text-content-muted'
+                        }`}
+                    >
+                        {rangerQuota.unlimited
+                            ? t('environmental.rangerQuotaUnlimited')
+                            : t('environmental.rangerQuotaHint', {
+                                  remaining: rangerQuota.remaining,
+                                  limit: rangerQuota.limit,
+                              })}
+                    </p>
+                )}
 
                 <TacticalThread messages={tacticalMessages} loading={tacticalLoading} />
 

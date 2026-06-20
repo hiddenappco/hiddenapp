@@ -9,7 +9,10 @@ import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { VaultLocalSearchSource } from '../services/localLlmService';
 import { ConnectivityBanner, networkBannerVariant, networkStatusLabel } from './ui/ConnectivityBanner';
 import { DataConfirmModal } from './ui/DataConfirmModal';
+import { FeatureCoachmark } from './ui/FeatureCoachmark';
+import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { formatPackSize } from '../utils/formatPackSize';
+import { GEMMA_CONFIG } from '../config/gemma';
 
 interface OffGridVaultProps {
   language: Language;
@@ -32,6 +35,7 @@ const VAULT_SOURCE_LABEL_KEYS: Record<VaultLocalSearchSource, string> = {
 
 export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClick }) => {
   const { t } = useTranslation();
+  const vaultCoachmark = useFeatureTooltip('vault');
   const [showOfflineChat, setShowOfflineChat] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<PendingDownload>(null);
@@ -93,9 +97,9 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
   }
 
   // Gemma download detail calculations
-  const GEMMA_TOTAL_MB = 1536; // 1.5 GB in MB
-  const gemmaMBDownloaded = Math.round((gemmaProgress / 100) * GEMMA_TOTAL_MB);
-  const gemmaMBRemaining = GEMMA_TOTAL_MB - gemmaMBDownloaded;
+  const gemmaDownloadTotalMb = GEMMA_CONFIG.approxDownloadMb;
+  const gemmaMBDownloaded = Math.round((gemmaProgress / 100) * gemmaDownloadTotalMb);
+  const gemmaMBRemaining = gemmaDownloadTotalMb - gemmaMBDownloaded;
 
   // Local storage circle parameters
   const strokeDash = 2 * Math.PI * 45; // radius is 45
@@ -213,6 +217,15 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
       <main className="p-5 flex flex-col gap-6 pb-[calc(4rem+env(safe-area-inset-bottom,1.5rem))]">
         {bannerVariant && (
           <ConnectivityBanner variant={bannerVariant} />
+        )}
+
+        {vaultCoachmark.visible && (
+          <FeatureCoachmark
+            title={t('coachmark.vaultTitle')}
+            body={t('coachmark.vaultBody')}
+            dismissLabel={t('coachmark.dismiss')}
+            onDismiss={vaultCoachmark.dismiss}
+          />
         )}
 
         {packLanguageAlert && hasDownloadedPacks && (
@@ -660,7 +673,7 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
                   <span className="font-black text-emerald-400">{gemmaProgress}%</span>
                 </div>
                 <div className="flex justify-between text-[9px] text-content/40">
-                  <span>{gemmaMBDownloaded} MB / {GEMMA_TOTAL_MB} MB</span>
+                  <span>{gemmaMBDownloaded} MB / {gemmaDownloadTotalMb} MB</span>
                   <span>{t('vault.mbRemaining', { n: gemmaMBRemaining })}</span>
                 </div>
               </div>

@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | **Official submission snapshot** (tag / branch `submission`) | **Frozen** at commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) — **June 11, 2026, 15:35 (-0500)**. Tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) is **immutable** — do not move it. |
-| **Active development** (branch `main`) | **Live product** with post-close optimizations, premium hardening, and production bug fixes. Default branch for contributors and post-challenge reviewers. |
+| **Active development** (branch `main`) | **Live product** — latest hardening **June 20, 2026** (Gemma on-device, offline trip history, premium UX, production deploy). Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). Default branch for contributors and post-challenge reviewers. |
 | **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
 | **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B, market sizing (English, judge-facing) |
@@ -56,10 +56,11 @@ Hidden App connects adventurers with remote destinations that mainstream platfor
 |------|-------------|
 | **Hyperlocal chat** | Department-scoped text agent; catalog tools return **`planningNotes`** when present; multi-day trips → expedition hub |
 | **Environmental Ranger** | Live weather, AQI, elevation, marine telemetry + localized destination ficha (**`planningNotes`**) — also callable as a chat tool |
-| **Expedition Planner** | Dedicated hub (`/expedition/plan`) with department picker + **5-step wizard** (dedicated ground-transport step); multi-agent pipeline grounded in catalog fichas including **`planningNotes`**, `groundMobility`, Google Routes legs (up to 45), coupon widgets, COP budget, mobility badge in result + expedition PDF |
+| **Expedition Planner** | Dedicated hub (`/expedition/plan`) with department picker + **5-step wizard**; **«Mis planes anteriores»** (20 plans, real-time list); multi-agent pipeline grounded in catalog fichas including **`planningNotes`**, `groundMobility`, Google Routes legs (up to 45), coupon widgets, COP budget, mobility badge in result + expedition PDF |
 | **Modo Live** | Full-duplex voice via LiveKit + Gemini Multimodal Live; token and usage quota via authenticated Cloud Functions (`generateLiveKitToken`, `recordLiveCallSeconds`) |
-| **Off-Grid Vault** | Downloadable department packs (SQLite) for offline search and chat |
-| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, bilingual trip PDF |
+| **Off-Grid Vault** | Downloadable department packs (SQLite) for offline search and chat; optional **MediaPipe Gemma 2B IT GPU** (~1.29 GB) for on-device generative chat (WebGPU) |
+| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, **completed-trip history offline** (mirror up to 10), bilingual trip PDF |
+| **Premium** | `/premium` — account types, Free vs Premium compare table, USD reference pricing; store checkout disabled until Play/App Store (`PREMIUM_CHECKOUT_ENABLED`) |
 | **Exchange rates** | Daily official TRM (datos.gov.co) + EUR cross-rate; `getExchangeRates` + `scheduledExchangeRates` cache in `config/exchangeRates` |
 | **i18n** | Spanish / English UI, bilingual Firestore content (`*_en` fields), and bilingual trip PDF export |
 | **Thumb navigation** | Floating glass bottom bar on 5 hub routes (Destinations · Monitor · Departments · Ledger · Refuges); full catalog in the lateral drawer; safe-area spacing on iOS/Android |
@@ -101,7 +102,7 @@ flowchart LR
     subgraph Client["Client — React PWA · Capacitor"]
         UI[UI + hooks]
         EXPH[Expedition hub · wizard · result]
-        OFF[Offline packs sql.js]
+        OFF[Offline packs sql.js<br/>MediaPipe Gemma optional]
     end
 
     subgraph GCP["Firebase / GCP us-central1"]
@@ -118,7 +119,7 @@ flowchart LR
         A2[Voice Live · LiveKit]
         A3[Ranger · telemetry + chat tool]
         A5[Expedition pipeline · 4 LlmAgents]
-        A4[Off-Grid local RAG]
+        A4[Off-Grid local RAG + Gemma]
     end
 
     UI --> HOST
@@ -161,7 +162,7 @@ Live voice uses **Cloud Run** (`hidden-agent-worker`) with LiveKit — separate 
 | **Backend** | Firebase (Auth, Firestore, Hosting, Functions Gen 2, FCM, Storage) |
 | **AI (cloud text)** | Google ADK, Gemini 2.5 Flash + Pro (expedition curator/logistics/budget), MCP |
 | **AI (voice)** | LiveKit, Gemini Multimodal Live, `@livekit/agents` |
-| **AI (offline)** | sql.js packs, local RAG; optional Gemma on-device (roadmap) |
+| **AI (offline)** | sql.js packs, local RAG; **MediaPipe Gemma 2B IT GPU int4** (`@mediapipe/tasks-genai`, WebGPU) — optional download from Firebase Storage |
 | **Telemetry** | AccuWeather, Open-Meteo, Google AQI, Stormglass (coastal), Google Routes |
 
 ---
@@ -209,7 +210,7 @@ Copy templates and configure secrets locally:
 
 | Location | Purpose |
 |----------|---------|
-| `.env.local` (root) | Firebase web client config |
+| `.env.local` (root) | Firebase web client config; optional `VITE_GEMMA_MODEL_URL` |
 | `functions/.env` | `GEMINI_API_KEY`, `GOOGLE_MAPS_API_KEY`, `ACCUWEATHER_API_KEY`, `STORMGLASS_API_KEY` |
 | `agent-worker/.env` | `LIVEKIT_*`, `GOOGLE_API_KEY` |
 
@@ -231,9 +232,11 @@ cd functions && npm run build
 ### Deploy
 
 ```bash
-# Cloud Functions (chatAgent, environmentalAgent, createExpedition, onExpeditionCreate, packs, cron, etc.)
+# Full stack (prefer small function batches if Cloud Run CPU quota errors)
+npm run build
 cd functions && npm run build && cd ..
-firebase deploy --only functions
+firebase deploy --only hosting,firestore:rules,firestore:indexes,storage
+firebase deploy --only functions   # or: functions:createExpedition,functions:chatAgent, …
 
 # Expedition planner only (faster iteration)
 firebase deploy --only functions:createExpedition,functions:onExpeditionCreate
@@ -241,7 +244,7 @@ firebase deploy --only functions:createExpedition,functions:onExpeditionCreate
 # Trip ledger — TRM cache + bilingual trip PDF
 firebase deploy --only functions:getExchangeRates,functions:scheduledExchangeRates,functions:generateTripPdf
 
-# Firestore rules + indexes (group trips: memberIds array-contains)
+# Firestore rules + indexes (group trips, expedition history)
 firebase deploy --only firestore:indexes,firestore:rules
 
 # Static PWA
@@ -252,6 +255,8 @@ cd agent-worker
 gcloud run deploy hidden-agent-worker --source . --region us-central1
 ```
 
+**Production (Jun 2026):** https://gen-lang-client-0040858908.web.app — hosting, Firestore rules/indexes, Storage rules, and all Cloud Functions deployed. Deploy functions **one at a time** if you hit `Quota exceeded for total allowable CPU per project per region` on Cloud Run.
+
 ---
 
 ## Documentation in this repository
@@ -260,9 +265,11 @@ gcloud run deploy hidden-agent-worker --source . --region us-central1
 |----------|---------|
 | [docs/SUBMISSION.md](./docs/SUBMISSION.md) | **Challenge snapshot** — tag, branch, checkout, post-submission changelog |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System diagrams, ADK orchestration, agents, client navigation, deployment |
-| [docs/UI_FIELD_CONSTRAINTS.md](./docs/UI_FIELD_CONSTRAINTS.md) | Touch targets, thumb-zone bar, safe-area tokens (P0 QA checklist) |
+| [docs/UI_FIELD_CONSTRAINTS.md](./docs/UI_FIELD_CONSTRAINTS.md) | Touch targets, thumb-zone bar, safe-area tokens, tooltips P0 (P0 QA checklist) |
 | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) | **Business model & unit economics** — pricing, B2B, market, projections |
 | [docs/PREMIUM_ENTITLEMENTS.md](./docs/PREMIUM_ENTITLEMENTS.md) | Feature matrix by tier — Guest · Free · Premium (Jun 2026) |
+| [docs/SESION_TRABAJO.md](./docs/SESION_TRABAJO.md) | Session log — latest product work (Spanish, internal) |
+| [roadmap_integraciones.md](./roadmap_integraciones.md) | Integration roadmap — tasks & completion status |
 | [public/architecture.html](./public/architecture.html) | Standalone architecture page (also deployed on Hosting) |
 | [LICENSE](./LICENSE) | License terms |
 | [COPYRIGHT.txt](./COPYRIGHT.txt) | Copyright notice |

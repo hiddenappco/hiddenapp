@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Share } from '@capacitor/share';
 import { Browser } from '@capacitor/browser';
 import { useTranslation } from '../hooks/useTranslation';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
 import { TripBalances } from './trips/TripBalances';
 import { PageDetailSkeleton } from './ui/ContentSkeleton';
@@ -20,10 +21,11 @@ interface TripHistoryDetailProps {
 
 export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, onBack }) => {
   const { t } = useTranslation();
+  const isOnline = useNetworkStatus();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { trip, loading: loadingTrip } = useTrip(id);
-  const { expenses: firestoreExpenses } = useTripExpenses(id);
+  const { trip, loading: loadingTrip } = useTrip(id, isOnline);
+  const { expenses: firestoreExpenses } = useTripExpenses(id, isOnline);
   const [isExporting, setIsExporting] = useState(false);
 
   if (loadingTrip) return <PageDetailSkeleton />;
@@ -55,7 +57,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
   const hasValidPdf = isPdfValid();
 
   const handleExport = async () => {
-    if (!id || !user || isExporting) return;
+    if (!id || !user || isExporting || !isOnline) return;
     setIsExporting(true);
     try {
         const pdfLang = language === Language.English ? 'en' : 'es';
@@ -116,6 +118,13 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
 
       <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-24">
 
+        {!isOnline && (
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-[11px] font-medium text-blue-200 flex items-center gap-2">
+            <span className="material-symbols-outlined text-base shrink-0">cloud_off</span>
+            {t('trips.historyOfflineView')}
+          </div>
+        )}
+
         {/* Total Hero */}
         <div className="flex flex-col items-center justify-center py-6">
           <p className="text-content-muted font-medium text-sm mb-1">{t('trips.totalSpent')}</p>
@@ -140,7 +149,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
               stat.percent > 0 && (
                 <div key={stat.key} className="flex items-center gap-1.5">
                   <div className={`w-2 h-2 rounded-full ${categoriesConfig[stat.key as keyof typeof categoriesConfig].barColor}`}></div>
-                  <span className="text-xs font-bold text-gray-600">{getCategoryLabel(stat.key as ExpenseCategory)}</span>
+                  <span className="text-xs font-bold text-content-muted">{getCategoryLabel(stat.key as ExpenseCategory)}</span>
                   <span className="text-xs text-content-muted">{Math.round(stat.percent)}%</span>
                 </div>
               )
@@ -156,7 +165,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
 
           {firestoreExpenses.length > 0 ? (
             firestoreExpenses.map((expense) => (
-              <div key={expense.id} className="flex items-center gap-4 p-4 bg-overlay/5 border border-overlay/5 rounded-[22px] shadow-sm transition-all hover:bg-white/[0.07] hover:border-overlay/10 group">
+              <div key={expense.id} className="flex items-center gap-4 p-4 bg-overlay/5 border border-overlay/5 rounded-[22px] shadow-sm transition-all hover:bg-overlay/10 hover:border-overlay/10 group">
                 <div className={`size-12 rounded-xl flex items-center justify-center shrink-0 border border-overlay/5 ${categoriesConfig[expense.category as keyof typeof categoriesConfig].bg} ${categoriesConfig[expense.category as keyof typeof categoriesConfig].color}`}>
                   <span className="material-symbols-outlined text-[22px]">{categoriesConfig[expense.category as keyof typeof categoriesConfig].icon}</span>
                 </div>
@@ -184,7 +193,7 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
             {!hasValidPdf ? (
                 <button 
                     onClick={handleExport} 
-                    disabled={isExporting}
+                    disabled={isExporting || !isOnline}
                     className={`w-full group relative flex items-center justify-center gap-3 py-3 px-6 rounded-xl transition-all duration-300 border ${
                         isExporting 
                         ? 'bg-overlay/5 border-overlay/5 cursor-not-allowed' 

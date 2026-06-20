@@ -42,7 +42,7 @@ Leyenda: **✓** incluido · **◐** parcial / con límite · **✗** no incluid
 | Catálogo, refugios, contacto anfitrión | ✓ | ✓ | ✓ | ✓ |
 | Bóveda Off-Grid | ✓ | ✓ | ✓ | ✓ |
 | Chat hiperlocal (texto) | ◐ 10/día | ◐ 10/día | ✓ ∞ | ✓ ∞ |
-| Environmental Ranger (consultas IA) | ◐ 5/día² | ◐ 5/día | ◐ 10/día | ◐ 10/día |
+| Environmental Ranger (consultas IA) | ◐ 5/día | ◐ 5/día | ✓ ∞ | ✓ ∞ |
 | Telemetría monitor (sin IA nueva) | ✓ | ✓ | ✓ | ✓ |
 | Modo Live (voz) | ✓ 30 min³ | ◐ 5 min prueba⁴ | ✓ 30 min/30d | ✓ 30 min/30d |
 | **Planificador hub** | ✓³ | **✗** | ◐ **1/pase** | ◐ **3/mes** |
@@ -75,10 +75,10 @@ Leyenda: **✓** incluido · **◐** parcial / con límite · **✗** no incluid
 
 | | Free | Premium |
 |--|------|---------|
-| Consultas Ranger IA / día | **5** | **10** |
+| Consultas Ranger IA / día | **5** | **Ilimitadas** (`RANGER_PREMIUM_DAILY = null`) |
 | Telemetría cruda (clima, AQI, UV) | Sin límite de lectura en caché | Igual |
 
-Backend: `assertAndConsumeRangerQuota` en `environmentalAgent` (`functions/src/api/agents.ts`).
+Backend: `assertAndConsumeRangerQuota` en `environmentalAgent` (`functions/src/api/agents.ts`). Hint de cuota en `EnvironmentalMonitor` para usuarios free.
 
 ### 3.3 Modo Live (voz)
 
@@ -103,13 +103,21 @@ Guest hackathon: bypass cuota (comportamiento Premium).
 
 Backend: `createExpedition` · `expeditionQuota.ts` · UI: `ExpeditionPremiumGate`, `ExpeditionResultPage` (textarea revisión).
 
+**Historial:** sección «Mis planes anteriores» en el hub (`useUserExpeditions`) — visible para todos los autenticados; límite **20 planes**; borrado manual. Índice Firestore `userId + createdAt`.
+
 ### 3.5 Cupones, PDFs, bitácora
 
 Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PDFs solo Premium; grupal solo Premium; bóveda **gratis** para todos autenticados.
 
 ### 3.6 Off-Grid Vault
 
-**No es Premium** — gancho gratuito y diferenciador para cualquier usuario autenticado.
+**No es Premium** — gancho gratuito y diferenciador para cualquier usuario autenticado. Gemma 4 (inferencia MediaPipe) es **opcional** y no bloquea búsqueda local ni chat con datos del pack.
+
+### 3.7 Página `/premium` (Jun 2026)
+
+- Tipos de cuenta, tabla comparativa Free vs Premium, 9 beneficios, precios referencia **USD**.
+- `PREMIUM_CHECKOUT_ENABLED = false` — CTA «Disponible pronto en tiendas» hasta Play/App Store + RevenueCat.
+- Tooltips `?` (`HelpTooltip`) en tipos de cuenta, filas de comparación y tarjetas de plan (`P0-PREMIUM-TOOLTIPS`).
 
 ---
 
@@ -129,7 +137,7 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 | Regla | Código |
 |-------|--------|
 | Chat 10 msg/día Free | ✅ `Chat.tsx` |
-| Ranger 5/10 día | ✅ `environmentalAgent` + UI |
+| Ranger 5/día Free · ∞ Premium | ✅ `environmentalAgent` + UI |
 | Live prueba 5 min Free | ✅ `liveCallQuota.ts` + `livekit.ts` |
 | Live 30 min/mes Premium | ✅ |
 | Hub solo Premium | ✅ `createExpedition` + rutas UI |
@@ -138,6 +146,11 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 | PDFs Premium (todos) | ✅ `pdf.ts` |
 | Bitácora grupal Premium | ✅ `CreateTrip` + rules |
 | Guest hackathon Premium | ✅ temporal |
+| Premium page USD + tooltips | ✅ `Premium.tsx` + `HelpTooltip` |
+| Coach marks primera visita | ✅ `FeatureCoachmark` + `useFeatureTooltip` |
+| Bitácora historial offline | ✅ `tripLedgerStore` mirror (10 viajes) |
+| Gemma inferencia MediaPipe | ✅ `gemmaEngine.ts` (opcional, WebGPU) |
+| Store checkout RevenueCat | ⏳ `PREMIUM_CHECKOUT_ENABLED = false` |
 | `premiumExpiresAt` en compra store | ⏳ RevenueCat pendiente |
 
 ---

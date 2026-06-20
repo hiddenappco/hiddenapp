@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Language } from '../../types/core';
-import { useDepartment } from '../../hooks/useFirestore';
+import { useDepartment, useUserExpeditions } from '../../hooks/useFirestore';
 import { useTranslation } from '../../hooks/useTranslation';
 import { resolveEffectiveDepartmentId } from '../../utils/departmentIds';
 import { createExpedition } from '../../hooks/useCreateExpedition';
@@ -13,6 +13,7 @@ import { ExpeditionPremiumGate } from './ExpeditionPremiumGate';
 import { computeExpeditionQuotaDisplay } from '../../utils/premiumAccess';
 import { useUserProfile } from '../../hooks/useSocial';
 import { useAuth } from '../layout/AuthProvider';
+import { EXPEDITION_HISTORY_LIMIT } from '../../config/constants';
 
 interface ExpeditionPlannerPageProps {
     language: Language;
@@ -27,6 +28,8 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
     const { isPremium } = useRevenueCat();
     const { data: profile, loading: profileLoading } = useUserProfile(user?.uid);
     const { data: department } = useDepartment(departmentId);
+    const { data: savedPlans } = useUserExpeditions(user?.uid);
+    const historyFull = savedPlans.length >= EXPEDITION_HISTORY_LIMIT;
     const canonicalId = departmentId
         ? resolveEffectiveDepartmentId(departmentId, department)
         : departmentId || '';
@@ -136,6 +139,11 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
                         {t('expedition.quotaExceeded')}
                     </div>
                 )}
+                {historyFull && (
+                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
+                        {t('expedition.historyFullBlock').replace('{limit}', String(EXPEDITION_HISTORY_LIMIT))}
+                    </div>
+                )}
                 {error && (
                     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
                         {error}
@@ -146,7 +154,7 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
                     departmentName={department?.name || departmentId}
                     language={appLanguage}
                     onSubmit={handleSubmit}
-                    submitting={submitting || !quota.allowed}
+                    submitting={submitting || !quota.allowed || historyFull}
                 />
             </div>
         </div>

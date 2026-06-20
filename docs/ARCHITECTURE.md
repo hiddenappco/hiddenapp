@@ -227,7 +227,7 @@ Shared utilities in `utils/localizedContent.ts` (`normalizeSearchText`, `scoreLo
 | Surface | Picker fields | Notes |
 |---------|---------------|-------|
 | Environmental Monitor | `title`, `name`, `location` | No long descriptions in query |
-| ManualSearch (Destinos) | same | Replaces naive `includes` on body text |
+| ManualSearch (Destinations) | same | Replaces naive `includes` on body text |
 | ExpeditionMustVisitPicker | same | Wizard step 3 |
 | Refugios | `name`, `tagline`, `location`, `type` | Jun 2026 |
 | Coupons | `title`, `location`, `category`, `discount` | Jun 2026 |
@@ -428,27 +428,27 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 **Hooks:** `useTrips` (`useTripActivity`, `logTripActivity`), `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
-**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **descartado** · ~~offline mirror of completed trip history~~ **hecho (Jun 2026)** · conflict UI for concurrent offline edits.
+**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **dropped** · ~~offline mirror of completed trip history~~ **done (Jun 2026)** · conflict UI for concurrent offline edits.
 
 ### Premium membership (pricing Jun 2026)
 
-Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (public EN) and [`UNIT_ECONOMICS_ES.md`](./UNIT_ECONOMICS_ES.md) (internal ES); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — `/premium` shows **USD reference prices** and `PREMIUM_CHECKOUT_ENABLED = false` («Disponible pronto en tiendas»).
+Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (public EN) and [`UNIT_ECONOMICS_ES.md`](./UNIT_ECONOMICS_ES.md) (internal ES); **feature matrix by identity tier** (Guest · Free · Trip pass · Premium) in [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md). **Stores / RevenueCat not live yet** — `/premium` shows **USD reference prices** and `PREMIUM_CHECKOUT_ENABLED = false` (“Coming soon to stores”).
 
 **B2C (traveler) — Jun 2026:**
 
 | Plan | USD | Role |
 |------|-----|------|
 | Pase Viaje | $4.99 | 10 days, no auto-renewal |
-| Mensual | $7.99 | Full Premium recurring |
-| Anual | $79.99 | 2 months free vs 12× monthly |
-| Vitalicio | $149.99 | Founder lifetime |
+| Monthly | $7.99 | Full Premium recurring |
+| Annual | $79.99 | 2 months free vs 12× monthly |
+| Lifetime | $149.99 | Founder lifetime |
 
 **B2B (hosts & commercial allies) — Jun 2026:**
 
 | Plan | USD | Role |
 |------|-----|------|
-| Mensual | $15/mo | Verified Refuge / ally membership |
-| Anual | $150/yr | 2 months free vs 12× monthly; upfront cash |
+| Monthly | $15/mo | Verified Refuge / ally membership |
+| Annual | $150/yr | 2 months free vs 12× monthly; upfront cash |
 
 B2B billed direct (web/transfer). Rationale: ~one guest-night revenue in Colombia/LATAM (~COP 50k) covers the monthly fee. Onboarding & billing **planned**, not in app checkout yet.
 

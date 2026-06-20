@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | **Official submission snapshot** (tag / branch `submission`) | **Frozen** at commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) — **June 11, 2026, 15:35 (-0500)**. Tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) is **immutable** — do not move it. |
-| **Active development** (branch `main`) | **Live product** — sprint **20 Jun 2026**: feed de actividad en viajes grupales, ranking de búsqueda en catálogo, upgrade invitado→cuenta oficial, ID copiable en perfil, atajo planificador 2 toques, política B2B documentada. Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). |
+| **Active development** (branch `main`) | **Live product** — **Jun 20, 2026** sprint: group trip activity feed, ranked catalog search, guest→official account upgrade, copyable profile UID, 2-tap expedition planner CTA, B2B pricing documented. Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). |
 | **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
 | **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B ($15/mo · $150/yr), market sizing (English, judge-facing) |

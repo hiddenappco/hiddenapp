@@ -10,6 +10,8 @@ import { Browser } from '@capacitor/browser';
 import { RichTextContent } from './ui/RichTextContent';
 import { PageDetailSkeleton } from './ui/ContentSkeleton';
 import { formatCop } from '../utils/currency';
+import { computeDirectCommunityFromRefugioPricing } from '../utils/directCommunity';
+import { DirectCommunityBadge } from './ui/DirectCommunityBadge';
 
 function formatLodgingPrice(amount: number, currency?: string): string {
     const code = (currency || 'COP').toUpperCase();
@@ -64,6 +66,11 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
       return null;
     }
   }, [refugio?.pricingGuide]);
+
+  const directCommunity = useMemo(
+    () => computeDirectCommunityFromRefugioPricing(pricingData),
+    [pricingData]
+  );
 
   const activitiesData = useMemo(() => {
     if (!refugio?.activities) return [];
@@ -298,6 +305,9 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
       {refugio.pricingGuide && (
         <div className="px-4 py-3 shrink-0">
           <h3 className="text-lg font-bold text-content mb-2">{t('refugio.pricing')}</h3>
+          {directCommunity && (
+            <DirectCommunityBadge amount={directCommunity} className="mb-3" />
+          )}
           <div className="bg-surface-dark border border-overlay/5 rounded-2xl p-4">
             {pricingData && pricingData.desglose_tarifas ? (
               <div className="flex flex-col gap-4">

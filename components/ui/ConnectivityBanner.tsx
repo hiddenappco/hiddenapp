@@ -86,7 +86,7 @@ export function networkStatusLabel(
     if (network.isCellular) {
         return { icon: 'network_cell', label: t('connectivity.status.cellular'), tone: 'warn' };
     }
-    if (network.isWifi) {
+    if (network.connectionType === 'wifi') {
         return { icon: 'wifi', label: t('connectivity.status.wifi'), tone: 'ok' };
     }
     return { icon: 'cloud_done', label: t('connectivity.status.online'), tone: 'ok' };

@@ -6,12 +6,15 @@ interface HiddenPactProps {
   onMenuClick: () => void;
   language: Language;
   onAccept?: () => void;
+  onDecline?: () => void;
   isAccepted?: boolean;
+  /** Required onboarding — hides menu and shows decline option */
+  gateMode?: boolean;
 }
 
 const POINT_ICONS = ['footprint', 'diversity_3', 'volume_off', 'cruelty_free', 'savings', 'warning', 'visibility', 'groups'];
 
-export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, isAccepted }) => {
+export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, onDecline, isAccepted, gateMode = false }) => {
   const { t } = useTranslation();
 
   const points = POINT_ICONS.map((icon, index) => {
@@ -39,13 +42,17 @@ export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, i
 
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between p-6 pt-safe shrink-0">
-        <button
-          onClick={onMenuClick}
-          className="flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md border border-overlay/10 hover:bg-overlay/20 transition-colors text-content"
-        >
-          <span className="material-symbols-outlined text-[24px]">menu</span>
-        </button>
-        <div className="w-10"></div> {/* Spacer */}
+        {!gateMode ? (
+          <button
+            onClick={onMenuClick}
+            className="flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md border border-overlay/10 hover:bg-overlay/20 transition-colors text-content"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+          </button>
+        ) : (
+          <div className="w-10" aria-hidden="true" />
+        )}
+        <div className="w-10"></div>
       </header>
 
       {/* Main Content */}
@@ -108,7 +115,7 @@ export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, i
 
         {/* Action Button for Onboarding */}
         {onAccept && (
-          <div className="fixed bottom-0 left-0 right-0 px-6 pb-safe z-50 flex justify-center bg-gradient-to-t from-[#0c1f17] to-transparent pt-8">
+          <div className="fixed bottom-0 left-0 right-0 px-6 pb-safe z-50 flex flex-col items-center gap-3 bg-gradient-to-t from-[#0c1f17] to-transparent pt-8">
             <button
               onClick={onAccept}
               disabled={isAccepted}
@@ -122,6 +129,15 @@ export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, i
               </span>
               {isAccepted ? t('pact.accepted') : t('pact.accept')}
             </button>
+            {gateMode && onDecline && !isAccepted && (
+              <button
+                type="button"
+                onClick={onDecline}
+                className="w-full max-w-sm py-3 text-sm font-semibold text-emerald-200/60 hover:text-emerald-100 transition-colors"
+              >
+                {t('pact.decline')}
+              </button>
+            )}
           </div>
         )}
 

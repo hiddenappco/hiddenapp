@@ -3,7 +3,7 @@ import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUs
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth, db } from '../../services/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { NEW_USER_IDENTITY_FIELDS, GUEST_USER_PROFILE_FIELDS } from '../../utils/userIdentity';
 import { GUEST_HACKATHON_PREMIUM } from '../../utils/guestAccess';
 import { deactivateEnvironmentalShield } from '../../services/environmentalShield';
@@ -44,6 +44,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
             setLoading(false);
+            if (currentUser?.isAnonymous) {
+                try {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        lastActiveAt: serverTimestamp(),
+                    });
+                } catch {
+                    /* doc may not exist yet — syncGuestToFirestore runs on login */
+                }
+            }
         });
 
         return unsubscribe;
@@ -60,11 +69,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     displayName: 'Guest Explorer',
                     photoURL: user.photoURL ?? null,
                     createdAt: new Date().toISOString(),
+                    lastActiveAt: serverTimestamp(),
                     ...GUEST_USER_PROFILE_FIELDS,
                     notificationPrefs: {
                         ferias: true,
                         paraisos: true,
                         noticias: true,
+                        refugios: true,
                         cupones: true,
                         ofertas: true,
                         seguridad: true,
@@ -95,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         ferias: true,
                         paraisos: true,
                         noticias: true,
+                        refugios: true,
                         cupones: true,
                         ofertas: true,
                         seguridad: true,
@@ -134,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     ferias: true,
                     paraisos: true,
                     noticias: true,
+                    refugios: true,
                     cupones: true,
                     ofertas: true,
                     seguridad: true,

@@ -9,6 +9,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { EXPENSE_CATEGORY_LIST, EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
 import { convertToCop, formatCop, formatForeign } from '../utils/currency';
 import { TripSyncBanner } from './trips/TripSyncBanner';
+import { TripConflictHint } from './trips/TripConflictHint';
 import { TripGroupPanel } from './trips/TripGroupPanel';
 import { TripBalances } from './trips/TripBalances';
 import { TripActivityFeed } from './trips/TripActivityFeed';
@@ -34,6 +35,7 @@ interface TripExpensesProps {
   pastTripCount?: number;
   pendingCount?: number;
   syncing?: boolean;
+  reconcileHint?: boolean;
 }
 
 const ExpenseCard: React.FC<{
@@ -118,6 +120,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   pastTripCount = 0,
   pendingCount = 0,
   syncing = false,
+  reconcileHint = false,
 }) => {
   if (!trip) return null;
 
@@ -247,6 +250,11 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
       </header>
 
       <TripSyncBanner pendingCount={pendingCount} syncing={syncing} isOnline={isOnline} />
+      <TripConflictHint
+        tripId={trip.id}
+        isGroupTrip={trip.type === 'group'}
+        visible={!isOnline || pendingCount > 0 || reconcileHint}
+      />
 
       <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-24">
 

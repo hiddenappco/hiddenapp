@@ -63,6 +63,10 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 | `Profile` | ✅ | Badge ID copiable (`ProfileUserIdBadge`) |
 | `Budget` / `TripHistoryDetail` | ✅ | Modo claro; hint historial offline |
 | `Home` / `ManualSearch` / `Refugios` / `NewsFeed` / `Coupons` | ✅ | `bottom-nav-scroll-pad`; ranking búsqueda (`rankLocalizedSearch`); skeletons en carga |
+| `DestinationDetail` | ✅ | Access-time chips; packing checklist toggles; hooks before early returns |
+| `HiddenPact` / `PactGate` | ✅ | Gate mode sin menú; spinner mientras carga perfil; redirect si ya aceptó |
+| `SettingsHub` / `AppSettings` | ✅ | Hub condicional; segment controls tema/idioma; enlaces legal + FAQ |
+| `TripExpenses` (grupo) | ✅ | `TripSyncBanner` + `TripConflictHint` dismissible |
 
 ## Conectividad (P0-OFFLINE-COPY)
 
@@ -70,6 +74,7 @@ Referencia producto: `roadmap_producto_voz_usuario.md` → `P0-SYSTEM-CONSTRAINT
 - **`connectivity.server.*`** — dispositivo online pero servidores Hidden no alcanzables.
 - **`ConnectivityBanner`** — bóveda y futuras pantallas.
 - **`OfflineGuardian`** — `offline` vs `server` vía `useServerReachability`.
+- **Desktop Wi‑Fi (Jun 2026):** `useNetworkDetails` usa solo `connection.type` — no confundir `effectiveType: 4g` (throughput) con datos móviles.
 
 ## Transparencia de datos (P0-DATA-TRANSPARENCY)
 

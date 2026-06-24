@@ -2,12 +2,20 @@ export interface NotificationPrefs {
     ferias: boolean;
     paraisos: boolean;
     noticias: boolean;
+    refugios: boolean;
     cupones: boolean;
     ofertas: boolean;
     seguridad: boolean;
     vias: boolean;
     itinerarios: boolean;
     support: boolean;
+}
+
+export interface AppPrefs {
+    theme?: 'light' | 'dark' | 'system';
+    language?: 'es' | 'en';
+    coachmarksVersion?: number;
+    updatedAt?: string;
 }
 
 export interface AppNotification {
@@ -43,6 +51,7 @@ export interface UserProfile {
     updatedAt?: any; 
     fcmToken?: string;
     notificationPrefs?: NotificationPrefs;
+    appPrefs?: AppPrefs;
     pactAccepted?: boolean;
     completedActivities?: Record<string, number[]>;
     liveCallUsage?: {
@@ -57,6 +66,8 @@ export interface UserProfile {
         count?: number;
     };
     premiumExpiresAt?: unknown;
+    /** Rowy: trip_pass | monthly | annual | lifetime — drives auto Duration on premium activation */
+    premiumPlan?: 'trip_pass' | 'monthly' | 'annual' | 'lifetime' | string;
 }
 
 export interface TicketMessage {

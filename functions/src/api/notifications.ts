@@ -201,6 +201,41 @@ export const onNewEvent = onDocumentUpdated("Events/{id}", async (event) => {
     );
 });
 
+export const onNewRefugio = onDocumentUpdated("refugios/{id}", async (event) => {
+    const newData = event.data?.after.data();
+    if (!newData || newData._notificationSent === true) return;
+
+    const status = newData.status;
+    if (status && status !== 'Activo' && status !== true) return;
+
+    let departmentName = 'Colombia';
+    if (newData.departmentId) {
+        try {
+            const deptDoc = await db.collection('departments').doc(newData.departmentId).get();
+            if (deptDoc.exists) {
+                departmentName = deptDoc.data()?.name || newData.departmentId;
+            }
+        } catch (error) {
+            console.error("Error fetching department for refugio notification:", error);
+        }
+    }
+
+    await checkAndNotify(
+        event,
+        ["name", "title"],
+        "refugios",
+        () => "Nuevo Refugio Hidden 🏕️",
+        (data, name) => {
+            const tagline = typeof data.tagline === 'string' ? data.tagline.trim() : '';
+            const location = typeof data.location === 'string' ? data.location.trim() : '';
+            const place = location || departmentName;
+            return tagline ? `${name} — ${tagline}` : `Descubre ${name} en ${place}.`;
+        },
+        "news",
+        (id) => `/refugio/${id}`
+    );
+});
+
 export const supportTicketReply = onDocumentUpdated("support_tickets/{ticketId}", async (event) => {
     const newValue = event.data?.after.data();
     const previousValue = event.data?.before.data();

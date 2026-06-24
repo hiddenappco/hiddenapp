@@ -21,8 +21,10 @@ import { TacticalThread, type TacticalMessage } from './environmental/TacticalTh
 import { TelemetryGrid } from './environmental/TelemetryGrid';
 import { SatelliteRadar } from './environmental/SatelliteRadar';
 import { EnvironmentalThinkingBanner } from './environmental/EnvironmentalThinkingBanner';
+import { EnvironmentalManual } from './environmental/EnvironmentalManual';
 import { FeatureCoachmark } from './ui/FeatureCoachmark';
 import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
+import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 
 interface EnvironmentalMonitorProps {
     language: Language;
@@ -44,6 +46,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     const [query, setQuery] = useState('');
     const [tacticalMessages, setTacticalMessages] = useState<TacticalMessage[]>([]);
     const [tacticalLoading, setTacticalLoading] = useState(false);
+    const [showManual, setShowManual] = useState(false);
     const [shieldError, setShieldError] = useState<string | null>(null);
     const { data: selectedDestination } = useDestination(selectedId || undefined);
 
@@ -76,6 +79,14 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     } = useEnvironmentalMonitor(user?.uid, selectedDestination, language);
 
     const isAnalyzing = loadingEnv && !!selectedId && isMonitoring;
+
+    useHardwareBackHandler(() => {
+        if (showManual) {
+            setShowManual(false);
+            return true;
+        }
+        return false;
+    }, [showManual]);
 
     // Restaura el destino monitoreado solo al abrir la pantalla con el escudo ya ON.
     // No debe re-seleccionar tras un borrado manual (X).
@@ -179,6 +190,10 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
         return <PageDetailSkeleton />;
     }
 
+    if (showManual) {
+        return <EnvironmentalManual onBack={() => setShowManual(false)} />;
+    }
+
     return (
         <div className={`bg-background-dark text-content-secondary font-display antialiased overflow-x-hidden h-screen overflow-y-auto flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
             <EnvironmentalHeader
@@ -212,6 +227,47 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
                     />
                 </div>
             )}
+
+            <div className="px-4 pb-2">
+                <section
+                    onClick={() => setShowManual(true)}
+                    className="relative overflow-hidden rounded-[20px] bg-surface-dark dark:bg-gradient-to-r dark:from-[#0a1f35] dark:to-[#12385c] p-3 px-4 border border-overlay/10 hover:border-green-500/30 shadow-md dark:shadow-black/20 transition-all duration-300 group cursor-pointer"
+                >
+                    <div
+                        className="absolute inset-0 opacity-[0.02] pointer-events-none"
+                        style={{
+                            backgroundImage: 'radial-gradient(circle, rgba(34,197,94,0.5) 1px, transparent 1px)',
+                            backgroundSize: '16px 16px',
+                        }}
+                    />
+                    <div className="flex items-center justify-between gap-3 relative z-10">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="size-9 shrink-0 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 group-hover:border-green-500/40 transition-all duration-300">
+                                <span className="material-symbols-outlined text-green-400 text-lg group-hover:scale-110 transition-transform duration-300">
+                                    menu_book
+                                </span>
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-xs sm:text-sm font-black text-content group-hover:text-green-400 transition-colors duration-300 flex items-center gap-2 truncate">
+                                    {t('environmental.manualTitle')}
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wider shrink-0">
+                                        {t('environmental.guide')}
+                                    </span>
+                                </h3>
+                                <p className="text-[10px] text-content/50 hidden sm:block mt-0.5 line-clamp-2">
+                                    {t('environmental.manualDesc')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-2.5 py-1.5 group-hover:bg-green-500 group-hover:text-white group-hover:border-green-500/40 transition-all duration-300 shrink-0">
+                            <span>{t('environmental.read')}</span>
+                            <span className="material-symbols-outlined text-[10px] group-hover:translate-x-0.5 transition-transform duration-300">
+                                arrow_forward
+                            </span>
+                        </div>
+                    </div>
+                </section>
+            </div>
 
             <EnvironmentalThinkingBanner visible={isAnalyzing} />
 

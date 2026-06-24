@@ -55,6 +55,10 @@ export interface RagDestination {
   gettingThere?: string[];
   packingSummary?: string;
   packingItems?: string[];
+  planningNotes?: string;
+  suggestedDaysMin?: number;
+  suggestedDaysMax?: number;
+  regionCluster?: string;
 }
 
 export interface RagDepartment {
@@ -182,8 +186,11 @@ export function buildDestinationSearchSQL(
   const packGuideExpr = lang === 'en'
     ? `COALESCE(NULLIF(packingGuide_en, ''), packingGuide)`
     : 'packingGuide';
+  const planningExpr = lang === 'en'
+    ? `COALESCE(NULLIF(planningNotes_en, ''), planningNotes)`
+    : 'planningNotes';
 
-  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${locExpr} AS location, ${tipExpr} AS aiTip, ${actExpr} AS activities, ${gettingExpr} AS gettingThere, ${pricingExpr} AS pricingGuide, ${packExpr} AS packingSummary, ${packGuideExpr} AS packingGuide`;
+  const selectCols = `${titleExpr} AS title, ${descExpr} AS description, ${locExpr} AS location, ${tipExpr} AS aiTip, ${actExpr} AS activities, ${gettingExpr} AS gettingThere, ${pricingExpr} AS pricingGuide, ${packExpr} AS packingSummary, ${packGuideExpr} AS packingGuide, ${planningExpr} AS planningNotes, suggestedDaysMin, suggestedDaysMax, regionCluster`;
 
   const terms = userQuery.trim().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) {
@@ -205,11 +212,11 @@ export function buildDestinationSearchSQL(
   });
 
   const conditions = terms.map(() =>
-    `(title LIKE ? OR title_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ?)`
+    `(title LIKE ? OR title_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR location LIKE ? OR planningNotes LIKE ? OR planningNotes_en LIKE ?)`
   ).join(' OR ');
   const whereParams = terms.flatMap(t => {
     const like = `%${t}%`;
-    return [like, like, like, like, like];
+    return [like, like, like, like, like, like, like];
   });
 
   return {
@@ -493,6 +500,7 @@ export async function searchVaultLocalCatalog(
       ...parsePackingGuide(row.packingGuide),
     ].filter(Boolean);
     const extra = [
+      row.planningNotes ? String(row.planningNotes) : '',
       activities.length > 0 ? activities.join(', ') : '',
       packing.length > 0 ? packing.join('; ') : '',
     ].filter(Boolean).join('\n');
@@ -754,6 +762,10 @@ export function buildRagContext(
     pricingGuide?: unknown;
     packingSummary?: string;
     packingGuide?: unknown;
+    planningNotes?: string;
+    suggestedDaysMin?: number;
+    suggestedDaysMax?: number;
+    regionCluster?: string;
   }>,
   refugioResults: Array<{ name: string; tagline?: string; description: string; location?: string }> = [],
   couponResults: Array<{
@@ -807,6 +819,10 @@ export function buildRagContext(
         .filter(Boolean),
       packingSummary: d.packingSummary ? sanitizeRichText(d.packingSummary) : undefined,
       packingItems: packingItems.length > 0 ? packingItems : undefined,
+      planningNotes: d.planningNotes ? sanitizeRichText(String(d.planningNotes)) : undefined,
+      suggestedDaysMin: d.suggestedDaysMin != null ? Number(d.suggestedDaysMin) : undefined,
+      suggestedDaysMax: d.suggestedDaysMax != null ? Number(d.suggestedDaysMax) : undefined,
+      regionCluster: d.regionCluster ? sanitizeRichText(String(d.regionCluster)) : undefined,
     };
   });
   const refugios = refugioResults.map((r) => ({
@@ -869,6 +885,9 @@ export function buildRagContext(
       }
       if (d.gettingThere && d.gettingThere.length > 0) {
         rawText += `${ctx.contextGettingThere} ${d.gettingThere.join('; ')}\n`;
+      }
+      if (d.planningNotes) {
+        rawText += `${ctx.contextPlanning || 'Planificación'}: ${d.planningNotes}\n`;
       }
       if (d.packingSummary) {
         rawText += `${ctx.contextPacking} ${d.packingSummary}\n`;

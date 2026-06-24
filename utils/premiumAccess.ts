@@ -9,10 +9,12 @@ import {
     isGuestProfile,
     normalizeIsPremium,
 } from './userIdentity';
+import { getPremiumExpiryDate } from './premiumDuration';
 
 export interface PremiumProfileFields {
     isPremium?: boolean;
     isGuest?: boolean;
+    premiumPlan?: 'trip_pass' | 'monthly' | 'annual' | 'lifetime' | string;
     premiumExpiresAt?: { toDate?: () => Date } | string | Date | number;
     expeditionPlansUsed?: {
         periodStart?: { toDate?: () => Date } | string | number;
@@ -29,16 +31,7 @@ export interface PremiumProfileFields {
 export function parseProfileDate(
     raw: PremiumProfileFields['premiumExpiresAt']
 ): Date | null {
-    if (!raw) return null;
-    if (raw instanceof Date) return raw;
-    if (typeof raw === 'object' && raw !== null && 'toDate' in raw && typeof raw.toDate === 'function') {
-        return raw.toDate();
-    }
-    if (typeof raw === 'string' || typeof raw === 'number') {
-        const d = new Date(raw);
-        return Number.isNaN(d.getTime()) ? null : d;
-    }
-    return null;
+    return getPremiumExpiryDate(raw);
 }
 
 /** Hackathon guest = full Premium until post-hackathon (see GUEST_USER_PROFILE_FIELDS). */
@@ -54,6 +47,10 @@ export function hasActivePremium(profile: PremiumProfileFields | null | undefine
 
 export function isTripPassPlan(profile: PremiumProfileFields | null | undefined): boolean {
     if (!hasActivePremium(profile) || isGuestProfile(profile)) return false;
+    const plan = String(profile?.premiumPlan || '').toLowerCase();
+    if (plan === 'trip_pass') return true;
+    if (plan === 'monthly' || plan === 'annual' || plan === 'lifetime') return false;
+    // Legacy docs without `premiumPlan`: infer a trip pass from a finite expiry window.
     return Boolean(parseProfileDate(profile?.premiumExpiresAt));
 }
 

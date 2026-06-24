@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Language } from '../types/core';
 import { Trip } from '../types/trips';
 import { useTranslation } from '../hooks/useTranslation';
+import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
 import { PaywallRoiCard } from './trips/PaywallRoiCard';
+import { TripLedgerManual } from './trips/TripLedgerManual';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
@@ -40,6 +42,19 @@ export const Budget: React.FC<BudgetProps> = ({
   isOnline = true,
 }) => {
   const { t } = useTranslation();
+  const [showManual, setShowManual] = useState(false);
+
+  useHardwareBackHandler(() => {
+    if (showManual) {
+      setShowManual(false);
+      return true;
+    }
+    return false;
+  }, [showManual]);
+
+  if (showManual) {
+    return <TripLedgerManual onBack={() => setShowManual(false)} />;
+  }
 
   const handleDeleteTrip = (e: React.MouseEvent, tripId: string) => {
     e.stopPropagation();
@@ -93,11 +108,11 @@ export const Budget: React.FC<BudgetProps> = ({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onOpenConverter}
-            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-1"
+            className="flex min-w-0 items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-2"
           >
             <span className="material-symbols-outlined text-base text-budget-primary shrink-0">currency_exchange</span>
             <span className="truncate">{t('trips.converterLink')}</span>
@@ -105,7 +120,7 @@ export const Budget: React.FC<BudgetProps> = ({
           <button
             type="button"
             onClick={onJoinTrip}
-            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-1"
+            className="flex min-w-0 items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-2"
           >
             <span className="material-symbols-outlined text-base text-budget-primary shrink-0">group_add</span>
             <span className="truncate">{t('trips.joinTrip')}</span>
@@ -113,10 +128,18 @@ export const Budget: React.FC<BudgetProps> = ({
           <button
             type="button"
             onClick={onCreateTrip}
-            className="flex-[1.15] min-w-0 flex items-center justify-center gap-1.5 h-11 rounded-xl bg-budget-primary hover:bg-budget-primary-dark text-white text-[10px] sm:text-xs font-bold shadow-md shadow-black/20 active:scale-[0.98] transition-all px-1.5"
+            className="flex min-w-0 items-center justify-center gap-1.5 h-11 rounded-xl bg-budget-primary hover:bg-budget-primary-dark text-white text-[10px] sm:text-xs font-bold shadow-md shadow-black/20 active:scale-[0.98] transition-all px-2"
           >
             <span className="material-symbols-outlined text-[18px] shrink-0">add</span>
             <span className="truncate">{t('budget.createNewShort')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowManual(true)}
+            className="flex min-w-0 items-center justify-center gap-1.5 h-11 rounded-xl bg-overlay/5 border border-overlay/10 text-[10px] sm:text-xs font-bold text-content-muted hover:border-budget-primary/30 transition-colors active:scale-[0.98] px-2"
+          >
+            <span className="material-symbols-outlined text-base text-budget-primary shrink-0">menu_book</span>
+            <span className="truncate">{t('budget.manual.tile')}</span>
           </button>
         </div>
 

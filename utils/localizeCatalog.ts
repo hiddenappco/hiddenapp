@@ -153,6 +153,8 @@ export function localizeDestination(raw: RawDoc, lang: Language): Destination {
         packingGuide: packing?.categories?.length
             ? packing.categories
             : ((raw.packingGuide ?? raw.packingGuige) as Destination['packingGuide']),
+        planningNotes:
+            pickLocalized(doc, 'planningNotes', lang) || String(raw.planningNotes || ''),
     };
 }
 

@@ -27,7 +27,9 @@ export function useTripSync(userId: string | undefined) {
     const isOnline = useNetworkStatus();
     const [pendingCount, setPendingCount] = useState(0);
     const [syncing, setSyncing] = useState(false);
+    const [reconcileHint, setReconcileHint] = useState(false);
     const syncingRef = useRef(false);
+    const prevPendingRef = useRef(0);
 
     const refreshPendingCount = useCallback(async () => {
         const entries = await getOutboxEntries();
@@ -121,6 +123,17 @@ export function useTripSync(userId: string | undefined) {
     useEffect(() => {
         refreshPendingCount();
     }, [refreshPendingCount]);
+
+    useEffect(() => {
+        const prev = prevPendingRef.current;
+        if (prev > 0 && pendingCount === 0 && isOnline && !syncing) {
+            setReconcileHint(true);
+        }
+        if (pendingCount > 0 || !isOnline) {
+            setReconcileHint(false);
+        }
+        prevPendingRef.current = pendingCount;
+    }, [pendingCount, isOnline, syncing]);
 
     useEffect(() => {
         if (isOnline && userId) {
@@ -255,6 +268,7 @@ export function useTripSync(userId: string | undefined) {
         isOnline,
         pendingCount,
         syncing,
+        reconcileHint,
         flushOutbox,
         queueCreateTrip,
         queueAddExpense,

@@ -12,23 +12,36 @@ export interface NetworkDetails {
     isCellular: boolean;
 }
 
+function readNetworkInformation():
+    | { type?: string; effectiveType?: string }
+    | undefined {
+    if (typeof navigator === 'undefined') return undefined;
+    const nav = navigator as Navigator & {
+        connection?: { type?: string; effectiveType?: string };
+        mozConnection?: { type?: string; effectiveType?: string };
+        webkitConnection?: { type?: string; effectiveType?: string };
+    };
+    return nav.connection || nav.mozConnection || nav.webkitConnection;
+}
+
+/**
+ * Web Network Information API.
+ * IMPORTANT: `effectiveType` (2g/3g/4g) is a **throughput estimate**, not the radio
+ * link — Chrome reports "4g" on desktop Wi‑Fi. Only `type` identifies cellular vs wifi.
+ */
 function mapWebConnectionType(): NetworkConnectionType {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         return 'none';
     }
-    const conn =
-        (navigator as Navigator & { connection?: { type?: string; effectiveType?: string } }).connection;
-    const raw = `${conn?.type || ''} ${conn?.effectiveType || ''}`.toLowerCase();
-    if (raw.includes('wifi') || raw.includes('ethernet')) return 'wifi';
-    if (
-        raw.includes('cellular') ||
-        raw.includes('4g') ||
-        raw.includes('3g') ||
-        raw.includes('2g') ||
-        raw.includes('slow-2g')
-    ) {
-        return 'cellular';
-    }
+
+    const conn = readNetworkInformation();
+    const type = (conn?.type || '').toLowerCase();
+
+    if (type === 'wifi' || type === 'ethernet') return 'wifi';
+    if (type === 'cellular' || type === 'wimax') return 'cellular';
+    if (type === 'none') return 'none';
+
+    // bluetooth, other, unknown, or API hidden (common on desktop) → do not warn cellular
     return 'unknown';
 }
 
@@ -82,10 +95,7 @@ export function useNetworkDetails(): NetworkDetails {
             update();
             window.addEventListener('online', update);
             window.addEventListener('offline', update);
-            const conn =
-                (navigator as Navigator & { connection?: EventTarget }).connection ||
-                (navigator as Navigator & { mozConnection?: EventTarget }).mozConnection ||
-                (navigator as Navigator & { webkitConnection?: EventTarget }).webkitConnection;
+            const conn = readNetworkInformation() as EventTarget | undefined;
             conn?.addEventListener?.('change', update);
             cleanup = () => {
                 window.removeEventListener('online', update);

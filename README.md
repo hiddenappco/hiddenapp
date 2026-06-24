@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | **Official submission snapshot** (tag / branch `submission`) | **Frozen** at commit [`709f760`](https://github.com/hiddenappco/hiddenapp/commit/709f760efa90751731232a2555eea17c9cb46ff4) — **June 11, 2026, 15:35 (-0500)**. Tag [`v1.0-challenge-submission`](https://github.com/hiddenappco/hiddenapp/tree/v1.0-challenge-submission) is **immutable** — do not move it. |
-| **Active development** (branch `main`) | **Live product** — **Jun 20, 2026** sprint: group trip activity feed, ranked catalog search, guest→official account upgrade, copyable profile UID, 2-tap expedition planner CTA, B2B pricing documented. Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md). |
+| **Active development** (branch `main`) | **Live product** — **Jun 22–24, 2026** sprint: Pact gate (first session only), settings hub split, legal/FAQ v4.0, product manuals (ledger/monitor/planner), refugio push notifications, destination access times + interactive packing checklist, ESG badge + expedition PDF block, guest retention cron, trip `memberIds` lazy backfill, offline conflict hints, premium plan quota fix. Prior sprint (Jun 20): group activity feed, ranked search, guest upgrade. Changelog: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md) · session log: [`docs/SESION_TRABAJO.md`](./docs/SESION_TRABAJO.md). |
 | **Release notes** | [GitHub Release](https://github.com/hiddenappco/hiddenapp/releases/tag/v1.0-challenge-submission) · [draft text](./docs/RELEASE_v1.0-challenge-submission.md) |
 | **Full guide for judges** | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
 | **Business model (public)** | [docs/UNIT_ECONOMICS_EN.md](./docs/UNIT_ECONOMICS_EN.md) — pricing, B2B ($15/mo · $150/yr), market sizing (English, judge-facing) |
@@ -54,12 +54,21 @@ Hidden App connects adventurers with remote destinations that mainstream platfor
 
 | Area | Description |
 |------|-------------|
+| **Hidden Pact (onboarding)** | Mandatory first-session gate (`PactGate` → `/pact`); `users.pactAccepted` in Firestore; decline → logout only; re-readable from Settings → Legal |
+| **Settings hub (T22)** | `/settings` hub with role-based rows (`useSettingsAccess`); `/settings/app` (theme, language, coach marks, legal, FAQ); `/settings/profile` (account only); `appPrefs` synced to Firestore |
+| **Legal & FAQ v4.0** | `locales/legalContent.ts`; `/terms`, `/privacy`, `/faq`; accordion shell (`LegalPageShell`) |
+| **Product manuals** | In-screen guides (vault-style): trip ledger (`TripLedgerManual`), environmental monitor (`EnvironmentalManual`), expedition planner (`ExpeditionPlannerManual`) — bilingual ES/EN, no extra routes |
+| **Destination access times** | Editorial `TIEMPOS DE ACCESO` / `ACCESS TIMES` in `planningNotes`; chips in destination detail (`DestinationAccessTimes`) |
+| **Packing checklist** | Interactive per-item toggles on destination ficha (`DestinationPacking`); `localStorage` per `destinationId` (`utils/packingChecklist.ts`) |
+| **ESG / direct community** | `DirectCommunityBadge` on destination/refugio when `porcentaje_anfitrion` verified; agents via `directCommunity`; block in expedition PDF for refugio nights |
+| **Refugio notifications** | Cloud Function `onNewRefugio`; pref `refugios` in notification settings (default ON) |
+| **Guest retention** | `scheduledGuestCleanup` (daily 05:00 Bogotá) — deletes inactive anonymous guests ≥30 days; `lastActiveAt` on session; **hackathon:** `GUEST_HACKATHON_PREMIUM = true` until post–1 Jul |
 | **Hyperlocal chat** | Department-scoped text agent; catalog tools return **`planningNotes`** when present; multi-day trips → expedition hub |
 | **Environmental Ranger** | Live weather, AQI, elevation, marine telemetry + localized destination ficha (**`planningNotes`**) — also callable as a chat tool |
 | **Expedition Planner** | Dedicated hub (`/expedition/plan`) with department picker + **5-step wizard**; **«Mis planes anteriores»** (20 plans, real-time list); multi-agent pipeline grounded in catalog fichas including **`planningNotes`**, `groundMobility`, Google Routes legs (up to 45), coupon widgets, COP budget, mobility badge in result + expedition PDF |
 | **Modo Live** | Full-duplex voice via LiveKit + Gemini Multimodal Live; token and usage quota via authenticated Cloud Functions (`generateLiveKitToken`, `recordLiveCallSeconds`) |
 | **Off-Grid Vault** | Downloadable department packs (SQLite) for offline search and chat; optional **MediaPipe Gemma 2B IT GPU** (~1.29 GB) for on-device generative chat (WebGPU) |
-| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, **completed-trip history offline** (mirror up to 10), **group activity feed** (`trips/{id}/activity` — expense added/deleted, member joined), bilingual trip PDF |
+| **Trip ledger (Bitácora v2)** | Solo trips free; group trips Premium (`tripCode`, roles owner/editor/observer). COP canonical ledger with multi-currency entry (COP/USD/EUR), TRM-backed rates, Tricount-style splits and balances, offline outbox (IndexedDB) + sync on reconnect, **completed-trip history offline** (mirror up to 10), **group activity feed** (`trips/{id}/activity`), **offline conflict hint** on group trips (`TripConflictHint`), lazy **`memberIds` backfill** for legacy docs, bilingual trip PDF |
 | **Catalog search** | Relevance-ranked picker search (`rankLocalizedSearch`) on Monitor, Destinations, Refugios, Coupons, News, and expedition must-visit — title/name/location only; accent-insensitive multi-word queries |
 | **Guest upgrade** | Anonymous guest links Google or email/password in Profile Settings without changing UID (`linkWithCredential`); `isGuest: false` while hackathon Premium bypass remains (`GUEST_HACKATHON_PREMIUM`) |
 | **Premium** | `/premium` — account types, Free vs Premium compare table, USD reference pricing; store checkout disabled until Play/App Store (`PREMIUM_CHECKOUT_ENABLED`); contextual `HelpTooltip` with viewport-safe portal positioning |
@@ -234,30 +243,26 @@ cd functions && npm run build
 ### Deploy
 
 ```bash
-# Full stack (prefer small function batches if Cloud Run CPU quota errors)
+# Prefer targeted deploys (Jun 2026 — avoid full `functions` batch if Cloud Run CPU quota errors)
 npm run build
 cd functions && npm run build && cd ..
 firebase deploy --only hosting,firestore:rules,firestore:indexes,storage
-firebase deploy --only functions   # or: functions:createExpedition,functions:chatAgent, …
+firebase deploy --only functions:scheduledGuestCleanup   # guest TTL cron
+firebase deploy --only functions:onNewRefugio            # lodging (refugio) notifications
+firebase deploy --only functions:createExpedition        # expedition quota / premium plan
+# …or one function at a time for anything else touched
 
-# Expedition planner only (faster iteration)
+# Expedition planner iteration
 firebase deploy --only functions:createExpedition,functions:onExpeditionCreate
 
-# Trip ledger — TRM cache + bilingual trip PDF
+# Trip ledger — TRM + bilingual trip PDF
 firebase deploy --only functions:getExchangeRates,functions:scheduledExchangeRates,functions:generateTripPdf
 
-# Firestore rules + indexes (group trips, expedition history)
-firebase deploy --only firestore:indexes,firestore:rules
-
-# Static PWA
-firebase deploy --only hosting
-
 # Live voice worker
-cd agent-worker
-gcloud run deploy hidden-agent-worker --source . --region us-central1
+cd agent-worker && gcloud run deploy hidden-agent-worker --source . --region us-central1
 ```
 
-**Production (Jun 2026):** https://gen-lang-client-0040858908.web.app — hosting, Firestore rules/indexes, Storage rules, and all Cloud Functions deployed. Deploy functions **one at a time** if you hit `Quota exceeded for total allowable CPU per project per region` on Cloud Run.
+**Production:** https://gen-lang-client-0040858908.web.app — deploy Cloud Functions **one at a time** if you hit `Quota exceeded for total allowable CPU per project per region` on Cloud Run (Jun 2026 lesson).
 
 ---
 

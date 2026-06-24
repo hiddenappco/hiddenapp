@@ -13,6 +13,7 @@ import {
     destinationPdfFingerprint,
     isDestinationPdfCacheValid,
 } from '../lib/destinationPdfCache';
+import { computeDirectCommunityFromRefugioPricing } from '../lib/directCommunity';
 
 async function userIsPremium(uid: string): Promise<boolean> {
     const snap = await db.collection('users').doc(uid).get();
@@ -211,6 +212,43 @@ function readExpeditionGroundMobility(data: Record<string, unknown>): string | u
     return raw ? String(raw) : undefined;
 }
 
+async function enrichItineraryRefugioEsg(
+    itinerary: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+    const days = Array.isArray(itinerary.days) ? ([...itinerary.days] as Record<string, unknown>[]) : [];
+    const refugioIds = new Set<string>();
+    for (const day of days) {
+        const refugio = day.refugio as Record<string, unknown> | null | undefined;
+        if (refugio?.id) refugioIds.add(String(refugio.id));
+    }
+    if (refugioIds.size === 0) return itinerary;
+
+    const esgById = new Map<string, Record<string, unknown>>();
+    await Promise.all(
+        [...refugioIds].map(async (id) => {
+            const snap = await db.collection('refugios').doc(id).get();
+            if (!snap.exists) return;
+            const amount = computeDirectCommunityFromRefugioPricing(snap.data()?.pricingGuide);
+            if (amount) esgById.set(id, amount as unknown as Record<string, unknown>);
+        })
+    );
+
+    if (esgById.size === 0) return itinerary;
+
+    const enrichedDays = days.map((day) => {
+        const refugio = day.refugio as Record<string, unknown> | null | undefined;
+        if (!refugio?.id) return day;
+        const directCommunity = esgById.get(String(refugio.id));
+        if (!directCommunity) return day;
+        return {
+            ...day,
+            refugio: { ...refugio, directCommunity },
+        };
+    });
+
+    return { ...itinerary, days: enrichedDays };
+}
+
 export const generateExpeditionPdf = onRequest(
     { cors: true, timeoutSeconds: 120, memory: '4GiB' },
     async (req, res) => {
@@ -272,7 +310,11 @@ export const generateExpeditionPdf = onRequest(
                 }
             }
 
-            const html = generateExpeditionPdfHtml(data.itinerary as Record<string, unknown>, {
+            const enrichedItinerary = await enrichItineraryRefugioEsg(
+                data.itinerary as Record<string, unknown>
+            );
+
+            const html = generateExpeditionPdfHtml(enrichedItinerary, {
                 departmentName,
                 days: Number(data.request?.days) || (data.itinerary as { days?: unknown[] }).days?.length || 0,
                 language: lang,

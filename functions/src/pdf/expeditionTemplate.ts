@@ -25,6 +25,9 @@ const LABELS = {
         mobilityMixed: 'Mixto',
         restDay: 'Día de transición o descanso',
         restWithTips: 'Día ligero',
+        directImpact: 'Impacto directo',
+        directToHost: '{range} al anfitrión verificado',
+        directPercent: '{percent}% documentado en catálogo',
     },
     en: {
         badge: 'Expedition plan',
@@ -48,6 +51,9 @@ const LABELS = {
         mobilityMixed: 'Mixed',
         restDay: 'Transition or rest day',
         restWithTips: 'Light day',
+        directImpact: 'Direct impact',
+        directToHost: '{range} to verified host',
+        directPercent: '{percent}% documented in catalog',
     },
 } as const;
 
@@ -156,6 +162,34 @@ function expeditionPdfStyles(): string {
             margin-top: 20px;
             break-inside: avoid;
         }
+        .esg-block {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.22);
+            break-inside: avoid;
+        }
+        .esg-label {
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6ee7b7;
+            margin-bottom: 4px;
+        }
+        .esg-amount {
+            font-size: 10px;
+            font-weight: 700;
+            color: #d1fae5;
+            line-height: 1.45;
+        }
+        .esg-note {
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
     `;
 }
 
@@ -173,6 +207,32 @@ function formatCop(amount: number, lang: PdfLanguage): string {
         currency: 'COP',
         maximumFractionDigits: 0,
     }).format(amount);
+}
+
+function formatDirectCommunityRange(
+    amount: { minCop: number; maxCop: number },
+    lang: PdfLanguage
+): string {
+    if (amount.minCop === amount.maxCop) return formatCop(amount.minCop, lang);
+    return `${formatCop(amount.minCop, lang)} – ${formatCop(amount.maxCop, lang)}`;
+}
+
+function renderRefugioEsg(refugio: Row, lang: PdfLanguage): string {
+    const dc = refugio.directCommunity as Row | undefined;
+    if (!dc) return '';
+    const minCop = Number(dc.minCop);
+    const maxCop = Number(dc.maxCop);
+    const hostSharePercent = Number(dc.hostSharePercent);
+    if (!Number.isFinite(minCop) || !Number.isFinite(maxCop) || !Number.isFinite(hostSharePercent)) {
+        return '';
+    }
+    const L = LABELS[lang];
+    const range = formatDirectCommunityRange({ minCop, maxCop }, lang);
+    return `<div class="esg-block">
+        <div class="esg-label">${L.directImpact}</div>
+        <p class="esg-amount">${escapeHtml(L.directToHost.replace('{range}', range))}</p>
+        <p class="esg-note">${escapeHtml(L.directPercent.replace('{percent}', String(hostSharePercent)))}</p>
+    </div>`;
 }
 
 function renderDay(day: Row, lang: PdfLanguage): string {
@@ -210,6 +270,7 @@ function renderDay(day: Row, lang: PdfLanguage): string {
                 <div class="card-label">${L.overnight}</div>
                 <div class="refugio-name">${escapeHtml(String(refugio.name))}</div>
                 ${refugioNote ? `<p class="refugio-note">${escapeHtml(refugioNote)}</p>` : ''}
+                ${renderRefugioEsg(refugio, lang)}
             </div>`
             : '';
 

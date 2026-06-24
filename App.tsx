@@ -54,13 +54,14 @@ const AppContent: React.FC = () => {
 
   const { trip: firestoreActiveTrip } = useActiveTrip(user?.uid, isOnline);
   const { trips: pastTrips } = usePastTrips(user?.uid, isOnline);
-  const { data: userProfile } = useUserProfile(user?.uid);
+  const { data: userProfile, loading: profileLoading } = useUserProfile(user?.uid);
 
   const [localActiveTrip, setLocalActiveTrip] = useState<Trip | null>(null);
 
   const {
     pendingCount,
     syncing,
+    reconcileHint,
     queueCreateTrip,
     queueAddExpense,
     queueDeleteExpense,
@@ -104,10 +105,10 @@ const AppContent: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (user && location.pathname === '/login') {
-      navigate('/home');
-    }
-  }, [user, location.pathname, navigate]);
+    if (!user || profileLoading) return;
+    if (location.pathname !== '/login') return;
+    navigate(userProfile?.pactAccepted === true ? '/home' : '/pact', { replace: true });
+  }, [user, profileLoading, userProfile?.pactAccepted, location.pathname, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -265,7 +266,9 @@ const AppContent: React.FC = () => {
       serverReachable={serverReachable}
       tripPendingCount={pendingCount}
       tripSyncing={syncing}
+      tripReconcileHint={reconcileHint}
       displayName={displayName}
+      profileLoading={profileLoading}
     />
   );
 };

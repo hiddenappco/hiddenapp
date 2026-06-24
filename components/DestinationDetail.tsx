@@ -22,6 +22,8 @@ import { DestinationActivities } from './destination/DestinationActivities';
 import { DestinationGallery } from './destination/DestinationGallery';
 import { DestinationPricing } from './destination/DestinationPricing';
 import { DestinationPacking } from './destination/DestinationPacking';
+import { DestinationAccessTimes } from './destination/DestinationAccessTimes';
+import { hasAccessTimes, parseAccessTimesFromPlanningNotes } from '../utils/planningNotesAccess';
 
 interface DestinationDetailProps {
   language: Language;
@@ -194,6 +196,11 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     pinchZoom: t('destination.pinchZoom'),
   };
 
+  // Hooks must run before any early return to keep call order stable across renders.
+  const accessTimes = React.useMemo(() => {
+    return parseAccessTimesFromPlanningNotes(destination?.planningNotes);
+  }, [destination?.planningNotes]);
+
   if (loading) return <PageDetailSkeleton />;
   if (!destination) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.notFound}</div>;
 
@@ -254,6 +261,8 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
           texts={texts}
         />
 
+        {hasAccessTimes(accessTimes) && <DestinationAccessTimes accessTimes={accessTimes} />}
+
         <DestinationActivities
           activities={localizedActivities}
           completedActivities={completedActivities}
@@ -269,8 +278,8 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
           texts={texts}
         />
 
-        {localizedPackingGuide && (
-          <DestinationPacking packingGuide={localizedPackingGuide} />
+        {localizedPackingGuide && finalId && (
+          <DestinationPacking destinationId={finalId} packingGuide={localizedPackingGuide} />
         )}
 
         <DestinationPricing

@@ -10,10 +10,10 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONO
 
 | Tipo | Cómo se reconoce | Duración | Notas |
 |------|------------------|----------|--------|
-| **Invitado (Guest)** | Firebase Auth anónimo · `users.isGuest === true` | Sesión / dispositivo | **Hackathon:** se comporta como Premium completo (`GUEST_USER_PROFILE_FIELDS`). Post-hackathon → Free. |
+| **Invitado (Guest)** | Firebase Auth anónimo · `users.isGuest === true` | Sesión / dispositivo | **Hackathon (hasta ~1 jul):** Premium completo (`GUEST_HACKATHON_PREMIUM`). **Post-hackathon:** mismos poderes que **Free**; CTA vincular en Ajustes; TTL **30 días** sin actividad (`scheduledGuestCleanup` + `lastActiveAt`). |
 | **Free (registrado)** | Cuenta Google/email · `isPremium === false` | Permanente | Chat, monitor, bóveda, bitácora solo. **Sin hub planificador.** |
-| **Premium — Pase Viaje** | `isPremium === true` + `premiumExpiresAt` (~10 días) | 10 días | Hub **1 consulta** en la ventana del pase. |
-| **Premium — Mensual / Anual / Vitalicio** | `isPremium === true` (vitalicio sin expiración) | Según plan | Hub **3 consultas / mes** rodante. |
+| **Premium — Pase Viaje** | `isPremium === true` · `premiumPlan === 'trip_pass'` (+ `premiumExpiresAt` ~10 días) | 10 días | Hub **1 consulta** en la ventana del pase. |
+| **Premium — Mensual / Anual / Vitalicio** | `isPremium === true` · `premiumPlan` monthly/annual/lifetime (vitalicio sin expiración) | Según plan | Hub **3 consultas / mes** rodante. |
 
 **Principio:** todos los planes de pago comparten el **mismo set de beneficios**; solo varían **duración** y **cuota del planificador hub** (1 vs 3).
 
@@ -23,7 +23,10 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONO
 |-----------------|-----|
 | `users.isGuest` | Sesión demo / hackathon |
 | `users.isPremium` | Acceso Premium (Rowy, cupón admin o RevenueCat) |
-| `users.premiumExpiresAt` | Fin del Pase Viaje 10 días |
+| `users.premiumPlan` | `trip_pass` · `monthly` · `annual` · `lifetime` — distingue cuota hub (1 vs 3) |
+| `users.premiumExpiresAt` | Fin del Pase Viaje 10 días (Rowy Duration o Timestamp) |
+| `users.pactAccepted` | Gate obligatorio primera sesión (`PactGate`) |
+| `users.lastActiveAt` | Actividad guest para cron de retención |
 | `users.liveCallUsage` | Premium: 30 min / 30 d rodantes — **solo server** |
 | `users.liveTrialUsedSeconds` | Free: prueba Live **5 min lifetime** — **solo server** |
 | `users.expeditionPlansUsed` | Contador hub (1 pase · 3/mes) — **solo server** |
@@ -129,6 +132,16 @@ Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PD
 | **Firestore** | `isGuest: false`; email y displayName actualizados |
 | **Hackathon** | `GUEST_HACKATHON_PREMIUM = true` → `isPremium` se mantiene tras vincular |
 | **Post-hackathon** | `GUEST_HACKATHON_PREMIUM = false` → upgrade pasa a tier Free |
+| **Retención** | `scheduledGuestCleanup` — borra guests anónimos inactivos ≥30 días (`isGuest` + sin providers tras upgrade) |
+
+### 3.9 Pacto Hidden (onboarding)
+
+| | |
+|--|--|
+| **Cuándo** | Primera sesión autenticada (guest o registrado) |
+| **Gate** | `PactGate` → `/pact` hasta `pactAccepted === true` |
+| **Declinar** | `PactDeclined` — única salida cerrar sesión |
+| **Relectura** | Ajustes → App → Legal → Pacto |
 
 ---
 
@@ -152,8 +165,16 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 | Live prueba 5 min Free | ✅ `liveCallQuota.ts` + `livekit.ts` |
 | Live 30 min/mes Premium | ✅ |
 | Hub solo Premium | ✅ `createExpedition` + rutas UI |
-| Hub cuota 1/3 | ✅ `expeditionQuota.ts` |
+| Hub cuota 1/3 | ✅ `expeditionQuota.ts` — `isTripPassPlan` usa `premiumPlan === 'trip_pass'` |
 | Revisión 1 incluida | ✅ `createExpedition` + `ExpeditionResultPage` |
+| Pacto primera sesión | ✅ `PactGate` + `pactAccepted` |
+| Guest retención 30d | ✅ `scheduledGuestCleanup` + `lastActiveAt` |
+| Settings hub T22 | ✅ `useSettingsAccess` + `/settings/app` · `/settings/profile` |
+| Manuales producto | ✅ bitácora · monitor · planificador |
+| Packing checklist destino | ✅ `DestinationPacking` + `packingChecklist.ts` |
+| ESG badge + PDF expedición | ✅ `directCommunity` + `enrichItineraryRefugioEsg` |
+| Bitácora conflict hint grupo | ✅ `TripConflictHint` |
+| Backfill lazy `memberIds` | ✅ `tripMemberBackfill.ts` |
 | PDFs Premium (todos) | ✅ `pdf.ts` |
 | Bitácora grupal Premium | ✅ `CreateTrip` + rules |
 | Guest hackathon Premium | ✅ temporal |

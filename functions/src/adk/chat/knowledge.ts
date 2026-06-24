@@ -7,6 +7,7 @@ import {
     DESTINATION_SEARCH_FIELDS,
 } from '../../lib/localizeCatalog';
 import { matchesLocalizedSearch, type AppLanguage } from '../../lib/localizedContent';
+import { enrichDirectCommunityFields } from '../../lib/directCommunity';
 
 export interface CatalogScope {
     departmentId: string;
@@ -81,7 +82,8 @@ export async function getDestinationsKnowledge(
 
     let rows = snap.docs.map((doc) => {
         const raw = mapDestinationForAgent(doc.id, doc.data() as Record<string, unknown>);
-        return localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+        const localized = localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+        return enrichDirectCommunityFields(localized, 'destination');
     });
 
     if (opts?.searchQuery?.trim()) {
@@ -112,7 +114,8 @@ export async function getDestinationsByIds(
         .filter((s) => s.exists)
         .map((s) => {
             const raw = mapDestinationForAgent(s.id, s.data() as Record<string, unknown>);
-            return localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+            const localized = localizeRow('destinations', stripHeavyMediaFields(raw), lang);
+            return enrichDirectCommunityFields(localized, 'destination');
         });
 }
 
@@ -135,7 +138,8 @@ export async function getRefugiosKnowledge(
 
     let rows: Array<Record<string, unknown>> = snap.docs.map((doc) => {
         const raw = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
-        return localizeRow('refugios', stripHeavyMediaFields(raw), lang);
+        const localized = localizeRow('refugios', stripHeavyMediaFields(raw), lang);
+        return enrichDirectCommunityFields(localized, 'refugio');
     });
     rows = rows.filter((r) => r.status === 'Activo' || r.status === true);
 

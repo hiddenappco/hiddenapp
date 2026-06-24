@@ -1,9 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-
-// Layout & Infrastructure
 import { Layout } from './Layout';
 import { ProtectedRoute } from './ProtectedRoute';
+import { PactGate } from './PactGate';
 import { PageTransition } from './PageTransition';
 
 // Types
@@ -20,6 +19,8 @@ import { TermsOfUse } from '../TermsOfUse';
 import { Home } from '../Home';
 import { Budget } from '../Budget';
 import { SignalLostFallback } from '../SignalLostFallback';
+import { PactDeclined } from '../PactDeclined';
+import { useTranslation } from '../../hooks/useTranslation';
 
 // Lazy-loaded screens (code-split chunks)
 import {
@@ -47,6 +48,11 @@ import {
     Notifications,
     NotificationSettings,
     ProfileSettings,
+    SettingsHub,
+    AppSettings,
+    SettingsPremium,
+    RoleSettingsPanel,
+    Faq,
     HiddenPact,
     EnvironmentalMonitor,
     AgentSelector,
@@ -85,7 +91,9 @@ interface AppRoutesProps {
     serverReachable: boolean;
     tripPendingCount?: number;
     tripSyncing?: boolean;
+    tripReconcileHint?: boolean;
     displayName?: string;
+    profileLoading?: boolean;
 }
 
 interface OfflineGuardianProps {
@@ -150,10 +158,20 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
     serverReachable,
     tripPendingCount = 0,
     tripSyncing = false,
+    tripReconcileHint = false,
     displayName = '',
+    profileLoading = false,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t } = useTranslation();
+    const [pactDeclined, setPactDeclined] = React.useState(false);
+
+    React.useEffect(() => {
+        if (userProfile?.pactAccepted === true) {
+            setPactDeclined(false);
+        }
+    }, [userProfile?.pactAccepted]);
 
     const commonProps = {
         language: currentLanguage || Language.Spanish,
@@ -221,20 +239,31 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     </PageTransition>
                 } />
 
+                <Route path="/faq" element={
+                    <PageTransition>
+                        <Faq onBack={() => navigate(-1)} />
+                    </PageTransition>
+                } />
+
                 {/* --- Private Routes (Wrapped in Layout + ProtectedRoute) --- */}
                 <Route element={
                     <ProtectedRoute isLoggedIn={!!user}>
-                        <Layout
-                            language={currentLanguage!}
-                            isMenuOpen={menuOpen}
-                            onMenuClose={() => setMenuOpen(false)}
-                            onLogout={handleLogout}
-                            onMenuOpen={() => setMenuOpen(true)}
-                            onNavigate={(path) => {
-                                setMenuOpen(false);
-                                navigate(path);
-                            }}
-                        />
+                        <PactGate
+                            pactAccepted={userProfile?.pactAccepted}
+                            profileLoaded={!user || !profileLoading}
+                        >
+                            <Layout
+                                language={currentLanguage!}
+                                isMenuOpen={menuOpen}
+                                onMenuClose={() => setMenuOpen(false)}
+                                onLogout={handleLogout}
+                                onMenuOpen={() => setMenuOpen(true)}
+                                onNavigate={(path) => {
+                                    setMenuOpen(false);
+                                    navigate(path);
+                                }}
+                            />
+                        </PactGate>
                     </ProtectedRoute>
                 }>
                     <Route path="/home" element={
@@ -374,7 +403,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                 onSavedRefugiosClick={() => navigate('/saved/refugios')}
                                 onNotificationsClick={() => navigate('/notifications')}
                                 onSupportClick={() => navigate('/support')}
-                                onSettingsClick={() => navigate('/settings/profile')}
+                                onSettingsClick={() => navigate('/settings')}
                                 onPremiumClick={() => navigate('/premium')}
                             />
                         </PageTransition>
@@ -428,6 +457,24 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                         </OfflineGuardian>
                     } />
 
+                    <Route path="/settings" element={
+                        <PageTransition>
+                            <SettingsHub
+                                {...commonProps}
+                                onBack={() => navigate('/profile')}
+                            />
+                        </PageTransition>
+                    } />
+
+                    <Route path="/settings/app" element={
+                        <PageTransition>
+                            <AppSettings
+                                {...commonProps}
+                                onBack={() => navigate('/settings')}
+                            />
+                        </PageTransition>
+                    } />
+
                     <Route path="/settings/notifications" element={
                         <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
                             <PageTransition>
@@ -440,8 +487,47 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                         <PageTransition>
                             <ProfileSettings
                                 {...commonProps}
-                                onBack={() => navigate('/profile')}
+                                onBack={() => navigate('/settings')}
                                 onLogout={handleLogout}
+                            />
+                        </PageTransition>
+                    } />
+
+                    <Route path="/settings/premium" element={
+                        <PageTransition>
+                            <SettingsPremium
+                                {...commonProps}
+                                onBack={() => navigate('/settings')}
+                            />
+                        </PageTransition>
+                    } />
+
+                    <Route path="/settings/guardian" element={
+                        <PageTransition>
+                            <RoleSettingsPanel
+                                {...commonProps}
+                                role="guardian"
+                                onBack={() => navigate('/settings')}
+                            />
+                        </PageTransition>
+                    } />
+
+                    <Route path="/settings/commercial" element={
+                        <PageTransition>
+                            <RoleSettingsPanel
+                                {...commonProps}
+                                role="commercial"
+                                onBack={() => navigate('/settings')}
+                            />
+                        </PageTransition>
+                    } />
+
+                    <Route path="/settings/admin" element={
+                        <PageTransition>
+                            <RoleSettingsPanel
+                                {...commonProps}
+                                role="admin"
+                                onBack={() => navigate('/settings')}
                             />
                         </PageTransition>
                     } />
@@ -471,6 +557,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     pastTripCount={pastTrips?.length ?? 0}
                                     pendingCount={tripPendingCount}
                                     syncing={tripSyncing}
+                                    reconcileHint={tripReconcileHint}
                                 />
                             </PageTransition>
                         ) : (
@@ -588,21 +675,35 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     } />
 
                     <Route path="/pact" element={
+                        profileLoading ? (
+                            <div className="h-screen w-full bg-[#0c1f17] text-content flex items-center justify-center font-display font-medium">
+                                {t('common.loading')}
+                            </div>
+                        ) : userProfile?.pactAccepted === true ? (
+                            <Navigate to="/home" replace />
+                        ) : (
                         <PageTransition>
-                            <HiddenPact
-                                {...commonProps}
-                                isAccepted={userProfile?.pactAccepted}
-                                onMenuClick={() => setMenuOpen(true)}
-                                onAccept={async () => {
-                                    if (user) {
-                                        await updateUserProfile(user.uid, { pactAccepted: true });
-                                        setTimeout(() => navigate('/home'), 800);
-                                    } else {
-                                        navigate('/home');
-                                    }
-                                }}
-                            />
+                            {pactDeclined ? (
+                                <PactDeclined onLogout={handleLogout} />
+                            ) : (
+                                <HiddenPact
+                                    {...commonProps}
+                                    isAccepted={userProfile?.pactAccepted}
+                                    gateMode={userProfile?.pactAccepted !== true}
+                                    onMenuClick={() => setMenuOpen(true)}
+                                    onDecline={() => setPactDeclined(true)}
+                                    onAccept={async () => {
+                                        if (user) {
+                                            await updateUserProfile(user.uid, { pactAccepted: true });
+                                            const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+                                            const target = from && from !== '/pact' ? from : '/home';
+                                            setTimeout(() => navigate(target, { replace: true }), 400);
+                                        }
+                                    }}
+                                />
+                            )}
                         </PageTransition>
+                        )
                     } />
 
                     <Route path="/saved" element={

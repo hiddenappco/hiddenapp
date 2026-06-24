@@ -18,6 +18,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onBa
   const currentPrefs = profile?.notificationPrefs || {
     ferias: true,
     paraisos: true,
+    refugios: true,
     cupones: false,
     seguridad: true,
     vias: true,
@@ -112,6 +113,29 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onBa
             <div className="shrink-0 pointer-events-none">
               <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${currentPrefs.paraisos ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}>
                 <div className={`absolute top-[2px] left-[2px] bg-white w-5 h-5 rounded-full shadow-sm transition-transform duration-200 ease-in-out ${currentPrefs.paraisos ? 'translate-x-full' : 'translate-x-0'}`}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Item: Refugios */}
+          <div
+            onClick={() => handleToggle('refugios')}
+            className="flex items-center gap-4 px-4 py-3 justify-between hover:bg-gray-50 dark:hover:bg-overlay/5 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-4 flex-1">
+              <div className="flex items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-primary shrink-0 size-12 shadow-sm">
+                <span className="material-symbols-outlined">home_work</span>
+              </div>
+              <div className="flex flex-col justify-center pr-2">
+                <p className="text-secondary dark:text-content text-base font-semibold leading-tight mb-1">{t('notifications.refugiosTitle')}</p>
+                <p className="text-content-subtle dark:text-content-muted text-sm font-normal leading-snug line-clamp-2">
+                  {t('notifications.refugiosDesc')}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 pointer-events-none">
+              <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${(currentPrefs.refugios ?? true) ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                <div className={`absolute top-[2px] left-[2px] bg-white w-5 h-5 rounded-full shadow-sm transition-transform duration-200 ease-out ${(currentPrefs.refugios ?? true) ? 'translate-x-full' : 'translate-x-0'}`}></div>
               </div>
             </div>
           </div>

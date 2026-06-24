@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -20,9 +20,13 @@ import { DepartmentListSkeleton } from '../ui/ContentSkeleton';
 
 import { ExpeditionPreviousPlans } from './ExpeditionPreviousPlans';
 
+import { ExpeditionPlannerManual } from './ExpeditionPlannerManual';
+
 import { FeatureCoachmark } from '../ui/FeatureCoachmark';
 
 import { useFeatureTooltip } from '../../hooks/useFeatureTooltip';
+
+import { useHardwareBackHandler } from '../../hooks/useHardwareBackHandler';
 
 import { computeExpeditionQuotaDisplay } from '../../utils/premiumAccess';
 
@@ -49,6 +53,8 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
     const { t } = useTranslation();
 
     const hubCoachmark = useFeatureTooltip('hub');
+
+    const [showManual, setShowManual] = useState(false);
 
     const navigate = useNavigate();
 
@@ -148,6 +154,30 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
 
 
 
+    useHardwareBackHandler(() => {
+
+        if (showManual) {
+
+            setShowManual(false);
+
+            return true;
+
+        }
+
+        return false;
+
+    }, [showManual]);
+
+
+
+    if (showManual) {
+
+        return <ExpeditionPlannerManual onBack={() => setShowManual(false)} />;
+
+    }
+
+
+
     return (
 
         <div className="flex flex-col h-screen bg-background-dark text-content overflow-hidden">
@@ -201,6 +231,45 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
                         className="mb-4"
                     />
                 )}
+
+                <section
+                    onClick={() => setShowManual(true)}
+                    className="relative overflow-hidden rounded-[20px] bg-surface-dark dark:bg-gradient-to-r dark:from-[#121d2b] dark:to-[#0a1525] p-3 px-4 border border-overlay/10 hover:border-primary/30 shadow-md dark:shadow-black/20 transition-all duration-300 group cursor-pointer mb-4"
+                >
+                    <div
+                        className="absolute inset-0 opacity-[0.02] pointer-events-none"
+                        style={{
+                            backgroundImage: 'radial-gradient(circle, rgba(249,115,22,0.5) 1px, transparent 1px)',
+                            backgroundSize: '16px 16px',
+                        }}
+                    />
+                    <div className="flex items-center justify-between gap-3 relative z-10">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="size-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/40 transition-all duration-300">
+                                <span className="material-symbols-outlined text-primary text-lg group-hover:scale-110 transition-transform duration-300">
+                                    menu_book
+                                </span>
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-xs sm:text-sm font-black text-content group-hover:text-primary transition-colors duration-300 flex items-center gap-2 truncate">
+                                    {t('expedition.manualTitle')}
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider shrink-0">
+                                        {t('expedition.guide')}
+                                    </span>
+                                </h3>
+                                <p className="text-[10px] text-content/50 hidden sm:block mt-0.5 line-clamp-2">
+                                    {t('expedition.manualDesc')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5 group-hover:bg-primary group-hover:text-white group-hover:border-primary/40 transition-all duration-300 shrink-0">
+                            <span>{t('expedition.read')}</span>
+                            <span className="material-symbols-outlined text-[10px] group-hover:translate-x-0.5 transition-transform duration-300">
+                                arrow_forward
+                            </span>
+                        </div>
+                    </div>
+                </section>
 
                 {isPremium && quota.limit > 0 && (
 

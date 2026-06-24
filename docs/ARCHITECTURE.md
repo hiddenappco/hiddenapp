@@ -243,8 +243,55 @@ Ranking: exact match → prefix → word prefix → substring; all query tokens 
 |------|----------|
 | UI | `GuestAccountUpgrade` in `ProfileSettings` (ES/EN) |
 | Firestore | `users.isGuest: false`; email/displayName updated |
+| Retention | `scheduledGuestCleanup` (daily 05:00 America/Bogota) deletes anonymous guests with `isGuest === true` and ≥30 days without activity (`lastActiveAt` + `lastSignInTime`); upgraded accounts have `providerData.length > 0` → never deleted |
 | Hackathon | `GUEST_HACKATHON_PREMIUM = true` in `utils/guestAccess.ts` keeps `isPremium` after upgrade |
-| Post-hackathon | Set flag `false` so upgraded guests become Free tier |
+| Post-hackathon (1 Jul) | Set flag `false` so guests and upgraded accounts become Free tier |
+
+### Hidden Pact (onboarding gate)
+
+First session for every authenticated user (guest or registered) must accept the **Hidden Pact** before accessing the app shell.
+
+| Piece | Path / behavior |
+|-------|-----------------|
+| Gate | `components/layout/PactGate.tsx` — wraps private `Layout` routes; blocks until `users.pactAccepted === true` |
+| Route | `/pact` — `HiddenPact` with `gateMode`; decline → `PactDeclined` (logout only) |
+| Persist | `updateUserProfile(uid, { pactAccepted: true })` on accept |
+| Reload fix | `useUserProfile` resets `loading` when `userId` appears; spinner while profile loads (avoids false redirect on refresh) |
+| Re-read | Settings → App → Legal → Pact (non-gate mode) |
+
+New guests: `GUEST_USER_PROFILE_FIELDS` sets `pactAccepted: false` (not auto-accepted).
+
+### Settings hub (T22)
+
+| Route | Content |
+|-------|---------|
+| `/settings` | Hub with conditional rows (`useSettingsAccess` by `userType` / guest) |
+| `/settings/app` | Theme, language, coach-mark reset, pack-language alert, legal links (`/terms`, `/privacy`, `/faq`, `/pact`) |
+| `/settings/profile` | Account only — photo, bio, location, guest upgrade, session |
+| `/settings/notifications` | Exploration + system toggles (incl. `refugios`) |
+| Firestore | `users.appPrefs` via `updateAppPrefs` (theme, language) |
+
+### Product manuals (in-screen)
+
+Bóveda-style internal views — no extra public routes:
+
+| Manual | Entry | i18n namespace |
+|--------|-------|----------------|
+| Bitácora | `/budget` → Manual | `budget.manual.*` |
+| Monitor | Environmental monitor card | `environmental.manual.*` |
+| Planificador | `/expedition/plan` + wizard header | `expedition.manual.*` |
+
+Copy oriented to end users (how to use), not backend jargon (Jun 2026).
+
+### Destination detail (Jun 22–24)
+
+| Feature | Implementation |
+|---------|----------------|
+| **Access times** | `utils/planningNotesAccess.ts` parses `TIEMPOS DE ACCESO` / `ACCESS TIMES` in `planningNotes`; `DestinationAccessTimes` chips |
+| **Packing checklist** | `DestinationPacking` — interactive toggles; `utils/packingChecklist.ts` (`localStorage` per `destinationId`, index-stable keys) |
+| **ESG badge** | `DirectCommunityBadge` when `porcentaje_anfitrion` / `hostSharePercent` documented (`utils/directCommunity.ts`) |
+
+`planningNotes` included in offline SQLite packs (`functions/src/api/packs.ts`).
 
 ---
 
@@ -419,6 +466,8 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 | **Group splits** | `paidByMemberId`, `splitAmong[]`; balance math in `utils/tripBalances.ts`; `TripBalances` panel + settlements in bilingual PDF (`functions/src/pdf/tripTemplate.ts`) |
 | **Group activity** | Subcollection `trips/{tripId}/activity` (create-only, immutable); kinds `expense_added`, `expense_deleted`, `member_joined`; UI `TripActivityFeed` on active group trips |
 | **Offline** | `tripLedgerStore` mirrors active trip + expenses + activity in IndexedDB; completed-trip history (up to 10); outbox (`add_expense`, `delete_expense`, `create_trip`, `finish_trip`); `useTripSync` flushes on reconnect; `TripSyncBanner` pending count |
+| **Offline conflict UI** | `TripConflictHint` on **group** trips when offline, outbox pending, or post-reconcile (`reconcileHint` from `useTripSync`); dismiss per session |
+| **Legacy backfill** | `services/tripMemberBackfill.ts` — lazy patch `memberIds` + `editorIds` on trip load; HTTP `verifyTripMemberBackfill` for admin batches |
 | **Offline activity** | Optimistic activity entries + outbox actor payload; dedup on sync by `kind:expenseId` |
 | **Join by code** | `joinTripByCode` reads trip data from `QuerySnapshot.docs[0]`, not the snapshot itself |
 | **Offline routes** | `/budget`, `/create-trip`, `/current-trip`, `/trips/converter`, `/trip-history/:id` work without `OfflineGuardian`; group join (`/trips/join`) requires network |
@@ -428,7 +477,7 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 **Hooks:** `useTrips` (`useTripActivity`, `logTripActivity`), `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
-**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **dropped** · ~~offline mirror of completed trip history~~ **done (Jun 2026)** · conflict UI for concurrent offline edits.
+**Not in v2 (explicit):** ~~expedition → trip save (T28-A7)~~ **dropped** · ~~offline mirror of completed trip history~~ **done (Jun 2026)** · ~~conflict UI for concurrent offline edits~~ **done (Jun 2026)** · ~~lazy `memberIds` backfill~~ **done (Jun 2026)**.
 
 ### Premium membership (pricing Jun 2026)
 
@@ -454,9 +503,23 @@ B2B billed direct (web/transfer). Rationale: ~one guest-night revenue in Colombi
 
 **UX (Jun 2026):** `HelpTooltip` on account types, compare table, and plan cards (`P0-PREMIUM-TOOLTIPS`) — portal + viewport clamp (Jun 20). `users.isPremium` in Firestore remains source of truth until store billing ships.
 
+**Plans & expiry (Jun 2026):** `users.premiumPlan` — `trip_pass` | `monthly` | `annual` | `lifetime`. Empty `premiumExpiresAt` = no expiry (lifetime). Duration auto-filled by `onUserPremiumSync` only for timed plans. **`isTripPassPlan`** checks `premiumPlan === 'trip_pass'` (not merely presence of expiry) so monthly/annual get hub quota **3/month**, not pase **1**. Guests excluded from premium sync triggers until post-hackathon.
+
 **Profile (Jun 2026):** `ProfileUserIdBadge` — copyable Firebase UID above identity block (support, group trips, hackathon demos).
 
----
+### Push notifications & scheduled jobs
+
+| Function | Schedule / trigger | Purpose |
+|----------|-------------------|---------|
+| `onNewDestination` | `destinations/{id}` update | Paraísos exploration alerts |
+| `onNewRefugio` | `refugios/{id}` update | Refugio alerts (`prefKey: refugios`) |
+| `onNewCoupon` / `onNewEvent` / `onNewNews` | entity updates | Promo / ferias / noticias |
+| `scheduledEnvironmentalMonitor` | cron | Shield push alerts |
+| `scheduledExchangeRates` | cron | TRM cache |
+| `scheduledPremiumExpiry` | hourly | Deactivate expired `isPremium` |
+| `scheduledGuestCleanup` | daily 05:00 Bogotá | Delete inactive anonymous guests ≥30d |
+
+Prefs: `users.notificationPrefs[prefKey] !== false` → default ON for legacy users without the key.
 
 ## ADK code layout
 

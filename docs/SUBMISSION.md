@@ -77,16 +77,24 @@ After the tag was created, the team continued shipping on `main`. Examples (not 
 | **Trip ledger (Bitácora v2)** | Solo/group trips, TRM rates, offline outbox, group splits, **activity feed**, bilingual trip PDF |
 | **Catalog search** | Relevance-ranked picker search across Monitor, Destinations, Refugios, Coupons, News |
 | **Guest upgrade** | Link anonymous guest to Google/email without UID change (`ProfileSettings`) |
+| **Pact gate & settings** | Mandatory first-session Hidden Pact; settings hub split (`/settings/app` · `/settings/profile`); legal/FAQ v4.0 |
+| **Product manuals** | In-screen guides for ledger, environmental monitor, expedition planner (ES/EN) |
+| **Destination UX** | Access-time chips from `planningNotes`; interactive packing checklist (`localStorage`) |
+| **ESG transparency** | Direct-to-host badge + expedition PDF impact block when Rowy documents host share % |
+| **Notifications** | `onNewRefugio` push/in-app; guest retention cron (`scheduledGuestCleanup`, 30-day TTL) |
+| **Bitácora hardening** | Lazy `memberIds` backfill; group offline conflict hint; premium `premiumPlan` quota fix |
 | **Thumb navigation** | Glass `BottomNav` on five hub routes, safe-area tokens, Android back behavior |
 | **UX / QA** | `docs/UI_FIELD_CONSTRAINTS.md`, connectivity copy, vault data transparency |
 | **Premium** | `docs/PREMIUM_ENTITLEMENTS.md`, `docs/UNIT_ECONOMICS_EN.md` (public business model for judges) |
 | **Hardening (Jun 18)** | Premium quotas server-side, expedition revisions, trip history cap, lazy routes, i18n EN parity |
 | **Product sprint (Jun 18–20)** | Premium page USD + tooltips; coach marks; bitácora historial offline; Gemma MediaPipe; Ranger ∞ Premium; group activity feed; catalog search ranking; guest account upgrade; deploy full stack |
+| **Product sprint (Jun 22–24)** | Pact gate + `PactDeclined`; settings hub T22; legal/FAQ v4.0; product manuals (ledger/monitor/planner); `onNewRefugio`; destination access times + packing checklist; ESG badge + expedition PDF; `scheduledGuestCleanup`; trip backfill + conflict UI; audit fixes (guest cron, `isTripPassPlan`, hooks order, pact reload race) |
 
 ### Changelog (post-tag, `main`)
 
 | Date | Commit | Summary |
 |------|--------|---------|
+| 2026-06-22–24 | *(pending on `main`)* | **Session sprint:** Pact onboarding gate (`PactGate`, `pactAccepted`); settings hub + `appPrefs`; legal/FAQ v4.0 (`/faq`); in-screen manuals; refugio notifications; access times + interactive packing; ESG UI/PDF; guest 30-day cron; `memberIds` lazy backfill; `TripConflictHint`; premium plan quota (`premiumPlan`); production bugfixes. See [`docs/SESION_TRABAJO.md`](./SESION_TRABAJO.md). |
 | 2026-06-20 | [`2005487`](https://github.com/hiddenappco/hiddenapp/commit/2005487) | **Afternoon sprint:** group trip activity feed (`trips/{id}/activity`, `TripActivityFeed`, offline mirror). Ranked catalog search (`rankLocalizedSearch`). Guest account upgrade without UID change. Copyable profile UID. Department briefing “Plan here” CTA (2-tap planner). B2B unit economics (`UNIT_ECONOMICS_ES` internal). Premium UX; Firestore `member_joined` rules. Deploy hosting + rules. |
 | 2026-06-20 | [`8d92e7d`](https://github.com/hiddenappco/hiddenapp/commit/8d92e7d) | **Morning sprint:** MediaPipe Gemma on-device inference, offline completed-trip mirror, Premium page USD + tooltips, coach marks, Ranger unlimited for Premium, expedition “Previous plans”, destination PDF enrichment, production deploy. |
 | 2026-06-18 | [`6be25ec`…`main`](https://github.com/hiddenappco/hiddenapp/compare/6be25ec...main) | **Pre-judging hardening:** Premium gates & quotas (Live trial 5 min, expedition hub 1/3, Ranger 5/10 daily) enforced in Cloud Functions + Firestore rules; expedition revision pipeline with included revision + quota consume; fix cascading free revisions; trip history capped at 10; PDF/LiveKit premium checks; lazy-loaded routes + Suspense; EN locale parity; public `UNIT_ECONOMICS_EN.md`; sensitive financial docs gitignored |

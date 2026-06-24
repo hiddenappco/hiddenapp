@@ -10,6 +10,7 @@ export {
     onNewNews,
     onNewCoupon,
     onNewEvent,
+    onNewRefugio,
     supportTicketReply
 } from './api/notifications';
 
@@ -48,3 +49,12 @@ export {
     onDepartmentWritePack,
     onProtocolWritePack
 } from './api/packs';
+
+export {
+    onUserPremiumSync,
+    scheduledPremiumExpiry,
+} from './api/premiumSync';
+
+export { verifyTripMemberBackfill } from './api/tripBackfill';
+
+export { scheduledGuestCleanup } from './api/guestCleanup';

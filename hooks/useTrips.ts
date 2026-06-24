@@ -43,9 +43,16 @@ import {
     cacheActivityMirror,
     getActivityMirror,
 } from '../services/tripLedgerStore';
+import { backfillTripMemberIds } from '../services/tripMemberBackfill';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
+
+function maybeBackfillTrip(tripId: string, data: Record<string, unknown>) {
+    void backfillTripMemberIds(tripId, data).catch((err) => {
+        console.warn('[trips] memberIds backfill skipped:', tripId, err);
+    });
+}
 
 const DEFAULT_IMAGE =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuBNhvg_gE0mA_8071n4_D0bdAERxgfIypflcDK22qUDNPyIT3eSxfl8s8feTtPIT3Dm7OZGcWr-dsgr8J35rvqO4W_hJdZkkKT8LTjjF-YC2u17XFEx3FuSPYoeVie9qCOxcXEKpN47z1g6DoW5ziJTFklUwipxT5ZHKR8RP591mT-J6SoUWbQi9vbURUu4aP9GvSbwY8Rz4Q4ezI9A9qVFQDfAeeAWrgqh2xyVq98uYHNG2ZfV_7rq_wWQYFkZ56Qs8zm4sbY_9hrw';
@@ -300,7 +307,9 @@ export const useActiveTrip = (userId: string | undefined, isOnline = true) => {
             (snapshot) => {
                 if (!snapshot.empty) {
                     const docSnap = snapshot.docs[0];
-                    memberTrip = { id: docSnap.id, ...docSnap.data(), expenses: [] } as Trip;
+                    const data = docSnap.data();
+                    maybeBackfillTrip(docSnap.id, data);
+                    memberTrip = { id: docSnap.id, ...data, expenses: [] } as Trip;
                 } else {
                     memberTrip = null;
                 }
@@ -318,7 +327,9 @@ export const useActiveTrip = (userId: string | undefined, isOnline = true) => {
             (snapshot) => {
                 if (!snapshot.empty) {
                     const docSnap = snapshot.docs[0];
-                    legacyTrip = { id: docSnap.id, ...docSnap.data(), expenses: [] } as Trip;
+                    const data = docSnap.data();
+                    maybeBackfillTrip(docSnap.id, data);
+                    legacyTrip = { id: docSnap.id, ...data, expenses: [] } as Trip;
                 } else {
                     legacyTrip = null;
                 }
@@ -362,7 +373,9 @@ export const useTrip = (tripId: string | undefined, isOnline = true) => {
             tripRef,
             (docSnap) => {
                 if (docSnap.exists()) {
-                    const next = { id: docSnap.id, ...docSnap.data() } as Trip;
+                    const data = docSnap.data();
+                    maybeBackfillTrip(docSnap.id, data);
+                    const next = { id: docSnap.id, ...data } as Trip;
                     setTrip(next);
                     void cacheTripMirror(next);
                 } else {
@@ -736,10 +749,14 @@ export const usePastTrips = (userId: string | undefined, isOnline = true) => {
         const unsubMember = onSnapshot(
             memberQ,
             (snapshot) => {
-                memberTrips = snapshot.docs.map((d) => ({
-                    ...(d.data() as Omit<Trip, 'id'>),
-                    id: d.id,
-                }));
+                memberTrips = snapshot.docs.map((d) => {
+                    const data = d.data();
+                    maybeBackfillTrip(d.id, data);
+                    return {
+                        ...(data as Omit<Trip, 'id'>),
+                        id: d.id,
+                    };
+                });
                 void applyMerged('remote');
             },
             (err) => {
@@ -751,10 +768,14 @@ export const usePastTrips = (userId: string | undefined, isOnline = true) => {
         const unsubLegacy = onSnapshot(
             legacyQ,
             (snapshot) => {
-                legacyTrips = snapshot.docs.map((d) => ({
-                    ...(d.data() as Omit<Trip, 'id'>),
-                    id: d.id,
-                }));
+                legacyTrips = snapshot.docs.map((d) => {
+                    const data = d.data();
+                    maybeBackfillTrip(d.id, data);
+                    return {
+                        ...(data as Omit<Trip, 'id'>),
+                        id: d.id,
+                    };
+                });
                 void applyMerged('remote');
             },
             (err) => {

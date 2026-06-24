@@ -248,7 +248,8 @@ export const GUEST_USER_PROFILE_FIELDS = {
     userType: DEFAULT_USER_TYPE,
     isPremium: true,
     isGuest: true,
-    pactAccepted: true,
+    pactAccepted: false,
+    /** Sin `premiumExpiresAt` → Premium sin caducidad hasta post-hackathon (jul 2026). */
 } as const;
 
 export function isGuestProfile(profile: Partial<UserProfile> | null | undefined): boolean {

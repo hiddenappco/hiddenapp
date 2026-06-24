@@ -158,13 +158,21 @@ export const useUserProfile = (userId: string | undefined) => {
             return;
         }
 
+        // Auth can resolve after an initial render with no user; without this reset
+        // `loading` stays false and PactGate treats pactAccepted as pending.
+        setLoading(true);
+
         const userRef = doc(db, 'users', userId);
         const unsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
                 const raw = docSnap.data() as Record<string, unknown>;
+                const pactRaw = raw.pactAccepted;
+                const pactAccepted =
+                    pactRaw === true || pactRaw === 'true' || pactRaw === 1;
                 setData({
                     uid: docSnap.id,
                     ...raw,
+                    pactAccepted,
                     userType: raw.userType ?? raw.UserType ?? raw.user_type,
                     isPremium: normalizeIsPremium(extractRawIsPremium(raw), raw.role),
                 } as UserProfile);

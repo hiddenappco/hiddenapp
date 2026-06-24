@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { formatCop } from '../../utils/currency';
+import { computeDirectCommunityFromPricingGuide } from '../../utils/directCommunity';
+import { DirectCommunityBadge } from '../ui/DirectCommunityBadge';
 
 const isLodgingCategory = (categoria: string) => {
     const c = (categoria || '').toLowerCase();
@@ -15,6 +17,11 @@ export const DestinationPricing: React.FC<PricingGuideProps> = ({
     pricingGuide,
 }) => {
     const { t } = useTranslation();
+
+    const directCommunity = useMemo(
+        () => computeDirectCommunityFromPricingGuide(pricingGuide),
+        [pricingGuide]
+    );
 
     if (!pricingGuide || pricingGuide.length === 0) return null;
 
@@ -33,6 +40,10 @@ export const DestinationPricing: React.FC<PricingGuideProps> = ({
             <p className="text-content-muted text-xs mb-4">
                 {t('destination.pricingNote')}
             </p>
+
+            {directCommunity && (
+                <DirectCommunityBadge amount={directCommunity} className="mb-4" />
+            )}
 
             <div className="space-y-3">
                 {pricingGuide.map((priceItem, idx) => (

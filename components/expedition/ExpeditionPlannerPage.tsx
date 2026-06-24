@@ -6,6 +6,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { resolveEffectiveDepartmentId } from '../../utils/departmentIds';
 import { createExpedition } from '../../hooks/useCreateExpedition';
 import { ExpeditionWizard } from './ExpeditionWizard';
+import { ExpeditionPlannerManual } from './ExpeditionPlannerManual';
 import { translateExpeditionError } from '../../utils/expeditionErrors';
 import { isExpeditionPlannerLocked } from '../../utils/expeditionPlanner';
 import { useRevenueCat } from '../layout/RevenueCatProvider';
@@ -14,6 +15,7 @@ import { computeExpeditionQuotaDisplay } from '../../utils/premiumAccess';
 import { useUserProfile } from '../../hooks/useSocial';
 import { useAuth } from '../layout/AuthProvider';
 import { EXPEDITION_HISTORY_LIMIT } from '../../config/constants';
+import { useHardwareBackHandler } from '../../hooks/useHardwareBackHandler';
 
 interface ExpeditionPlannerPageProps {
     language: Language;
@@ -34,7 +36,20 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
         ? resolveEffectiveDepartmentId(departmentId, department)
         : departmentId || '';
     const [submitting, setSubmitting] = useState(false);
+    const [showManual, setShowManual] = useState(false);
     const [error, setError] = useState('');
+
+    useHardwareBackHandler(() => {
+        if (showManual) {
+            setShowManual(false);
+            return true;
+        }
+        return false;
+    }, [showManual]);
+
+    if (showManual) {
+        return <ExpeditionPlannerManual onBack={() => setShowManual(false)} />;
+    }
 
     if (!profileLoading && !isPremium) {
         return <ExpeditionPremiumGate onBack={onBack} />;
@@ -123,7 +138,14 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
                     </p>
                     <h1 className="font-bold text-base truncate">{department?.name || departmentId}</h1>
                 </div>
-                <span className="material-symbols-outlined text-primary text-[28px]">explore</span>
+                <button
+                    type="button"
+                    onClick={() => setShowManual(true)}
+                    className="size-10 rounded-full bg-overlay/10 flex items-center justify-center shrink-0"
+                    aria-label={t('expedition.manualTitle')}
+                >
+                    <span className="material-symbols-outlined text-primary text-[22px]">menu_book</span>
+                </button>
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-5 no-scrollbar flex flex-col">

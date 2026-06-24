@@ -123,7 +123,14 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       packingGuide TEXT,
       packingGuide_en TEXT,
       packingSummary TEXT,
-      packingSummary_en TEXT
+      packingSummary_en TEXT,
+      planningNotes TEXT,
+      planningNotes_en TEXT,
+      suggestedDaysMin INTEGER,
+      suggestedDaysMax INTEGER,
+      regionCluster TEXT,
+      recommendedMinDays INTEGER,
+      destinationType TEXT
     );
   `);
 
@@ -280,8 +287,8 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
 
   // Destinations
   const destStmt = sqliteDb.prepare(`
-    INSERT INTO destinations (id, title, title_en, location, location_en, description, description_en, hiking, temp, signal, isCoastal, aiTip, aiTip_en, activities, activities_en, gettingThere, gettingThere_en, pricingGuide, pricingGuide_en, packingGuide, packingGuide_en, packingSummary, packingSummary_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO destinations (id, title, title_en, location, location_en, description, description_en, hiking, temp, signal, isCoastal, aiTip, aiTip_en, activities, activities_en, gettingThere, gettingThere_en, pricingGuide, pricingGuide_en, packingGuide, packingGuide_en, packingSummary, packingSummary_en, planningNotes, planningNotes_en, suggestedDaysMin, suggestedDaysMax, regionCluster, recommendedMinDays, destinationType)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `);
   for (const item of destinations) {
     const stats = item.stats || {};
@@ -313,6 +320,13 @@ export async function buildPackForDepartment(departmentId: string): Promise<stri
       serializePackingField(item.packingGuide_en),
       String(item.packingSummary || ""),
       String(item.packingSummary_en || ""),
+      String(item.planningNotes || "").slice(0, 4000),
+      String(item.planningNotes_en || "").slice(0, 4000),
+      item.suggestedDaysMin ?? item.recommendedMinDays ?? null,
+      item.suggestedDaysMax ?? null,
+      String(item.regionCluster || ""),
+      item.recommendedMinDays ?? null,
+      String(item.destinationType || ""),
     ]);
   }
   destStmt.free();
@@ -552,6 +566,11 @@ const DESTINATION_PDF_INVALIDATION_KEYS = [
   "packingSummary_en",
   "planningNotes",
   "planningNotes_en",
+  "suggestedDaysMin",
+  "suggestedDaysMax",
+  "regionCluster",
+  "recommendedMinDays",
+  "destinationType",
   "heroImage",
   "image",
   "gallery",

@@ -4,10 +4,12 @@ import {
     EXPEDITION_PASS_QUOTA,
     TRIP_PASS_DURATION_MS,
 } from "./premiumLimits";
+import { getPremiumExpiryDate } from "./premiumDuration";
 
 export interface UserPremiumFields {
     isPremium?: boolean;
     isGuest?: boolean;
+    premiumPlan?: "trip_pass" | "monthly" | "annual" | "lifetime" | string;
     premiumExpiresAt?: Timestamp | { toDate?: () => Date };
 }
 
@@ -40,15 +42,19 @@ export function hasActivePremium(data: UserPremiumFields | null | undefined): bo
     if (isHackathonGuest(data)) return true;
     if (data.isPremium !== true) return false;
 
-    const expires = parseFirestoreDate(data.premiumExpiresAt);
+    const expires = getPremiumExpiryDate(data.premiumExpiresAt);
     if (expires && expires.getTime() < Date.now()) return false;
     return true;
 }
 
-/** Trip pass = Premium with a finite `premiumExpiresAt` window (~10 days). */
+/** Trip pass = the `trip_pass` plan (legacy: any finite `premiumExpiresAt` window ~10 days). */
 export function isTripPassPlan(data: UserPremiumFields | null | undefined): boolean {
     if (!hasActivePremium(data) || isHackathonGuest(data)) return false;
-    return Boolean(parseFirestoreDate(data?.premiumExpiresAt));
+    const plan = String(data?.premiumPlan || "").toLowerCase();
+    if (plan === "trip_pass") return true;
+    if (plan === "monthly" || plan === "annual" || plan === "lifetime") return false;
+    // Legacy docs without `premiumPlan`: infer a trip pass from a finite expiry window.
+    return Boolean(getPremiumExpiryDate(data?.premiumExpiresAt));
 }
 
 export function getExpeditionQuotaLimit(data: UserPremiumFields | null | undefined): number {

@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ResolvedPackingGuide } from '../../types/content';
 import { useTranslation } from '../../hooks/useTranslation';
+import {
+    packingItemKey,
+    readPackingChecked,
+    togglePackingItem,
+} from '../../utils/packingChecklist';
 
 interface DestinationPackingProps {
+    destinationId: string;
     packingGuide: ResolvedPackingGuide;
 }
 
@@ -50,14 +56,41 @@ function priorityLabel(prioridad: string, t: (key: string) => string): string {
     return t('destination.packing.priorityRecommended');
 }
 
-export const DestinationPacking: React.FC<DestinationPackingProps> = ({ packingGuide }) => {
+export const DestinationPacking: React.FC<DestinationPackingProps> = ({
+    destinationId,
+    packingGuide,
+}) => {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState<Record<number, boolean>>(() =>
         Object.fromEntries(packingGuide.categories.map((_, idx) => [idx, idx === 0]))
     );
+    const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() =>
+        readPackingChecked(destinationId)
+    );
+
+    const totalItems = useMemo(
+        () => packingGuide.categories.reduce((sum, cat) => sum + cat.items.length, 0),
+        [packingGuide.categories]
+    );
+    const checkedCount = useMemo(() => {
+        let count = 0;
+        packingGuide.categories.forEach((cat, catIdx) => {
+            cat.items.forEach((_item, itemIdx) => {
+                if (checkedKeys.has(packingItemKey(catIdx, itemIdx))) count += 1;
+            });
+        });
+        return count;
+    }, [packingGuide.categories, checkedKeys]);
 
     const toggleCategory = (idx: number) => {
         setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
+    };
+
+    const handleToggleItem = (catIdx: number, itemIdx: number) => {
+        const key = packingItemKey(catIdx, itemIdx);
+        const isChecked = checkedKeys.has(key);
+        const next = togglePackingItem(destinationId, key, !isChecked);
+        setCheckedKeys(new Set(next));
     };
 
     if (packingGuide.categories.length === 0 && !packingGuide.summary) return null;
@@ -67,7 +100,7 @@ export const DestinationPacking: React.FC<DestinationPackingProps> = ({ packingG
             <div className="bg-surface-dark border border-overlay/5 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <span className="material-symbols-outlined text-primary text-[24px] shrink-0">backpack</span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h3 className="font-bold text-xl text-content leading-tight">
                             {t('destination.packing.title')}
                         </h3>
@@ -75,7 +108,21 @@ export const DestinationPacking: React.FC<DestinationPackingProps> = ({ packingG
                             {t('destination.packing.subtitle')}
                         </p>
                     </div>
+                    {totalItems > 0 && (
+                        <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-bold border border-primary/30 shrink-0">
+                            {checkedCount} / {totalItems}
+                        </div>
+                    )}
                 </div>
+
+                {totalItems > 0 && (
+                    <div className="w-full bg-overlay/10 rounded-full h-1.5 mb-4 overflow-hidden">
+                        <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${(checkedCount / totalItems) * 100}%` }}
+                        />
+                    </div>
+                )}
 
                 {packingGuide.summary && (
                     <p className="text-content-secondary text-sm leading-relaxed mb-4 pb-4 border-b border-overlay/5">
@@ -117,21 +164,43 @@ export const DestinationPacking: React.FC<DestinationPackingProps> = ({ packingG
                                 </button>
 
                                 {isOpen && (
-                                    <div className="px-4 pb-3 flex flex-col gap-2">
+                                    <div className="px-3 pb-3 flex flex-col gap-2">
                                         {category.items.map((item, itemIdx) => {
                                             const styles = priorityStyles(item.prioridad);
+                                            const itemKey = packingItemKey(idx, itemIdx);
+                                            const isChecked = checkedKeys.has(itemKey);
                                             return (
-                                                <div
+                                                <button
                                                     key={`${item.nombre}-${itemIdx}`}
-                                                    className="rounded-lg bg-surface-dark/80 border border-overlay/5 px-3 py-2.5"
+                                                    type="button"
+                                                    onClick={() => handleToggleItem(idx, itemIdx)}
+                                                    className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all active:scale-[0.99] ${
+                                                        isChecked
+                                                            ? 'bg-primary/10 border-primary/30'
+                                                            : 'bg-surface-dark/80 border-overlay/5 hover:bg-overlay/5'
+                                                    }`}
                                                 >
                                                     <div className="flex items-start gap-2">
-                                                        <span
-                                                            className={`mt-1.5 size-2 rounded-full shrink-0 ${styles.dot}`}
-                                                        />
+                                                        <div
+                                                            className={`mt-0.5 size-6 shrink-0 flex items-center justify-center rounded-full border transition-colors ${
+                                                                isChecked
+                                                                    ? 'bg-primary border-primary text-secondary'
+                                                                    : 'border-content-subtle text-transparent'
+                                                            }`}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[16px] font-bold">
+                                                                check
+                                                            </span>
+                                                        </div>
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                                                                <p className="text-sm font-bold text-content leading-snug">
+                                                                <p
+                                                                    className={`text-sm font-bold leading-snug transition-all ${
+                                                                        isChecked
+                                                                            ? 'text-content/70 line-through'
+                                                                            : 'text-content'
+                                                                    }`}
+                                                                >
                                                                     {item.nombre}
                                                                 </p>
                                                                 <span
@@ -147,7 +216,7 @@ export const DestinationPacking: React.FC<DestinationPackingProps> = ({ packingG
                                                             )}
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </button>
                                             );
                                         })}
                                     </div>

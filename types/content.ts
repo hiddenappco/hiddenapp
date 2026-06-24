@@ -96,6 +96,8 @@ export interface Destination {
     packingGuide_en?: PackingCategory[] | { packingSummary?: string; packingGuide?: PackingCategory[] } | string;
     packingSummary?: string;
     packingSummary_en?: string;
+    planningNotes?: string;
+    planningNotes_en?: string;
     isCoastal?: "Sí" | "No";
     pdfCache?: {
         es?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string };

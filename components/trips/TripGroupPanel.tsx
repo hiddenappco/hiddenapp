@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Share } from '@capacitor/share';
 import { useTranslation } from '../../hooks/useTranslation';
 import type { Trip, TripMemberRole } from '../../types/trips';
@@ -66,7 +67,8 @@ export const TripGroupPanel: React.FC<TripGroupPanelProps> = ({
                 {t('trips.groupTrip')}
             </button>
 
-            {open && (
+            {open &&
+                createPortal(
                 <div className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
                     <div className="absolute inset-0" onClick={() => setOpen(false)} />
                     <div className="relative bg-surface-dark rounded-t-[28px] p-6 pb-safe border-t border-overlay/10 max-h-[80vh] overflow-y-auto">
@@ -155,8 +157,9 @@ export const TripGroupPanel: React.FC<TripGroupPanelProps> = ({
                             ))}
                         </div>
                     </div>
-                </div>
-            )}
+                </div>,
+                document.body
+                )}
         </>
     );
 };

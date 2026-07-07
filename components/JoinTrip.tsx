@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { joinTripByCode, joinTripById } from '../hooks/useTrips';
 import { normalizeTripCodeInput } from '../utils/tripCode';
@@ -47,12 +48,7 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
     if (!isPremium) {
         return (
             <div className="bg-background-dark h-screen flex flex-col text-content">
-                <header className="flex items-center px-4 pt-safe pb-2 border-b border-overlay/5">
-                    <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <h1 className="flex-1 text-center font-bold pr-10">{t('trips.joinTrip')}</h1>
-                </header>
+                <StickyGlassHeader onBack={onBack} title={t('trips.joinTrip')} titleLarge showLogo={false} />
                 <main className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
                     <span className="material-symbols-outlined text-5xl text-budget-primary">workspace_premium</span>
                     <h2 className="text-xl font-bold">{t('trips.joinPremiumTitle')}</h2>
@@ -70,12 +66,7 @@ export const JoinTrip: React.FC<JoinTripProps> = ({ onBack, onJoined, displayNam
 
     return (
         <div className="bg-background-dark h-screen flex flex-col text-content">
-            <header className="flex items-center px-4 pt-safe pb-2 border-b border-overlay/5">
-                <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h1 className="flex-1 text-center font-bold pr-10">{t('trips.joinTrip')}</h1>
-            </header>
+            <StickyGlassHeader onBack={onBack} title={t('trips.joinTrip')} titleLarge showLogo={false} />
 
             <main className="flex-1 p-6 flex flex-col gap-6">
                 <p className="text-content-muted text-sm">{t('trips.joinSubtitle')}</p>

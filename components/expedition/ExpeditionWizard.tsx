@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
@@ -12,6 +12,7 @@ import type {
     TravelerProfile,
 } from '../../hooks/useCreateExpedition';
 import { ExpeditionMustVisitPicker } from './ExpeditionMustVisitPicker';
+import { assessMustVisitFeasibility } from '../../utils/expeditionFeasibility';
 
 const INTEREST_OPTIONS = [
     'nature',
@@ -36,13 +37,22 @@ interface ExpeditionWizardProps {
     submitting: boolean;
 }
 
-export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
+/** Imperative handle so a parent header/hardware-back button can step back
+ * locally through the wizard instead of navigating away from the page. */
+export interface ExpeditionWizardHandle {
+    /** Goes to the previous step if possible. Returns `true` if it moved
+     * (caller should stop here), `false` if already on the first step
+     * (caller should fall back to leaving the page). */
+    goBack: () => boolean;
+}
+
+export const ExpeditionWizard = forwardRef<ExpeditionWizardHandle, ExpeditionWizardProps>(({
     departmentId,
     departmentName,
     language,
     onSubmit,
     submitting,
-}) => {
+}, ref) => {
     const { t } = useTranslation();
     const { data: destinations } = useDestinations(departmentId);
     const openDestinations = useMemo(
@@ -66,6 +76,20 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
     const [budgetMax, setBudgetMax] = useState('');
     const [mustVisit, setMustVisit] = useState<string[]>([]);
     const [travelerNotes, setTravelerNotes] = useState('');
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            goBack: () => {
+                if (step > 0) {
+                    setStep((s) => s - 1);
+                    return true;
+                }
+                return false;
+            },
+        }),
+        [step]
+    );
 
     useEffect(() => {
         const loadGps = async () => {
@@ -101,6 +125,11 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
         );
     };
 
+    const mustVisitFeasibility = useMemo(
+        () => assessMustVisitFeasibility(days, mustVisit, openDestinations),
+        [days, mustVisit, openDestinations]
+    );
+
     const canNext = () => {
         if (step === 0) return days >= 1 && days <= 30 && originLabel.trim().length > 1;
         if (step === 1) return groundMobility !== null;
@@ -110,11 +139,13 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
             if (budgetMode === 'range') return Number(budgetMin) > 0 && Number(budgetMax) >= Number(budgetMin);
             return true;
         }
+        if (step === 4 && mustVisit.length > 0) return mustVisitFeasibility.ok;
         return true;
     };
 
     const handleSubmit = async () => {
         if (!groundMobility) return;
+        if (mustVisit.length > 0 && !mustVisitFeasibility.ok) return;
         const payload: CreateExpeditionPayload = {
             departmentId,
             language,
@@ -419,6 +450,8 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
                                 destinations={openDestinations}
                                 selectedIds={mustVisit}
                                 onChange={setMustVisit}
+                                feasibility={mustVisitFeasibility}
+                                onSuggestDays={setDays}
                             />
                         </>
                     )}
@@ -468,4 +501,6 @@ export const ExpeditionWizard: React.FC<ExpeditionWizardProps> = ({
             </div>
         </div>
     );
-};
+});
+
+ExpeditionWizard.displayName = 'ExpeditionWizard';

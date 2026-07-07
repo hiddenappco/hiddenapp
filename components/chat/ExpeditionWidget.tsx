@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExpedition } from '../../hooks/useExpedition';
 import { useTranslation } from '../../hooks/useTranslation';
-import { ExpeditionProgress } from '../expedition/ExpeditionProgress';
+import { ExpeditionSkeleton } from '../expedition/ExpeditionSkeleton';
 import { ExpeditionResult } from '../expedition/ExpeditionResult';
 
 /** Compact chat card — links to the full planner page for live progress and result. */
@@ -14,7 +14,7 @@ export const ChatExpeditionWidget: React.FC<{ id: string }> = ({ id }) => {
     if (loading) {
         return (
             <div className="flex-none w-full max-w-[340px]">
-                <ExpeditionProgress status="queued" days={3} />
+                <ExpeditionSkeleton status="queued" days={3} compact />
             </div>
         );
     }
@@ -41,7 +41,7 @@ export const ChatExpeditionWidget: React.FC<{ id: string }> = ({ id }) => {
     if (expedition.status !== 'ready' || !expedition.itinerary) {
         return (
             <div className="flex-none w-full max-w-[340px]">
-                <ExpeditionProgress status={expedition.status} days={expedition.request?.days} />
+                <ExpeditionSkeleton status={expedition.status} days={expedition.request?.days} compact />
                 <button
                     type="button"
                     onClick={openFull}

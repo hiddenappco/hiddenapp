@@ -13,7 +13,12 @@ export type ExpenseCategory =
 
 export type TripMemberRole = 'owner' | 'editor' | 'observer';
 
-export type TripActivityKind = 'expense_added' | 'expense_deleted' | 'member_joined';
+export type TripActivityKind =
+    | 'expense_added'
+    | 'expense_deleted'
+    | 'member_joined'
+    | 'document_added'
+    | 'document_deleted';
 
 export interface TripActivityActor {
     uid: string;
@@ -28,6 +33,8 @@ export interface TripActivityEntry {
     /** Epoch ms for display; Firestore Timestamp when read from cloud */
     createdAt: number;
     expenseId?: string;
+    documentId?: string;
+    documentName?: string;
     amountCOP?: number;
     note?: string;
     category?: ExpenseCategory;
@@ -40,6 +47,16 @@ export interface TripMember {
     displayName: string;
     role: TripMemberRole;
     joinedAt: string;
+}
+
+/** Coupon redemption at a verified refugio (P2-ESG-01 direct economic injection). */
+export interface ExpenseDirectCommunity {
+    couponId: string;
+    refugioId: string;
+    /** Validated host share from refugio catalog (0–100). */
+    hostSharePercent: number;
+    /** COP reaching the host directly (amount × hostSharePercent / 100). */
+    injectionCop: number;
 }
 
 export interface Expense {
@@ -56,6 +73,8 @@ export interface Expense {
     paidByMemberId?: string;
     /** Member uids sharing this expense equally (group trips) */
     splitAmong?: string[];
+    /** Tagged coupon redemption at verified refugio — counted for ESG metric. */
+    directCommunity?: ExpenseDirectCommunity;
     pendingSync?: boolean;
     localOnly?: boolean;
 }
@@ -79,6 +98,34 @@ export interface Trip {
     defaultCurrency?: TripCurrency;
     pdfUrl?: string;
     pdfExpiresAt?: { toDate: () => Date } | string | Date;
+    finishedAt?: { toDate: () => Date; seconds?: number } | string | Date;
+}
+
+export interface TripDocument {
+    id: string;
+    tripId: string;
+    fileName: string;
+    /** User-friendly label (e.g. "Recibo de hospedaje"). Falls back to `fileName`
+     * for display when empty. `fileName` stays the technical name (with extension)
+     * used for the storage path. */
+    title?: string;
+    mimeType: string;
+    sizeBytes: number;
+    storagePath: string;
+    downloadUrl?: string;
+    uploadedByUid: string;
+    uploadedByName: string;
+    /** Epoch ms (local mirror); Firestore uses Timestamp on read */
+    createdAt: number;
+    expenseId?: string;
+    deleted?: boolean;
+    deletedAt?: number;
+    deletedByUid?: string;
+    pendingSync?: boolean;
+    localOnly?: boolean;
+    /** Relative path inside Capacitor Directory.Data */
+    localPath?: string;
+    uploadPending?: boolean;
 }
 
 export interface ExchangeRates {

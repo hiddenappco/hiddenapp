@@ -26,6 +26,7 @@ export const Premium = lazyPage(() => import('../Premium'), 'Premium');
 export const CreateTrip = lazyPage(() => import('../CreateTrip'), 'CreateTrip');
 export const TripExpenses = lazyPage(() => import('../TripExpenses'), 'TripExpenses');
 export const TripHistoryDetail = lazyPage(() => import('../TripHistoryDetail'), 'TripHistoryDetail');
+export const TripDocumentsPage = lazyPage(() => import('../trips/TripDocumentsPage'), 'TripDocumentsPage');
 export const JoinTrip = lazyPage(() => import('../JoinTrip'), 'JoinTrip');
 export const CurrencyConverter = lazyPage(() => import('../CurrencyConverter'), 'CurrencyConverter');
 export const SavedDestinations = lazyPage(() => import('../SavedDestinations'), 'SavedDestinations');

@@ -4,10 +4,11 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useRefugios, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { rankLocalizedSearch } from '../utils/localizedContent';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
 import { REFUGIO_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
-import { MediaListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface RefugiosProps {
   language: Language;
@@ -51,47 +52,37 @@ export const Refugios: React.FC<RefugiosProps> = ({
     return typesLower.includes(selectedType.toLowerCase());
   };
 
-  const filteredRefugios = useMemo(() => {
-    const term = searchTerm.trim();
+  const typeFilteredPool = React.useMemo(() => {
+    if (!searchTerm.trim() && selectedType === 'all') return null;
+    return browseableRefugios.filter(matchesType);
+  }, [browseableRefugios, searchTerm, selectedType]);
 
-    if (!term && selectedType === 'all') {
+  const rankedRefugios = useLocalizedSearch(
+    (typeFilteredPool ?? []) as Record<string, unknown>[],
+    searchTerm,
+    REFUGIO_PICKER_SEARCH_FIELDS,
+    { limit: 50 }
+  );
+
+  const filteredRefugios = React.useMemo(() => {
+    if (!searchTerm.trim() && selectedType === 'all') {
       return [...browseableRefugios].sort(() => 0.5 - Math.random()).slice(0, 5);
     }
-
-    let pool = browseableRefugios.filter(matchesType);
-
-    if (term) {
-      pool = rankLocalizedSearch(
-        pool as Record<string, unknown>[],
-        term,
-        REFUGIO_PICKER_SEARCH_FIELDS,
-        50
-      ) as typeof pool;
+    if (searchTerm.trim()) {
+      return rankedRefugios as typeof browseableRefugios;
     }
-
-    return pool;
-  }, [browseableRefugios, searchTerm, selectedType]);
+    return typeFilteredPool ?? [];
+  }, [browseableRefugios, searchTerm, selectedType, typeFilteredPool, rankedRefugios]);
 
   const isSuggestedView = !searchTerm.trim() && selectedType === 'all';
 
-  return (
-    <div className={`bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto no-scrollbar flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 flex items-center justify-between transition-colors duration-300 shrink-0">
-        <button
-          onClick={onMenuClick}
-          className="touch-target flex items-center justify-center rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-secondary/90 shadow-sm border border-overlay/10 transition-colors active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[20px]">menu</span>
-        </button>
-        <h1 className="text-lg font-bold tracking-tight text-content flex-1 text-center">{t('refugios.title')}</h1>
-        <div className="flex size-10 items-center justify-center">
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="w-8 h-8 object-contain" />
-        </div>
-      </div>
+  if (loading) {
+    return <PageLoadingScreen titleKey="refugios.loading" />;
+  }
 
-      {/* Search Bar */}
-      <div className="px-4 pt-4 shrink-0">
+  return (
+    <div className="bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-hidden flex flex-col">
+      <StickyGlassHeader onMenuClick={onMenuClick} title={t('refugios.title')} titleLarge>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="material-symbols-outlined text-content-subtle group-focus-within:text-primary transition-colors">search</span>
@@ -112,25 +103,23 @@ export const Refugios: React.FC<RefugiosProps> = ({
             </button>
           )}
         </div>
-      </div>
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+          {lodgingTypes.map((type) => (
+            <button
+              key={type.id}
+              onClick={() => setSelectedType(type.id)}
+              className={`flex h-9 shrink-0 items-center justify-center gap-x-1.5 rounded-full px-4 transition-all active:scale-95 ${selectedType === type.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-surface-dark border border-overlay/10 text-content-secondary'}`}
+            >
+              <span className={`material-symbols-outlined text-[18px] ${selectedType === type.id ? 'text-white' : 'text-primary'}`}>{type.icon}</span>
+              <span className="text-xs font-semibold">{type.label}</span>
+            </button>
+          ))}
+        </div>
+      </StickyGlassHeader>
 
-      {/* Type Slider */}
-      <div className="flex gap-2.5 px-4 py-4 overflow-x-auto no-scrollbar shrink-0">
-        {lodgingTypes.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => setSelectedType(type.id)}
-            className={`flex h-9 shrink-0 items-center justify-center gap-x-1.5 rounded-full px-4 transition-all active:scale-95 ${selectedType === type.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-surface-dark border border-overlay/10 text-content-secondary'}`}
-          >
-            <span className={`material-symbols-outlined text-[18px] ${selectedType === type.id ? 'text-white' : 'text-primary'}`}>{type.icon}</span>
-            <span className="text-xs font-semibold">{type.label}</span>
-          </button>
-        ))}
-      </div>
-
+      <div className={`flex-1 overflow-y-auto no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
       {/* Refugios Cards Container */}
-      <div className="flex-1 px-4">
-        {!loading && (
+      <div className="px-4">
           <div className="flex items-center justify-between pt-1 pb-3">
             <h3 className="text-xs font-bold text-content-subtle uppercase tracking-widest">
               {isSuggestedView ? t('refugios.suggested') : t('refugios.results')}
@@ -139,11 +128,7 @@ export const Refugios: React.FC<RefugiosProps> = ({
               {filteredRefugios.length} {t('refugios.resultCount')}
             </span>
           </div>
-        )}
 
-        {loading ? (
-          <MediaListSkeleton count={4} />
-        ) : (
           <div className="grid grid-cols-1 gap-4">
             {filteredRefugios.length === 0 && (
               <div className="text-center py-20 opacity-50 flex flex-col items-center">
@@ -252,8 +237,8 @@ export const Refugios: React.FC<RefugiosProps> = ({
               );
             })}
           </div>
-        )}
         <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
+      </div>
       </div>
     </div>
   );

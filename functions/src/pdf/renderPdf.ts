@@ -3,10 +3,13 @@ import chromium from '@sparticuz/chromium';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../config/firebase';
 import { DESTINATION_PDF_CACHE_DAYS, PDF_CACHE_DAYS, PDF_VIEWPORT } from './constants';
+import { inlinePdfStaticAssets } from './inlineAssets';
 
 export async function renderHtmlToPdfBuffer(html: string): Promise<Buffer> {
     let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+    let page: Awaited<ReturnType<Awaited<ReturnType<typeof puppeteer.launch>>['newPage']>> | null = null;
     try {
+        chromium.setGraphicsMode = false;
         const executablePath = await chromium.executablePath();
         browser = await puppeteer.launch({
             args: [
@@ -15,6 +18,8 @@ export async function renderHtmlToPdfBuffer(html: string): Promise<Buffer> {
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
+                '--disable-software-rasterizer',
+                '--disable-extensions',
                 '--single-process',
             ],
             defaultViewport: PDF_VIEWPORT,
@@ -22,17 +27,32 @@ export async function renderHtmlToPdfBuffer(html: string): Promise<Buffer> {
             headless: true,
         } as Parameters<typeof puppeteer.launch>[0]);
 
-        const page = await browser.newPage();
+        page = await browser.newPage();
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const type = req.resourceType();
+            const url = req.url();
+            if (type === 'document' || url.startsWith('data:')) {
+                req.continue();
+                return;
+            }
+            // All styles/scripts are inline; block any stray network fetch (fonts, maps, etc.).
+            req.abort();
+        });
+
+        const inlinedHtml = inlinePdfStaticAssets(html);
         await page.emulateMediaType('print');
-        await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
-        await page.evaluate('document.fonts.ready');
+        await page.setContent(inlinedHtml, { waitUntil: 'domcontentloaded', timeout: 30_000 });
         const pdfUint8 = await page.pdf({
             format: 'A4',
             printBackground: true,
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
         });
+        await page.close();
+        page = null;
         return Buffer.from(pdfUint8);
     } finally {
+        if (page) await page.close().catch(() => undefined);
         if (browser) await browser.close();
     }
 }

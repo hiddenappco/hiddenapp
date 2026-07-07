@@ -31,6 +31,7 @@ const LABELS = {
         seal1: 'Ficha verificada',
         seal2: 'Hidden Premium',
         verified: 'Catálogo curado · 0% comisión',
+        planningRefGettingThere: 'Consulta la sección «Cómo llegar».',
         statusOpen: 'Abierto',
         statusClosed: 'Cerrado temporalmente',
     },
@@ -54,6 +55,7 @@ const LABELS = {
         seal1: 'Verified listing',
         seal2: 'Hidden Premium',
         verified: 'Curated catalog · 0% commission',
+        planningRefGettingThere: 'See the «Getting there» section.',
         statusOpen: 'Open',
         statusClosed: 'Temporarily closed',
     },
@@ -78,16 +80,20 @@ function destinationPdfStyles(): string {
         }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-bottom: 4px;
+            margin-top: 4px;
+            margin-bottom: 22px;
         }
+        .stats-grid.cols-1 { grid-template-columns: 1fr; max-width: 220px; }
+        .stats-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .stats-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
         .stat-card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.06);
             border-radius: 12px;
             padding: 12px 10px;
             text-align: center;
+            break-inside: avoid;
         }
         .stat-label {
             font-size: 8px;
@@ -120,11 +126,44 @@ function destinationPdfStyles(): string {
             border-radius: 12px;
             padding: 14px 16px;
             margin-bottom: 4px;
+            break-inside: avoid;
+        }
+        .planning-row + .planning-row {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .planning-label {
+            font-size: 8px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .planning-value {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            word-wrap: break-word;
         }
         .planning-block .prose {
             white-space: pre-wrap;
             font-size: 11px;
             line-height: 1.65;
+        }
+        .card-packing {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .pricing-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 8px;
+        }
+        .activity-title {
+            color: #e2e8f0;
+            font-weight: 700;
         }
         .pack-item {
             display: flex;
@@ -185,19 +224,39 @@ function destinationPdfStyles(): string {
             color: #fca5a5;
             border: 1px solid rgba(239,68,68,0.2);
         }
+        .meta-pill.location {
+            max-width: 52%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     `;
+}
+
+function formatActivityItem(item: string): string {
+    const idx = item.indexOf(':');
+    if (idx > 0 && idx < 72) {
+        const title = item.slice(0, idx).trim();
+        const desc = item.slice(idx + 1).trim();
+        if (title && desc) {
+            return `<li><span class="bullet"></span><span><strong class="activity-title">${escapeHtml(title)}</strong>: ${escapeHtml(desc)}</span></li>`;
+        }
+    }
+    return `<li><span class="bullet"></span><span>${escapeHtml(item)}</span></li>`;
 }
 
 function renderList(items: string[]): string {
     if (!items.length) return '';
     return `<ul class="list">${items
-        .map((item) => `<li><span class="bullet"></span><span>${escapeHtml(item)}</span></li>`)
+        .slice(0, 20)
+        .map((item) => formatActivityItem(item))
         .join('')}</ul>`;
 }
 
 function renderGettingThere(rows: Row[]): string {
     if (!rows.length) return '';
     return rows
+        .slice(0, 12)
         .map((g) => {
             const mode = String(g.modalidad ?? g.mode ?? '');
             const text = String(g.instrucciones ?? g.instructions ?? '');
@@ -263,7 +322,7 @@ function renderPacking(summary: string, guide: unknown, lang: PdfLanguage): stri
                 .join('');
 
             parts.push(
-                `<div class="card"><div class="card-label">${escapeHtml(name)}</div>${itemRows}</div>`
+                `<div class="card card-packing"><div class="card-label">${escapeHtml(name)}</div>${itemRows}</div>`
             );
         }
     }
@@ -288,7 +347,8 @@ function renderStats(stats: Row, L: LabelSet): string {
     ].filter(Boolean);
 
     if (!cells.length) return '';
-    return `<div class="stats-grid">${cells.join('')}</div>`;
+    const colClass = cells.length === 1 ? 'cols-1' : cells.length === 2 ? 'cols-2' : 'cols-3';
+    return `<div class="stats-grid ${colClass}">${cells.join('')}</div>`;
 }
 
 function renderCoordinates(coords: Row | null, location: string, title: string, L: LabelSet): string {
@@ -310,6 +370,53 @@ function renderCoordinates(coords: Row | null, location: string, title: string, 
 
 function isDestinationOpen(status: unknown): boolean {
     return status === true || status === 'Abierto' || status === 'open' || status === 'Open';
+}
+
+function shortenLocationForPdf(location: string, maxLen = 52): string {
+    const trimmed = location.trim();
+    if (trimmed.length <= maxLen) return trimmed;
+    const firstSegment = trimmed.split(',')[0]?.trim() || trimmed;
+    if (firstSegment.length <= maxLen) return firstSegment;
+    return `${trimmed.slice(0, maxLen - 1).trim()}…`;
+}
+
+function sanitizePlanningNotesForPdf(text: string, lang: PdfLanguage, L: LabelSet): string {
+    let s = text;
+    if (lang === 'es') {
+        s = s.replace(/Ver\s+['"]?gettingThere['"]?\.?/gi, L.planningRefGettingThere);
+        s = s.replace(/\bel agente debe programar\b/gi, 'Se recomienda programar');
+        s = s.replace(/\bel agente debe sugerir\b/gi, 'Conviene sugerir');
+        s = s.replace(/\bel agente debe\b/gi, 'Se recomienda');
+    } else {
+        s = s.replace(/See\s+['"]?gettingThere['"]?\.?/gi, L.planningRefGettingThere);
+        s = s.replace(/\bthe agent should schedule\b/gi, 'We recommend scheduling');
+        s = s.replace(/\bthe agent should suggest\b/gi, 'We recommend suggesting');
+        s = s.replace(/\bthe agent should\b/gi, 'We recommend');
+    }
+    return s;
+}
+
+function renderPlanningNotes(text: string, lang: PdfLanguage, L: LabelSet): string {
+    const sanitized = sanitizePlanningNotesForPdf(text, lang, L);
+    const lines = sanitized.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const rows: string[] = [];
+
+    for (const line of lines) {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx > 0 && colonIdx < 48) {
+            const label = line.slice(0, colonIdx).trim();
+            const value = line.slice(colonIdx + 1).trim();
+            if (label && value) {
+                rows.push(
+                    `<div class="planning-row"><div class="planning-label">${escapeHtml(label)}</div><div class="planning-value">${escapeHtml(value)}</div></div>`
+                );
+                continue;
+            }
+        }
+        rows.push(`<p class="prose">${escapeHtml(line)}</p>`);
+    }
+
+    return `<div class="planning-block">${rows.join('')}</div>`;
 }
 
 export function generateDestinationPdfHtml(
@@ -335,20 +442,21 @@ export function generateDestinationPdfHtml(
     const packingSummary = String(destination.packingSummary || '');
     const packingHtml = renderPacking(packingSummary, packingGuide, lang);
     const aiTip = String(destination.aiTip || '');
-    const heroImage = String(destination.heroImage || destination.image || '').trim();
     const stats = (destination.stats as Row) || {};
     const coordinates = (destination.coordinates as Row | null) || null;
     const isOpen = isDestinationOpen(destination.status);
 
+    const locationShort = location ? shortenLocationForPdf(location) : '';
+
     const metaPills = [
         `<span class="meta-pill">${escapeHtml(departmentName)}</span>`,
-        ...(location ? [`<span class="meta-pill accent">${escapeHtml(location)}</span>`] : []),
-        `<span class="meta-pill">${escapeHtml(L.verified)}</span>`,
+        ...(locationShort
+            ? [`<span class="meta-pill accent location">${escapeHtml(locationShort)}</span>`]
+            : []),
     ].join('');
 
     const body = `
         ${pdfHeader(L.badge)}
-        ${heroImage ? `<img src="${escapeHtml(heroImage)}" class="hero-image" alt="" />` : ''}
         <section class="pdf-hero">
             <div class="pdf-meta-row">${metaPills}</div>
             <h1 class="pdf-hero-title">${escapeHtml(title)}</h1>
@@ -359,17 +467,11 @@ export function generateDestinationPdfHtml(
         <div class="dest-section">
         ${description ? `<div class="section-title">${L.about}</div><p class="prose">${escapeHtml(description)}</p>` : ''}
 
-        ${
-            aiTip
-                ? `<div class="tip-box" style="margin-top:16px"><div class="tip-label">${L.aiTip}</div><p class="prose">${escapeHtml(aiTip)}</p></div>`
-                : ''
-        }
-
         ${renderStats(stats, L)}
 
         ${
-            planningNotes
-                ? `<div class="section-title">${L.planning}</div><div class="planning-block"><p class="prose">${escapeHtml(planningNotes)}</p></div>`
+            aiTip
+                ? `<div class="tip-box"><div class="tip-label">${L.aiTip}</div><p class="prose">${escapeHtml(aiTip)}</p></div>`
                 : ''
         }
 
@@ -385,11 +487,17 @@ export function generateDestinationPdfHtml(
                 : ''
         }
 
+        ${
+            planningNotes
+                ? `<div class="section-title">${L.planning}</div>${renderPlanningNotes(planningNotes, lang, L)}`
+                : ''
+        }
+
         ${packingHtml ? `<div class="section-title">${L.packing}</div>${packingHtml}` : ''}
 
         ${
             pricingGuide.length
-                ? `<div class="section-title">${L.pricing}</div><div class="card">${renderPricing(pricingGuide, lang)}</div>`
+                ? `<div class="section-title">${L.pricing}</div><div class="card pricing-card">${renderPricing(pricingGuide, lang)}</div>`
                 : ''
         }
         </div>

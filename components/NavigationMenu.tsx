@@ -13,6 +13,7 @@ interface NavigationMenuProps {
   onSearchClick: () => void;
   onNewsClick: () => void;
   onPerksClick: () => void;
+  onFaqClick: () => void;
   onSupportClick: () => void;
   onProfileClick: () => void;
   onPremiumClick: () => void;
@@ -24,6 +25,7 @@ interface NavigationMenuProps {
   onMonitorClick?: () => void;
   onRefugiosClick: () => void;
   onOffGridClick: () => void;
+  onOfflineHubClick?: () => void;
   onPlannerClick: () => void;
 }
 
@@ -36,6 +38,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
   onSearchClick,
   onNewsClick,
   onPerksClick,
+  onFaqClick,
   onSupportClick,
   onProfileClick,
   onPremiumClick,
@@ -47,6 +50,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
   onMonitorClick = () => { },
   onRefugiosClick,
   onOffGridClick,
+  onOfflineHubClick = () => { },
   onPlannerClick
 }) => {
   const { t } = useTranslation();
@@ -76,6 +80,8 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
       tripPlanner: t('menu.tripPlanner'),
       refugios: t('menu.refugios'),
       offGridVault: t('menu.offGridVault'),
+      offlineHub: t('menu.offlineHub'),
+      faq: t('menu.faq'),
       support: t('menu.support'),
       pact: t('menu.pact')
     },
@@ -220,6 +226,17 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
                 </button>
               </li>
 
+              {/* Modo sin señal */}
+              <li>
+                <button
+                  onClick={() => { onOfflineHubClick(); onClose(); }}
+                  className="group flex w-full h-12 items-center gap-4 rounded-xl px-4 hover:bg-overlay/10 transition-colors text-left"
+                >
+                  <span className="material-symbols-outlined text-content/90 group-hover:text-primary transition-colors">signal_wifi_off</span>
+                  <p className="text-base font-medium text-content/90 group-hover:text-content">{texts.menu.offlineHub}</p>
+                </button>
+              </li>
+
               <div className="my-2 h-px bg-overlay/10 mx-4"></div>
 
               {/* Perfil */}
@@ -268,7 +285,18 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
                 </button>
               </li>
 
-              {/* 8. Soporte */}
+              {/* 8. Ayuda (FAQ) */}
+              <li>
+                <button
+                  onClick={() => { onFaqClick(); onClose(); }}
+                  className="group flex w-full h-12 items-center gap-4 rounded-xl px-4 hover:bg-overlay/10 transition-colors text-left"
+                >
+                  <span className="material-symbols-outlined text-content/90 group-hover:text-primary transition-colors">help</span>
+                  <p className="text-base font-medium text-content/90 group-hover:text-content">{texts.menu.faq}</p>
+                </button>
+              </li>
+
+              {/* 9. Soporte */}
               <li>
                 <button
                   onClick={() => { onSupportClick(); onClose(); }}
@@ -290,7 +318,7 @@ export const NavigationMenu: React.FC<NavigationMenuProps> = ({
           </div>
 
           {/* Bottom Section */}
-          <div className="p-4 pb-8 bg-slate-50 dark:bg-[#0a1f35] border-t border-overlay/5 flex flex-col gap-3">
+          <div className="p-4 pb-[calc(2rem+var(--safe-bottom))] bg-slate-50 dark:bg-[#0a1f35] border-t border-overlay/5 flex flex-col gap-3">
 
             {/* Pacto Hidden Button */}
             <button

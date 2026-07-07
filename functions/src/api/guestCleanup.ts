@@ -1,12 +1,14 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '../config/firebase';
+import { hasActivePremium } from '../lib/premiumAccess';
 
 const INACTIVE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * Deletes anonymous guest accounts inactive for 30+ days.
- * Hackathon Premium (`isGuest` + `GUEST_HACKATHON_PREMIUM` on client) is unchanged until 1 Jul.
+ * `isPremium` is the single source of truth for every account: a guest with
+ * an active Premium (paid or admin-granted) is never auto-deleted here.
  */
 export const scheduledGuestCleanup = onSchedule(
     {
@@ -30,6 +32,7 @@ export const scheduledGuestCleanup = onSchedule(
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 const data = userDoc.data();
                 if (data?.isGuest !== true) continue;
+                if (hasActivePremium(data)) continue;
 
                 const lastActiveRaw = data?.lastActiveAt;
                 let lastActiveMs = new Date(user.metadata.lastSignInTime).getTime();

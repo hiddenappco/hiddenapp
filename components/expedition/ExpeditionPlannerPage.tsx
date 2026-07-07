@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Language } from '../../types/core';
 import { useDepartment, useUserExpeditions } from '../../hooks/useFirestore';
 import { useTranslation } from '../../hooks/useTranslation';
 import { resolveEffectiveDepartmentId } from '../../utils/departmentIds';
 import { createExpedition } from '../../hooks/useCreateExpedition';
-import { ExpeditionWizard } from './ExpeditionWizard';
+import { ExpeditionWizard, type ExpeditionWizardHandle } from './ExpeditionWizard';
 import { ExpeditionPlannerManual } from './ExpeditionPlannerManual';
 import { translateExpeditionError } from '../../utils/expeditionErrors';
 import { isExpeditionPlannerLocked } from '../../utils/expeditionPlanner';
@@ -16,6 +16,7 @@ import { useUserProfile } from '../../hooks/useSocial';
 import { useAuth } from '../layout/AuthProvider';
 import { EXPEDITION_HISTORY_LIMIT } from '../../config/constants';
 import { useHardwareBackHandler } from '../../hooks/useHardwareBackHandler';
+import { StickyGlassHeader, StickyHeaderActionButton } from '../ui/StickyGlassHeader';
 
 interface ExpeditionPlannerPageProps {
     language: Language;
@@ -38,12 +39,24 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
     const [submitting, setSubmitting] = useState(false);
     const [showManual, setShowManual] = useState(false);
     const [error, setError] = useState('');
+    const wizardRef = useRef<ExpeditionWizardHandle>(null);
+
+    // The wizard has its own local step state (5 questions). Both the header's
+    // back arrow and Android's hardware back button must step back locally
+    // through the questions first, and only leave the planner once the wizard
+    // is already on its first step — otherwise a single tap/back-press was
+    // discarding all the answers and exiting straight to the department hub.
+    const handleHeaderBack = useCallback(() => {
+        if (wizardRef.current?.goBack()) return;
+        onBack();
+    }, [onBack]);
 
     useHardwareBackHandler(() => {
         if (showManual) {
             setShowManual(false);
             return true;
         }
+        if (wizardRef.current?.goBack()) return true;
         return false;
     }, [showManual]);
 
@@ -84,21 +97,18 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
     if (plannerLocked) {
         return (
             <div className="flex flex-col h-screen bg-background-dark text-content overflow-hidden">
-                <header className="shrink-0 flex items-center gap-3 px-4 pt-safe-hero pb-3 border-b border-overlay/10">
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="size-10 rounded-full bg-overlay/10 flex items-center justify-center"
-                    >
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-primary">
-                            {t('expedition.hubTitle')}
-                        </p>
-                        <h1 className="font-bold text-base truncate">{department?.name || departmentId}</h1>
-                    </div>
-                </header>
+                <StickyGlassHeader
+                    onBack={onBack}
+                    showLogo={false}
+                    center={
+                        <div className="text-left min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-primary">
+                                {t('expedition.hubTitle')}
+                            </p>
+                            <h1 className="font-bold text-base truncate">{department?.name || departmentId}</h1>
+                        </div>
+                    }
+                />
                 <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
                     <div className="glass-surface rounded-2xl p-8 max-w-sm w-full flex flex-col items-center gap-4">
                         <div className="size-14 rounded-full bg-overlay/10 flex items-center justify-center">
@@ -124,31 +134,27 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
 
     return (
         <div className="flex flex-col h-screen bg-background-dark text-content overflow-hidden">
-            <header className="shrink-0 flex items-center gap-3 px-4 pt-safe-hero pb-3 border-b border-overlay/10">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="size-10 rounded-full bg-overlay/10 flex items-center justify-center"
-                >
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-                <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-primary">
-                        {t('expedition.hubTitle')}
-                    </p>
-                    <h1 className="font-bold text-base truncate">{department?.name || departmentId}</h1>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setShowManual(true)}
-                    className="size-10 rounded-full bg-overlay/10 flex items-center justify-center shrink-0"
-                    aria-label={t('expedition.manualTitle')}
-                >
-                    <span className="material-symbols-outlined text-primary text-[22px]">menu_book</span>
-                </button>
-            </header>
+            <StickyGlassHeader
+                onBack={handleHeaderBack}
+                showLogo={false}
+                center={
+                    <div className="text-left min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-primary">
+                            {t('expedition.hubTitle')}
+                        </p>
+                        <h1 className="font-bold text-base truncate">{department?.name || departmentId}</h1>
+                    </div>
+                }
+                right={
+                    <StickyHeaderActionButton
+                        icon="menu_book"
+                        onClick={() => setShowManual(true)}
+                        label={t('expedition.manualTitle')}
+                    />
+                }
+            />
 
-            <div className="flex-1 overflow-y-auto px-4 py-5 no-scrollbar flex flex-col">
+            <div className="flex-1 overflow-y-auto px-4 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] no-scrollbar flex flex-col">
                 {isPremium && quota.limit > 0 && (
                     <p className="text-[11px] text-content-muted mb-4 rounded-xl border border-overlay/10 bg-surface-dark px-3 py-2">
                         {t('expedition.quotaBanner')
@@ -172,6 +178,7 @@ export const ExpeditionPlannerPage: React.FC<ExpeditionPlannerPageProps> = ({ la
                     </div>
                 )}
                 <ExpeditionWizard
+                    ref={wizardRef}
                     departmentId={canonicalId}
                     departmentName={department?.name || departmentId}
                     language={appLanguage}

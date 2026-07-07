@@ -16,11 +16,30 @@ export interface ExpeditionTravel {
     distanceText: string;
 }
 
+export type ExpeditionTravelSegmentKind =
+    | 'driving'
+    | 'walking'
+    | 'transit'
+    | 'boat'
+    | 'horse'
+    | 'other';
+
+export interface ExpeditionTravelSegment {
+    kind: ExpeditionTravelSegmentKind;
+    mode: string;
+    durationText: string;
+    distanceText?: string;
+    icon: string;
+    source: 'routes' | 'catalog';
+}
+
 export interface ExpeditionStop {
     destinationId: string;
     name: string;
     plan: string;
     travel: ExpeditionTravel | null;
+    /** P2-PLAN-01 — driving (Routes) + catalog access legs from planningNotes */
+    travelSegments?: ExpeditionTravelSegment[];
 }
 
 export interface ExpeditionDayCoupon {

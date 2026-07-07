@@ -11,7 +11,8 @@ export {
     onNewCoupon,
     onNewEvent,
     onNewRefugio,
-    supportTicketReply
+    supportTicketReply,
+    onExpeditionReadyNotify
 } from './api/notifications';
 
 export {
@@ -24,6 +25,8 @@ export {
     generateDestinationPdf,
     generateExpeditionPdf,
 } from './api/pdf';
+
+export { purgeDestinationPdfCacheHttp } from './api/destinationPdfCache';
 
 export {
     generateLiveKitToken,
@@ -58,3 +61,7 @@ export {
 export { verifyTripMemberBackfill } from './api/tripBackfill';
 
 export { scheduledGuestCleanup } from './api/guestCleanup';
+
+export { onTripDocumentWritten, onTripDeletedCleanupDocuments } from './api/tripDocuments';
+
+export { onTripExpenseWritten } from './api/directEconomicInjection';

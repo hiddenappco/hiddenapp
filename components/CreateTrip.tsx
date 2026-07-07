@@ -3,6 +3,7 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import type { TripCurrency } from '../types/trips';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface CreateTripProps {
   language: Language;
@@ -29,15 +30,7 @@ export const CreateTrip: React.FC<CreateTripProps> = ({ onBack, onStart }) => {
     <div className="bg-background-dark font-display antialiased text-content h-screen w-full flex flex-col overflow-hidden">
       <div className="relative flex h-full w-full flex-col max-w-md mx-auto bg-background-dark">
 
-        <header className="flex items-center px-4 pb-2 pt-safe justify-between sticky top-0 z-50 shrink-0 bg-background-dark/90 backdrop-blur-md border-b border-overlay/5">
-          <button
-            onClick={onBack}
-            className="text-content flex size-12 shrink-0 items-center justify-start hover:opacity-70 transition-opacity"
-          >
-            <span className="material-symbols-outlined text-[24px]">close</span>
-          </button>
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-        </header>
+        <StickyGlassHeader onBack={onBack} showLogo />
 
         <main className="flex-1 px-6 pt-8 flex flex-col overflow-y-auto">
           <div className="mb-8">

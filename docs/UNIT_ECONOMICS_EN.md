@@ -1,6 +1,6 @@
 # Hidden App — Business Model & Unit Economics (Jun 2026)
 
-Public overview of how Hidden App creates and captures value. This is the judge / investor facing
+Public overview of how Hidden App creates and captures value. Investor- and partner-facing
 summary of our business model and unit-economics philosophy. All figures in **USD**.
 
 > **Status (Jun 2026):** B2C pricing and product limits are **finalized and implemented in code**.
@@ -195,6 +195,7 @@ verified.
 - **Two-sided network effect** between travelers and hosts.
 - **Offline-first survival tooling** (Off-Grid Vault) that generic competitors don't offer.
 - **Trust** — grounded, no-hallucination answers from a curated catalog.
+- **Auditable direct economic injection** (P2-ESG-01) — monthly COP totals from verified coupon redemptions in the trip ledger, reproducible via Firestore aggregates and `report:direct-injection` (investor / B2G storytelling).
 
 ---
 
@@ -205,7 +206,8 @@ verified.
 | B2C pricing & entitlements in product/code | ✅ Live |
 | B2B partner pricing policy ($15/mo · $150/yr) | ✅ Documented Jun 2026 |
 | Quota & gating (planner, voice, ranger, PDFs, group ledger) | ✅ Live |
-| Premium UI & paywall | ✅ Live (`/premium`, USD reference, tooltips) |
+| Premium UI & paywall | ✅ Live (`/premium` Baymard matrix, paywall ROI, USD reference) |
+| ESG direct injection metric (P2-ESG-01) | ✅ Live — server aggregates + profile card + monthly script |
 | App Store / Play Store / RevenueCat billing (B2C) | ⏳ Pending — `PREMIUM_CHECKOUT_ENABLED = false` |
 | B2B Verified Refuge billing & partner onboarding | ⏳ Planned |
 

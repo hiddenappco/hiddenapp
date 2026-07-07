@@ -63,7 +63,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onLoginClick, onSignUpSuccess })
       </div>
 
       {/* Content Section */}
-      <div className="relative -mt-10 flex flex-1 flex-col rounded-t-[32px] bg-surface px-6 pt-8 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+      <div className="relative -mt-10 flex flex-1 flex-col rounded-t-[32px] bg-surface px-6 pt-8 pb-[calc(2.5rem+var(--safe-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
 
         <div className="flex flex-col gap-2 mb-6">
           <h1 className="font-display text-3xl font-extrabold leading-tight text-secondary">

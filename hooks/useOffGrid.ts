@@ -34,7 +34,27 @@ import {
   getGemmaModelSizeBytes,
   isGemmaModelReady,
   removeGemmaModel,
+  cleanupPartialGemmaInstall,
 } from '@/services/gemmaModelStore';
+import type { GemmaDownloadProgress } from '@/services/gemmaModelStore';
+import {
+  GEMMA_INSTALL_PROGRESS,
+  GEMMA_INSTALL_STALL_MS,
+  GEMMA_INSTALL_TOTAL_TIMEOUT_MS,
+  mapStreamProgressToOverall,
+  mapArchiveDownloadToOverall,
+  mapArchiveWriteToOverall,
+} from '@/utils/gemmaInstallProgress';
+
+/** UI-facing install lifecycle for the Gemma engine card. */
+export type GemmaInstallPhase =
+  | 'idle'
+  | 'streaming'
+  | 'downloading'
+  | 'extracting'
+  | 'finalizing'
+  | 'verifying'
+  | 'installed';
 
 // Helper to convert base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -87,6 +107,14 @@ export const useOffGrid = () => {
   const [gemmaInstalled, setGemmaInstalled] = useState<boolean>(false);
   const [installingGemma, setInstallingGemma] = useState<boolean>(false);
   const [gemmaProgress, setGemmaProgress] = useState<number>(0);
+  const [gemmaPhase, setGemmaPhase] = useState<GemmaInstallPhase>('idle');
+  const [gemmaPhaseProgress, setGemmaPhaseProgress] = useState<number>(0);
+  const [gemmaWriteSavedMb, setGemmaWriteSavedMb] = useState<number>(0);
+  const [gemmaInstallError, setGemmaInstallError] = useState<string | null>(null);
+  const [gemmaInstallElapsedSec, setGemmaInstallElapsedSec] = useState<number>(0);
+  const [uninstallingGemma, setUninstallingGemma] = useState<boolean>(false);
+  const [gemmaUninstallProgress, setGemmaUninstallProgress] = useState<number>(0);
+  const [gemmaUninstallDone, setGemmaUninstallDone] = useState<boolean>(false);
   const [storageEstimate, setStorageEstimate] = useState<StorageInfo>({ used: 0, total: 1024, percentage: 0 });
   const [sqlEngine, setSqlEngine] = useState<any>(null);
   const [packsMetadata, setPacksMetadata] = useState<{ [key: string]: { sizeBytes?: number } }>({});
@@ -152,6 +180,7 @@ export const useOffGrid = () => {
       setGemmaInstalled(ready);
       if (!ready) {
         localStorage.removeItem(GEMMA_CONFIG.storageKey);
+        await cleanupPartialGemmaInstall();
       }
     };
     syncGemmaInstallState();
@@ -261,6 +290,47 @@ export const useOffGrid = () => {
     return () => unsubscribe();
   }, [downloadedPacks, network.isOnline]);
 
+  useEffect(() => {
+    if (!installingGemma) {
+      setGemmaInstallElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const tick = setInterval(() => {
+      setGemmaInstallElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [installingGemma]);
+
+  const applyGemmaDownloadProgress = (progress: GemmaDownloadProgress) => {
+    const { phase, phasePercent, savedMb } = progress;
+    setGemmaPhaseProgress(phasePercent);
+
+    const fallbackSavedMb = Math.round((phasePercent / 100) * GEMMA_CONFIG.approxSizeMb);
+    const resolvedSavedMb = savedMb ?? fallbackSavedMb;
+
+    if (phase === 'streaming') {
+      setGemmaPhase('streaming');
+      setGemmaProgress(mapStreamProgressToOverall(phasePercent));
+      setGemmaWriteSavedMb(resolvedSavedMb);
+      return;
+    }
+    if (phase === 'downloading') {
+      setGemmaPhase('downloading');
+      setGemmaProgress(mapArchiveDownloadToOverall(phasePercent));
+      setGemmaWriteSavedMb(resolvedSavedMb);
+      return;
+    }
+    if (phase === 'extracting') {
+      setGemmaPhase('extracting');
+      setGemmaProgress(GEMMA_INSTALL_PROGRESS.archiveDownloadEnd + 2);
+      return;
+    }
+    setGemmaPhase('finalizing');
+    setGemmaProgress(mapArchiveWriteToOverall(phasePercent));
+    setGemmaWriteSavedMb(resolvedSavedMb);
+  };
+
   // Gemma — real MediaPipe model download + on-device inference
   const installGemma = async () => {
     if (gemmaInstalled || installingGemma) return;
@@ -270,7 +340,7 @@ export const useOffGrid = () => {
       await LocalNotifications.schedule({
         notifications: [{
           title: 'Instalación Gemma',
-          body: 'Conéctate a Wi-Fi para descargar el motor de chat (~1.5 GB).',
+          body: 'Conéctate a Wi-Fi para descargar el motor de chat (~1.29 GB).',
           id: getNotificationId('gemma4_wifi_required'),
           schedule: { at: new Date(Date.now() + 50) },
         }],
@@ -280,74 +350,228 @@ export const useOffGrid = () => {
 
     setInstallingGemma(true);
     setGemmaProgress(0);
+    setGemmaPhaseProgress(0);
+    setGemmaWriteSavedMb(0);
+    setGemmaPhase('downloading');
+    setGemmaInstallError(null);
+
     const notifId = getNotificationId('gemma4_install');
+    const abortController = new AbortController();
+    let abortReason: 'stall' | 'total' | null = null;
+    let lastProgressAt = Date.now();
+
+    const stallWatchdog = setInterval(() => {
+      if (Date.now() - lastProgressAt > GEMMA_INSTALL_STALL_MS) {
+        abortReason = 'stall';
+        abortController.abort();
+      }
+    }, 5000);
+
+    const totalTimeout = setTimeout(() => {
+      abortReason = 'total';
+      abortController.abort();
+    }, GEMMA_INSTALL_TOTAL_TIMEOUT_MS);
+
+    const touchProgress = () => {
+      lastProgressAt = Date.now();
+    };
+
+    // Throttle the ongoing notification so we only re-schedule when the
+    // integer percent (per phase) changes — avoids hundreds of schedules/sec.
+    let lastNotifiedKey = '';
+    const updateOngoingNotification = (title: string, body: string, key: string) => {
+      if (key === lastNotifiedKey) return;
+      lastNotifiedKey = key;
+      LocalNotifications.schedule({
+        notifications: [{
+          title,
+          body,
+          id: notifId,
+          schedule: { at: new Date(Date.now() + 50) },
+          ongoing: true,
+        }],
+      }).catch(() => {});
+    };
 
     try {
-      await downloadGemmaModel((percent) => {
-        setGemmaProgress(percent);
-        LocalNotifications.schedule({
-          notifications: [{
-            title: 'Motor Gemma (MediaPipe)',
-            body: `Descargando modelo local: ${percent}%`,
-            id: notifId,
-            schedule: { at: new Date(Date.now() + 50) },
-            ongoing: true,
-          }],
-        }).catch(() => {});
-      });
+      await downloadGemmaModel(
+        (progress) => {
+          touchProgress();
+          applyGemmaDownloadProgress(progress);
+          if (progress.phase === 'streaming') {
+            updateOngoingNotification(
+              'Motor Gemma (MediaPipe)',
+              `Descargando y guardando: ${progress.phasePercent}%`,
+              `s${progress.phasePercent}`
+            );
+          } else if (progress.phase === 'downloading') {
+            updateOngoingNotification(
+              'Motor Gemma (MediaPipe)',
+              `Descargando: ${progress.phasePercent}%`,
+              `d${progress.phasePercent}`
+            );
+          } else if (progress.phase === 'finalizing') {
+            updateOngoingNotification(
+              'Motor Gemma (MediaPipe)',
+              `Guardando en disco: ${progress.phasePercent}%`,
+              `f${progress.phasePercent}`
+            );
+          }
+        },
+        (phase) => {
+          if (phase === 'streaming') {
+            setGemmaPhase('streaming');
+          } else if (phase === 'finalizing') {
+            setGemmaPhase('finalizing');
+          } else if (phase === 'extracting') {
+            setGemmaPhase('extracting');
+          }
+        },
+        abortController.signal
+      );
+
+      setGemmaPhase('verifying');
+      setGemmaPhaseProgress(0);
+      setGemmaProgress(GEMMA_INSTALL_PROGRESS.verifyStart);
+      touchProgress();
+
+      const verified = await isGemmaModelReady();
+      if (!verified) {
+        throw new Error('GEMMA_VERIFY_FAILED');
+      }
+
+      setGemmaProgress(GEMMA_INSTALL_PROGRESS.verifyMid);
+      touchProgress();
+      await localLlm.initialize({ preferGemma: true });
 
       setGemmaInstalled(true);
-      await localLlm.initialize({ preferGemma: true });
+      setGemmaPhase('installed');
+      setGemmaProgress(GEMMA_INSTALL_PROGRESS.complete);
+      await updateStorageEstimate();
 
       await LocalNotifications.schedule({
         notifications: [{
-          title: 'Motor Gemma listo',
-          body: 'Inferencia local activa. El chat offline usará Gemma cuando haya WebGPU.',
+          title: 'Motor Gemma instalado ✓',
+          body: 'Instalación verificada. El chat offline ya responde de forma conversacional (con WebGPU).',
           id: notifId,
           schedule: { at: new Date(Date.now() + 50) },
         }],
       }).catch(() => {});
     } catch (err) {
       console.error('[OffGrid] Gemma install failed:', err);
-      await removeGemmaModel();
+      await cleanupPartialGemmaInstall();
       setGemmaInstalled(false);
+      setGemmaPhase('idle');
+      setGemmaProgress(0);
+      setGemmaPhaseProgress(0);
+      setGemmaWriteSavedMb(0);
+
+      const isAbort =
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (axios.isCancel?.(err) ?? false) ||
+        (err instanceof Error && err.message === 'GEMMA_INSTALL_ABORTED');
 
       const body =
-        err instanceof GemmaDownloadUrlMissingError
-          ? 'Falta configurar la URL del modelo (Firestore config/gemmaModel o VITE_GEMMA_MODEL_URL).'
-          : err instanceof Error && err.message === 'GEMMA_MODEL_TOO_SMALL'
-            ? 'El archivo descargado no es un modelo válido.'
-            : err instanceof Error && err.message === 'GEMMA_BIN_NOT_FOUND_IN_ARCHIVE'
-              ? 'El archivo comprimido no contiene el modelo .bin esperado.'
-              : 'No se pudo descargar el motor Gemma. Revisa tu conexión e inténtalo de nuevo.';
+        isAbort && abortReason === 'stall'
+          ? 'La instalación dejó de avanzar. Comprueba espacio libre y Wi‑Fi, luego inténtalo de nuevo.'
+          : isAbort && abortReason === 'total'
+            ? 'La instalación superó el tiempo máximo. Usa Wi‑Fi estable y vuelve a intentarlo.'
+            : err instanceof GemmaDownloadUrlMissingError
+              ? 'Falta configurar la URL del modelo (Firestore config/gemmaModel o VITE_GEMMA_MODEL_URL).'
+              : err instanceof Error && err.message === 'GEMMA_MODEL_TOO_SMALL'
+                ? 'El archivo descargado no es un modelo válido.'
+                : err instanceof Error && err.message === 'GEMMA_BIN_NOT_FOUND_IN_ARCHIVE'
+                  ? 'El archivo comprimido no contiene el modelo .bin esperado.'
+                  : err instanceof Error && err.message === 'GEMMA_VERIFY_FAILED'
+                    ? 'No se pudo verificar el modelo tras la instalación. Inténtalo de nuevo.'
+                    : err instanceof Error && err.message.startsWith('GEMMA_DOWNLOAD_HTTP_')
+                      ? `El servidor rechazó la descarga (${err.message.replace('GEMMA_DOWNLOAD_HTTP_', 'HTTP ')}). Inténtalo más tarde.`
+                      : 'No se pudo instalar el motor Gemma. Revisa tu conexión e inténtalo de nuevo.';
 
+      setGemmaInstallError(body);
+
+      // Reuse notifId (non-ongoing) so the stuck "ongoing" progress
+      // notification is replaced rather than leaking in the tray.
       await LocalNotifications.schedule({
         notifications: [{
           title: 'Error al instalar Gemma',
           body,
-          id: getNotificationId('gemma4_install_error'),
+          id: notifId,
           schedule: { at: new Date(Date.now() + 50) },
+          ongoing: false,
         }],
       }).catch(() => {});
     } finally {
+      clearInterval(stallWatchdog);
+      clearTimeout(totalTimeout);
       setInstallingGemma(false);
     }
   };
 
   const uninstallGemma = async () => {
-    await localLlm.dispose();
-    await removeGemmaModel();
-    setGemmaInstalled(false);
-    setGemmaProgress(0);
+    if (uninstallingGemma) return;
 
-    await LocalNotifications.schedule({
-      notifications: [{
-        title: 'Espacio liberado',
-        body: 'El motor Gemma local ha sido desinstalado.',
-        id: getNotificationId('gemma4_uninstall'),
-        schedule: { at: new Date(Date.now() + 50) },
-      }],
-    }).catch(() => {});
+    const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    setUninstallingGemma(true);
+    setGemmaUninstallDone(false);
+    setGemmaUninstallProgress(0);
+    setGemmaInstallError(null);
+
+    try {
+      // Step 1 — release the engine from memory.
+      setGemmaUninstallProgress(15);
+      await localLlm.dispose();
+      await delay(200);
+
+      // Step 2 — delete model files (per-file progress mapped to 40–90%).
+      setGemmaUninstallProgress(40);
+      await removeGemmaModel((deleted, total) => {
+        const pct = total > 0 ? 40 + Math.round((deleted / total) * 50) : 90;
+        setGemmaUninstallProgress(pct);
+      });
+      await delay(200);
+
+      // Step 3 — verify the model is really gone before declaring success.
+      setGemmaUninstallProgress(95);
+      let remaining = await getGemmaModelSizeBytes();
+      if (remaining > 0) {
+        await removeGemmaModel();
+        remaining = await getGemmaModelSizeBytes();
+      }
+      if (remaining > 0) {
+        throw new Error('GEMMA_UNINSTALL_INCOMPLETE');
+      }
+
+      // Step 4 — show 100% briefly so the user is sure it finished.
+      setGemmaUninstallProgress(100);
+      setGemmaUninstallDone(true);
+      await delay(700);
+
+      setGemmaInstalled(false);
+      setGemmaProgress(0);
+      setGemmaPhase('idle');
+      await updateStorageEstimate();
+
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: 'Espacio liberado',
+          body: 'El motor Gemma local ha sido desinstalado por completo.',
+          id: getNotificationId('gemma4_uninstall'),
+          schedule: { at: new Date(Date.now() + 50) },
+        }],
+      }).catch(() => {});
+    } catch (err) {
+      console.error('[OffGrid] Gemma uninstall failed:', err);
+      setGemmaInstallError(
+        'No se pudo desinstalar el motor por completo. Cierra y reabre la app, luego inténtalo de nuevo.'
+      );
+      await updateStorageEstimate();
+    } finally {
+      setUninstallingGemma(false);
+      setGemmaUninstallProgress(0);
+      setGemmaUninstallDone(false);
+    }
   };
 
   // Download Department Pack
@@ -684,7 +908,14 @@ export const useOffGrid = () => {
    */
   const initializeEngine = useCallback(async (): Promise<EngineStatus> => {
     const modelReady = await isGemmaModelReady();
-    return localLlm.initialize({ preferGemma: modelReady });
+    const status = await localLlm.initialize({ preferGemma: modelReady });
+    // Init invalidates the install when the model file is corrupt/incompatible,
+    // so re-sync the UI flag to bring back the install option.
+    if (modelReady) {
+      const stillReady = await isGemmaModelReady();
+      setGemmaInstalled(stillReady);
+    }
+    return status;
   }, []);
 
   return {
@@ -695,6 +926,14 @@ export const useOffGrid = () => {
     gemmaInstalled,
     installingGemma,
     gemmaProgress,
+    gemmaPhase,
+    gemmaPhaseProgress,
+    gemmaWriteSavedMb,
+    gemmaInstallError,
+    gemmaInstallElapsedSec,
+    uninstallingGemma,
+    gemmaUninstallProgress,
+    gemmaUninstallDone,
     network,
     /** @deprecated use network.isOnline */
     isWifi: network.isOnline,

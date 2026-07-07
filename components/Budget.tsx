@@ -7,6 +7,7 @@ import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bo
 import { PaywallRoiCard } from './trips/PaywallRoiCard';
 import { TripLedgerManual } from './trips/TripLedgerManual';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
 
@@ -81,21 +82,7 @@ export const Budget: React.FC<BudgetProps> = ({
 
   return (
     <div className="bg-background-dark font-display antialiased text-content h-screen w-full overflow-hidden flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/10 transition-colors">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onMenuClick}
-            className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-[#0a1f35] shadow-sm border border-overlay/10 transition-colors active:scale-95"
-          >
-            <span className="material-symbols-outlined text-2xl">menu</span>
-          </button>
-          <h2 className="text-content text-lg font-bold leading-tight tracking-tight">
-            {t('budget.title')}
-          </h2>
-        </div>
-        <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-      </header>
+      <StickyGlassHeader onMenuClick={onMenuClick} title={t('budget.title')} titleLarge />
 
       <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar p-4 flex flex-col gap-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
 

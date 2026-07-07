@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface PasswordRecoveryProps {
   onBack: () => void;
@@ -10,19 +11,10 @@ export const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ onBack, onSu
   const { t } = useTranslation();
 
   return (
-    <div className="bg-[#f8f7f6] dark:bg-[#221910] text-[#181411] min-h-screen w-full flex flex-col font-display overflow-y-auto no-scrollbar pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-50 flex items-center bg-overlay/95 dark:bg-[#221910]/95 backdrop-blur-sm px-4 pb-2 pt-safe justify-between border-b border-gray-100 dark:border-gray-800 transition-colors">
-        <button 
-          onClick={onBack}
-          className="text-[#0f2537] dark:text-content flex size-12 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-        >
-          <span className="material-symbols-outlined">arrow_back_ios_new</span>
-        </button>
-        <h2 className="text-[#0f2537] dark:text-content text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">{t('auth.recovery.header')}</h2>
-      </div>
+    <div className="bg-[#f8f7f6] dark:bg-[#221910] text-[#181411] min-h-screen w-full flex flex-col font-display overflow-hidden pb-24">
+      <StickyGlassHeader onBack={onBack} title={t('auth.recovery.header')} titleLarge showLogo={false} />
 
-      {/* Title Section */}
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-[calc(1rem+var(--safe-bottom))]">
       <div className="px-4 pt-6 pb-2">
         <h1 className="text-[#0f2537] dark:text-content text-[28px] font-bold leading-tight tracking-[-0.015em] mb-2">{t('auth.recovery.title')}</h1>
         <p className="text-[#637588] dark:text-content-muted text-base font-normal leading-normal">
@@ -67,6 +59,7 @@ export const PasswordRecovery: React.FC<PasswordRecoveryProps> = ({ onBack, onSu
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 };

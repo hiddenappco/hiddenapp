@@ -10,7 +10,8 @@ import { useTranslation } from '../hooks/useTranslation';
 import { RichTextContent } from './ui/RichTextContent';
 import { setLastDepartmentId } from '../utils/lastDepartment';
 import { isExpeditionPlannerLocked } from '../utils/expeditionPlanner';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface DepartmentBriefingProps {
   language: Language;
@@ -56,21 +57,14 @@ export const DepartmentBriefing: React.FC<DepartmentBriefingProps> = ({
     [data]
   );
 
-  if (loading) return <PageDetailSkeleton />;
+  if (loading) return <PageLoadingScreen titleKey="department.loading" />;
   if (!data) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('department.notFound')}</div>;
 
   return (
-    <div className="relative flex h-screen w-full flex-col overflow-y-auto overflow-x-hidden pb-6 bg-background-dark font-display text-content antialiased selection:bg-primary selection:text-white no-scrollbar">
-      <div className="relative w-full h-[60vh] shrink-0">
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-4 pt-safe-hero">
-          <button
-            onClick={onBack}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-          </button>
-        </div>
+    <div className="relative flex h-screen w-full flex-col overflow-y-auto overflow-x-hidden pb-[calc(1.5rem+var(--safe-bottom))] bg-background-dark font-display text-content antialiased selection:bg-primary selection:text-white no-scrollbar">
+      <StickyGlassHeader onBack={onBack} title={data.name} />
 
+      <div className="relative w-full h-[60vh] shrink-0">
         <div
           className="absolute inset-0 w-full h-full bg-center bg-cover bg-no-repeat"
           aria-label={data.name}

@@ -6,11 +6,6 @@ interface DestinationHeroProps {
     displayTitle?: string;
     displayLocation?: string;
     galleryImages: string[];
-    onBack: () => void;
-    onShare: () => void;
-    onToggleFavorite: () => void;
-    isSaved: boolean;
-    favLoading: boolean;
     texts: any;
 }
 
@@ -19,11 +14,6 @@ export const DestinationHero: React.FC<DestinationHeroProps> = ({
     displayTitle,
     displayLocation,
     galleryImages,
-    onBack,
-    onShare,
-    onToggleFavorite,
-    isSaved,
-    favLoading,
     texts
 }) => {
     const heroImage = destination ? normalizeImage(destination.heroImage) : '';
@@ -50,27 +40,6 @@ export const DestinationHero: React.FC<DestinationHeroProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80"></div>
                     </div>
                 )}
-            </div>
-
-            <div className="absolute top-0 left-0 p-4 pt-safe-hero z-20 w-full flex justify-between pointer-events-none">
-                <button onClick={onBack} className="pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white border border-overlay/20 hover:bg-black/40 transition-colors">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-                <div className="flex gap-3 pointer-events-auto">
-                    <button
-                        onClick={onShare}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white border border-overlay/20 hover:bg-black/40 transition-colors"
-                    >
-                        <span className="material-symbols-outlined">share</span>
-                    </button>
-                    <button
-                        onClick={onToggleFavorite}
-                        disabled={favLoading}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-overlay/20 hover:bg-black/40 transition-colors"
-                    >
-                        <span className={`material-symbols-outlined ${isSaved ? 'text-red-500 filled-icon' : 'text-white'}`}>favorite</span>
-                    </button>
-                </div>
             </div>
 
             <div className="absolute bottom-0 left-0 px-5 pb-8 w-full z-10 pointer-events-none">

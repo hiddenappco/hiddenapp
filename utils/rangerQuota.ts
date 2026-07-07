@@ -1,4 +1,5 @@
 import { RANGER_FREE_DAILY, RANGER_PREMIUM_DAILY } from '../config/premiumLimits';
+import { GUEST_HACKATHON_PREMIUM } from './guestAccess';
 import { hasActivePremium, type PremiumProfileFields } from './premiumAccess';
 import { isGuestProfile } from './userIdentity';
 
@@ -7,7 +8,7 @@ function todayUtcDateKey(): string {
 }
 
 export function getRangerDailyLimit(profile: PremiumProfileFields | null | undefined): number | null {
-    if (isGuestProfile(profile)) return RANGER_PREMIUM_DAILY;
+    if (GUEST_HACKATHON_PREMIUM && isGuestProfile(profile)) return RANGER_PREMIUM_DAILY;
     if (hasActivePremium(profile)) return RANGER_PREMIUM_DAILY;
     return RANGER_FREE_DAILY;
 }

@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
 
 /**
@@ -22,4 +22,12 @@ export const uploadFile = async (path: string, file: Blob | File): Promise<strin
 export const uploadProfilePicture = async (userId: string, file: Blob | File): Promise<string> => {
     const path = `users/${userId}/profile.jpg`;
     return uploadFile(path, file);
+};
+
+export const deleteStorageFile = async (path: string): Promise<void> => {
+    try {
+        await deleteObject(ref(storage, path));
+    } catch {
+        /* object may already be deleted */
+    }
 };

@@ -275,6 +275,51 @@ export const supportTicketReply = onDocumentUpdated("support_tickets/{ticketId}"
     }
 });
 
+/**
+ * P1-OFF-04 — "Notify me when ready".
+ * When a queued/processing expedition finishes (ready | error) and the owner opted in
+ * (`notifyWhenReady === true`), push a targeted notification so they can leave the page
+ * during the 30–90s multi-agent generation. Flag is cleared to avoid duplicates.
+ */
+export const onExpeditionReadyNotify = onDocumentUpdated("expeditions/{id}", async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+    if (after.notifyWhenReady !== true) return;
+
+    const wasProcessing = before.status !== 'ready' && before.status !== 'error';
+    const isDone = after.status === 'ready' || after.status === 'error';
+    if (!wasProcessing || !isDone) return;
+
+    const userId = after.userId;
+    if (!userId) return;
+
+    // Clear the flag first so a retry/second update never double-sends.
+    await event.data?.after.ref.update({ notifyWhenReady: false });
+
+    const isEn = after.language === 'en';
+    const failed = after.status === 'error';
+    const title = failed
+        ? (isEn ? "Your expedition needs adjustments" : "Tu expedición necesita ajustes")
+        : (isEn ? "Your expedition is ready" : "Tu expedición está lista");
+    const planTitle =
+        (after.itinerary && typeof after.itinerary.title === 'string' && after.itinerary.title) || '';
+    const body = failed
+        ? (isEn ? "Tap to review and try again." : "Toca para revisarla y volver a intentar.")
+        : planTitle
+          ? (isEn ? `"${planTitle}" is ready to view.` : `"${planTitle}" está lista para ver.`)
+          : (isEn ? "Tap to view your full itinerary." : "Toca para ver tu itinerario completo.");
+
+    await sendSmartNotification(
+        'expediciones',
+        title,
+        body,
+        'system',
+        `/expedition/${event.params.id}`,
+        userId
+    );
+});
+
 export const scheduledEnvironmentalMonitor = onSchedule({
     schedule: "every 15 minutes",
     secrets: ["GOOGLE_MAPS_API_KEY", "GEMINI_API_KEY", "ACCUWEATHER_API_KEY", "STORMGLASS_API_KEY"]

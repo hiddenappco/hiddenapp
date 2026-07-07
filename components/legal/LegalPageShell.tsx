@@ -1,4 +1,5 @@
 import React from 'react';
+import { StickyGlassHeader } from '../ui/StickyGlassHeader';
 
 interface LegalPageShellProps {
     pageTitle: string;
@@ -26,23 +27,9 @@ export const LegalPageShell: React.FC<LegalPageShellProps> = ({
     footer,
 }) => (
     <div className="bg-background-dark font-display text-content antialiased h-screen w-full flex flex-col overflow-hidden relative z-50">
-        <header className="sticky top-0 z-20 bg-background-dark/95 backdrop-blur-sm border-b border-overlay/5 shrink-0">
-            <div className="flex items-center justify-between p-4 pb-3 pt-safe-hero">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    aria-label="Go back"
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors"
-                >
-                    <span className="material-symbols-outlined text-primary text-2xl">arrow_back_ios_new</span>
-                </button>
-                <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10 truncate">
-                    {pageTitle}
-                </h2>
-            </div>
-        </header>
+        <StickyGlassHeader onBack={onBack} title={pageTitle} titleLarge showLogo={false} />
 
-        <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        <main className="flex-1 overflow-y-auto no-scrollbar pb-[calc(6rem+var(--safe-bottom))]">
             <div className="px-6 pt-6 pb-2">
                 <div className="flex items-center gap-3 mb-2">
                     <span className="material-symbols-outlined text-green-400 text-3xl">gavel</span>

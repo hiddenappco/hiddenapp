@@ -1,6 +1,7 @@
 import React from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface HiddenPactProps {
   onMenuClick: () => void;
@@ -40,23 +41,14 @@ export const HiddenPact: React.FC<HiddenPactProps> = ({ onMenuClick, onAccept, o
         <div className="absolute inset-0 bg-gradient-to-b from-[#0c1f17]/90 via-[#0c1f17]/95 to-[#0c1f17]"></div>
       </div>
 
-      {/* Header */}
-      <header className="relative z-20 flex items-center justify-between p-6 pt-safe shrink-0">
-        {!gateMode ? (
-          <button
-            onClick={onMenuClick}
-            className="flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md border border-overlay/10 hover:bg-overlay/20 transition-colors text-content"
-          >
-            <span className="material-symbols-outlined text-[24px]">menu</span>
-          </button>
-        ) : (
-          <div className="w-10" aria-hidden="true" />
-        )}
-        <div className="w-10"></div>
-      </header>
+      <StickyGlassHeader
+        onMenuClick={onMenuClick}
+        showMenu={!gateMode}
+        showLogo={false}
+      />
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 overflow-y-auto no-scrollbar px-6 pb-24">
+      <main className="relative z-10 flex-1 overflow-y-auto no-scrollbar px-6 pb-[calc(6rem+var(--safe-bottom))]">
 
         {/* Title Section */}
         <div className="text-center mb-10">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../../utils/bottomNav';
+import { StickyGlassHeader } from '../ui/StickyGlassHeader';
 
 interface TripLedgerManualProps {
     onBack: () => void;
@@ -69,19 +70,7 @@ export const TripLedgerManual: React.FC<TripLedgerManualProps> = ({ onBack }) =>
 
     return (
         <div className="bg-background-dark font-display text-content antialiased h-screen w-full flex flex-col overflow-hidden relative selection:bg-budget-primary selection:text-white">
-            <header className="sticky top-0 z-50 flex items-center gap-3 bg-background-dark/90 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5 shrink-0">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="flex items-center justify-center size-10 rounded-full text-content bg-surface-dark hover:bg-overlay/10 shadow-lg border border-overlay/10 transition-colors shrink-0"
-                    aria-label={t('trips.backToLedger')}
-                >
-                    <span className="material-symbols-outlined text-[22px]">arrow_back</span>
-                </button>
-                <h2 className="flex-1 min-w-0 text-base font-bold leading-tight tracking-tight text-content truncate">
-                    {t('budget.manual.title')}
-                </h2>
-            </header>
+            <StickyGlassHeader onBack={onBack} title={t('budget.manual.title')} titleLarge showLogo={false} />
 
             <main
                 className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar p-5 flex flex-col gap-6 ${BOTTOM_NAV_SCROLL_PADDING}`}
@@ -210,6 +199,41 @@ export const TripLedgerManual: React.FC<TripLedgerManualProps> = ({ onBack }) =>
                             icon="account_balance_wallet"
                             title={t('budget.manual.expensesBalancesTitle')}
                             body={t('budget.manual.expensesBalancesBody')}
+                        />
+                    </div>
+                </ManualCard>
+
+                <ManualCard
+                    icon="folder"
+                    label={t('budget.manual.documentsLabel')}
+                    title={t('budget.manual.documentsTitle')}
+                >
+                    <p className="text-xs text-content/70 leading-relaxed mb-4">{t('budget.manual.documentsIntro')}</p>
+                    <div className="flex flex-col gap-4">
+                        <InfoBlock
+                            icon="upload_file"
+                            title={t('budget.manual.documentsAttachTitle')}
+                            body={t('budget.manual.documentsAttachBody')}
+                        />
+                        <InfoBlock
+                            icon="edit"
+                            title={t('budget.manual.documentsNameTitle')}
+                            body={t('budget.manual.documentsNameBody')}
+                        />
+                        <InfoBlock
+                            icon="link"
+                            title={t('budget.manual.documentsLinkTitle')}
+                            body={t('budget.manual.documentsLinkBody')}
+                        />
+                        <InfoBlock
+                            icon="sd_storage"
+                            title={t('budget.manual.documentsStorageTitle')}
+                            body={t('budget.manual.documentsStorageBody')}
+                        />
+                        <InfoBlock
+                            icon="shield_person"
+                            title={t('budget.manual.documentsRolesTitle')}
+                            body={t('budget.manual.documentsRolesBody')}
                         />
                     </div>
                 </ManualCard>

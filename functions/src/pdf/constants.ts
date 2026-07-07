@@ -1,17 +1,18 @@
-/** Public assets used by Puppeteer when rendering PDFs (must be reachable over HTTPS). */
+/** Placeholders replaced with bundled data URIs before Puppeteer render. */
+export const PDF_LOGO_SRC = '__HIDDEN_PDF_LOGO__';
+export const PDF_QR_SRC = '__HIDDEN_PDF_QR__';
+
 export const HIDDEN_WEB_URL = 'https://hiddenapp.co';
-export const HIDDEN_LOGO_URL = 'https://i.imgur.com/WtlATYR.png';
-export const HIDDEN_QR_URL = 'https://i.imgur.com/a5vwrIi.png';
 
 export const PDF_CACHE_DAYS = 7;
 /** Shared catalog destination PDFs — longer TTL; invalidated by content fingerprint. */
 export const DESTINATION_PDF_CACHE_DAYS = 90;
 
-/** Inner content padding — applied in CSS; Puppeteer page margins stay at 0 so the dark background fills the sheet. */
+/** Inner content inset — padding inside the dark full-bleed page (not white Puppeteer margins). */
 export const PDF_MARGIN_MM = {
     top: '14mm',
     right: '12mm',
-    bottom: '16mm',
+    bottom: '18mm',
     left: '12mm',
 } as const;
 
@@ -20,3 +21,6 @@ export const PDF_VIEWPORT = {
     width: 794,
     height: 1123,
 } as const;
+
+/** Bump when PDF layout/template changes to invalidate cached destination PDFs. */
+export const DESTINATION_PDF_TEMPLATE_VERSION = 3;

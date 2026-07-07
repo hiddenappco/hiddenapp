@@ -1,12 +1,12 @@
 import React from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
-import { useOutletContext } from 'react-router-dom';
 import { useDepartments, useDestinationCounts, resolveDestinationCount } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { formatDepartmentStatValue } from '../utils/departmentIdentity';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
-import { DepartmentListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface HomeProps {
   language: Language;
@@ -16,7 +16,6 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) => {
-  const { openMenu } = useOutletContext<{ openMenu: () => void }>();
   const { t } = useTranslation();
 
   // Real Data Hook
@@ -63,22 +62,8 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
     ...decorativeDepartments
   ];
 
-  if (loading) {
-    return (
-      <div className="bg-background-dark text-content font-display h-screen flex flex-col relative overflow-hidden">
-        <header className="sticky top-0 z-30 flex items-center justify-between p-4 pt-safe shrink-0">
-          <div className="size-10 rounded-full bg-overlay/10 animate-pulse" />
-          <div className="h-8 w-20 bg-overlay/10 rounded-lg animate-pulse" />
-          <div className="size-10" />
-        </header>
-        <main className={`flex-1 w-full overflow-y-auto no-scrollbar pt-3 px-6 ${BOTTOM_NAV_SCROLL_PADDING}`}>
-          <div className="h-5 w-48 mx-auto mb-2 bg-overlay/10 rounded-lg animate-pulse" />
-          <div className="h-4 w-64 mx-auto mb-6 bg-overlay/10 rounded-lg animate-pulse" />
-          <DepartmentListSkeleton count={3} />
-          <div className={`${BOTTOM_NAV_SCROLL_SPACER} w-full`} aria-hidden="true" />
-        </main>
-      </div>
-    );
+  if (loading || countsLoading) {
+    return <PageLoadingScreen titleKey="home.loading" />;
   }
 
   return (
@@ -89,19 +74,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E")`
       }}></div>
 
-      {/* Header */}
-      <header className="sticky top-0 left-0 right-0 z-30 flex items-center justify-between p-4 pt-safe bg-gradient-to-b from-background-dark/95 to-transparent pointer-events-none shrink-0">
-        <button
-          onClick={onMenuClick || openMenu}
-          className="pointer-events-auto touch-target flex items-center justify-center rounded-full text-content bg-surface-dark hover:bg-surface-dark/80 shadow-lg border border-overlay/10 transition-colors"
-        >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-        <div className="flex items-center gap-2 pointer-events-auto opacity-90">
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 w-auto drop-shadow-lg" />
-        </div>
-        <div className="size-10 pointer-events-none"></div>
-      </header>
+      <StickyGlassHeader onMenuClick={onMenuClick} showLogo />
 
       {/* Main Content */}
       <main className={`flex-1 w-full overflow-y-auto no-scrollbar pt-3 z-10 ${BOTTOM_NAV_SCROLL_PADDING}`}>
@@ -156,7 +129,7 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
                 {isAvailable && destinationCount !== null && (
                   <div className="absolute top-4 left-4 z-20 max-w-[calc(100%-2rem)]">
                     <span
-                      className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-white uppercase tracking-wider bg-black/45 backdrop-blur-md border border-white/20 shadow-sm leading-none ${countsLoading ? 'animate-pulse' : ''}`}
+                      className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-white uppercase tracking-wider bg-black/45 backdrop-blur-md border border-white/20 shadow-sm leading-none"
                       aria-label={
                         destinationCount === 1
                           ? t('home.destinationCountOne')
@@ -165,11 +138,9 @@ export const Home: React.FC<HomeProps> = ({ language, onExplore, onMenuClick }) 
                     >
                       <span className="material-symbols-outlined text-[11px] leading-none">map</span>
                       <span className="truncate">
-                        {countsLoading
-                          ? '…'
-                          : destinationCount === 1
-                            ? t('home.destinationCountOne')
-                            : t('home.destinationCount', { count: destinationCount })}
+                        {destinationCount === 1
+                          ? t('home.destinationCountOne')
+                          : t('home.destinationCount', { count: destinationCount })}
                       </span>
                     </span>
                   </div>

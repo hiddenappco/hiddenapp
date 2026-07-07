@@ -6,6 +6,7 @@ import { useUserProfile } from '../../hooks/useFirestore';
 import { useSettingsAccess, type SettingsSectionId } from '../../hooks/useSettingsAccess';
 import { SettingsScreenShell } from './SettingsScreenShell';
 import { PREMIUM_CHECKOUT_ENABLED } from '../../config/constants';
+import { PREMIUM_REFERENCE_PRICES } from '../../config/premiumPricing';
 
 interface SettingsPremiumProps {
     onBack: () => void;
@@ -35,11 +36,11 @@ export const SettingsPremium: React.FC<SettingsPremiumProps> = ({ onBack }) => {
                     className={`rounded-2xl border p-5 flex flex-col gap-3 ${
                         isPremium
                             ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-orange-600/5'
-                            : 'border-overlay/10 bg-surface-dark'
+                            : 'border-overlay/10 bg-surface-alt dark:bg-surface-dark'
                     }`}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="size-12 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                        <div className="size-12 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
                             <span className="material-symbols-outlined text-[28px]">workspace_premium</span>
                         </div>
                         <div>
@@ -51,6 +52,25 @@ export const SettingsPremium: React.FC<SettingsPremiumProps> = ({ onBack }) => {
                             </p>
                         </div>
                     </div>
+                </div>
+
+                <div className="rounded-2xl border border-overlay/10 bg-surface-alt/80 dark:bg-surface-dark/60 p-4 flex flex-col gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-content-muted">
+                        {t('settings.premium.plansSummaryTitle')}
+                    </p>
+                    <ul className="text-xs text-content-muted leading-relaxed space-y-1.5 list-disc pl-4">
+                        <li>{t('settings.premium.plansSummaryFree')}</li>
+                        <li>{t('settings.premium.plansSummaryTrip')}</li>
+                        <li>{t('settings.premium.plansSummaryVip')}</li>
+                    </ul>
+                    <p className="text-[11px] text-content-subtle leading-relaxed pt-2 border-t border-overlay/10">
+                        {t('settings.premium.plansPriceHint', {
+                            trip: PREMIUM_REFERENCE_PRICES.trip,
+                            monthly: PREMIUM_REFERENCE_PRICES.monthly,
+                            annual: PREMIUM_REFERENCE_PRICES.annual,
+                            lifetime: PREMIUM_REFERENCE_PRICES.lifetime,
+                        })}
+                    </p>
                 </div>
 
                 <button

@@ -7,7 +7,8 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 interface FairDetailProps {
   language: Language;
@@ -109,7 +110,7 @@ export const FairDetail: React.FC<FairDetailProps> = ({
     }
   };
 
-  if (loading) return <PageDetailSkeleton />;
+  if (loading) return <PageLoadingScreen titleKey="fairCalendar.loading" />;
   if (!event) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('fair.notFound')}</div>;
 
   const displayName = event.name;
@@ -119,6 +120,23 @@ export const FairDetail: React.FC<FairDetailProps> = ({
 
   return (
     <div className="relative flex h-screen w-full flex-col bg-background-dark font-display text-content antialiased overflow-y-auto overflow-x-hidden no-scrollbar">
+      <StickyGlassHeader
+        onBack={onBack}
+        title={displayName}
+        showLogo={false}
+        right={
+          <>
+            <StickyHeaderActionButton icon="share" onClick={handleShare} label="Share" />
+            <StickyHeaderActionButton
+              icon="favorite"
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              active={isSaved}
+              label="Favorite"
+            />
+          </>
+        }
+      />
 
       <div className="relative w-full h-[45vh] shrink-0">
         <div className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar bg-overlay/10">
@@ -143,34 +161,6 @@ export const FairDetail: React.FC<FairDetailProps> = ({
           )}
         </div>
 
-        <div className="absolute top-0 left-0 w-full z-20 p-4 pt-safe flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-          <button
-            onClick={onBack}
-            className="pointer-events-auto flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md text-white hover:bg-overlay/20 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-          </button>
-          <div className="flex gap-3 pointer-events-auto">
-            <button
-              onClick={handleShare}
-              className="flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md text-white hover:bg-overlay/20 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[24px]">share</span>
-            </button>
-            <button
-              onClick={handleToggleFavorite}
-              disabled={favLoading}
-              className="flex items-center justify-center size-10 rounded-full bg-overlay/10 backdrop-blur-md hover:bg-overlay/20 transition-colors active:scale-90"
-            >
-              <span
-                className={`material-symbols-outlined text-[24px] transition-all ${isSaved ? 'filled-icon text-red-500' : 'text-white'}`}
-              >
-                favorite
-              </span>
-            </button>
-          </div>
-        </div>
-
         <div className="absolute bottom-0 left-0 w-full p-6 pb-12 pointer-events-none">
           <h1 className="text-content text-3xl font-extrabold leading-tight drop-shadow-md mb-1">{displayName}</h1>
           {displaySubtitle && (
@@ -183,7 +173,7 @@ export const FairDetail: React.FC<FairDetailProps> = ({
         </div>
       </div>
 
-      <div className="relative bg-background-dark -mt-4 rounded-t-3xl px-5 pt-8 flex flex-col gap-6 z-10 pb-32 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+      <div className="relative bg-background-dark -mt-4 rounded-t-3xl px-5 pt-8 flex flex-col gap-6 z-10 pb-[calc(8rem+var(--safe-bottom))] shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
         <div className="grid grid-cols-3 gap-3 border-b border-overlay/5 pb-6">
           <div className="flex flex-col items-center justify-center text-center gap-1 bg-overlay/5 p-3 rounded-2xl border border-overlay/5">
             <div className="size-8 rounded-full bg-orange-400/10 flex items-center justify-center text-orange-400 mb-0.5">

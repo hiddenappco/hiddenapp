@@ -2,14 +2,17 @@ import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getLegalContent } from '../locales/legalContent';
 import { LegalPageShell } from './legal/LegalPageShell';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface FaqProps {
     onBack: () => void;
+    onSupportClick?: () => void;
 }
 
-export const Faq: React.FC<FaqProps> = ({ onBack }) => {
+export const Faq: React.FC<FaqProps> = ({ onBack, onSupportClick }) => {
     const { currentLanguage } = useLanguage();
     const { faq, meta, ui } = getLegalContent(currentLanguage);
+    const { t } = useTranslation();
 
     return (
         <LegalPageShell
@@ -47,6 +50,22 @@ export const Faq: React.FC<FaqProps> = ({ onBack }) => {
                     </div>
                 </div>
             ))}
+
+            {onSupportClick && (
+                <div className="mt-8 px-2">
+                    <div className="rounded-2xl bg-surface-dark border border-overlay/10 p-5 flex flex-col gap-3">
+                        <p className="text-sm font-semibold text-content">{t('faqPage.supportCta')}</p>
+                        <button
+                            type="button"
+                            onClick={onSupportClick}
+                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-white font-bold py-3 text-sm flex items-center justify-center gap-2 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                            {t('faqPage.supportCtaButton')}
+                        </button>
+                    </div>
+                </div>
+            )}
         </LegalPageShell>
     );
 };

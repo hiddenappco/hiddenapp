@@ -86,7 +86,7 @@
     <p>Expedition-tech platform for remote tourism in Colombia · PWA, Firebase/GCP, multi-agent AI ecosystem scoped by department</p>
     <div class="links">
       <a href="https://gen-lang-client-0040858908.web.app">Production PWA</a>
-      <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">Hackathon demo video</a>
+      <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">Product overview video</a>
       <a href="https://github.com/hiddenappco/hiddenapp">Source code</a>
       <a href="https://github.com/hiddenappco/hiddenapp/blob/main/docs/ARCHITECTURE.md">Architecture (Markdown)</a>
     </div>
@@ -137,7 +137,9 @@
         USD/EUR entry using the daily official TRM cached in <code>config/exchangeRates</code>
         (<code>getExchangeRates</code> + <code>scheduledExchangeRates</code>). Group splits use
         <code>paidByMemberId</code> and <code>splitAmong[]</code>; balances appear in UI and in the bilingual
-        <code>generateTripPdf</code> export. Offline: <code>tripLedgerStore</code> (IndexedDB outbox) syncs on reconnect;
+        <code>generateTripPdf</code> export. Lodging expenses may tag <strong>direct community coupon redemptions</strong>
+        (<code>directCommunity</code>) → Cloud Function <code>onTripExpenseWritten</code> updates ESG aggregates.
+        Offline: <code>tripLedgerStore</code> (IndexedDB v4, stores <code>documents</code> + expenses) syncs on reconnect;
         ledger routes bypass <code>OfflineGuardian</code>. Independent from the expedition planner hub.
       </p>
     </section>
@@ -160,15 +162,19 @@
       <dt>Live voice</dt>
       <dd>Cloud Run <code>hidden-agent-worker</code> + LiveKit + Gemini Multimodal Live (separate from the ADK text stack).</dd>
       <dt>Off-Grid Vault</dt>
-      <dd>Department SQLite packs + local RAG on device — search and offline chat with zero network.</dd>
+      <dd>Department SQLite packs + local RAG on device. Optional <strong>MediaPipe Gemma 2B</strong> (~1.29 GB) — streamed install to disk, phased progress, verified uninstall. Offline chat works without Gemma (guided search fallback).</dd>
       <dt>Trip ledger (Bitácora v2)</dt>
-      <dd>Solo/group expense tracking, TRM-backed multi-currency, group splits, IndexedDB offline outbox, bilingual PDF — decoupled from expedition planner.</dd>
+      <dd>Solo/group expense tracking, TRM-backed multi-currency, group splits, IndexedDB offline outbox (v4), bilingual PDF, ESG coupon tagging → <code>onTripExpenseWritten</code> — decoupled from expedition planner.</dd>
+      <dt>Premium & paywall ROI (Jul 2026)</dt>
+      <dd><code>/premium</code> Baymard 3-column matrix (Free · Trip Pass · VIP); <code>paywallRoi.ts</code> banners in ledger, destination gates, and premium page.</dd>
+      <dt>ESG direct injection</dt>
+      <dd><code>esg_direct_injections</code> + <code>esg_monthly_totals</code>; profile aggregate <code>directInjectionTotalCop</code>; monthly ops script <code>report:direct-injection</code>.</dd>
     </dl>
   </main>
 
   <footer>
     Interactive diagrams rendered with Mermaid · synced with <a href="https://github.com/hiddenappco/hiddenapp/blob/main/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>
-    · Hackathon video: <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">youtube.com/watch?v=cTfFi36K3qI</a>
+    · Product video: <a href="https://www.youtube.com/watch?v=cTfFi36K3qI">youtube.com/watch?v=cTfFi36K3qI</a>
   </footer>
 
   <script type="module">

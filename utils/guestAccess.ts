@@ -2,7 +2,7 @@
 export const isGuestLoginEnabled = import.meta.env.VITE_ENABLE_GUEST_LOGIN !== 'false';
 
 /**
- * Hackathon window: guest profiles (and accounts upgraded from guest) keep Premium.
- * Set to `false` post-hackathon when guests become Free tier.
+ * When `true`, anonymous guests are treated as full Premium (hackathon demos only).
+ * **Production default: `false`** — guests use the Free tier like registered Free users.
  */
-export const GUEST_HACKATHON_PREMIUM = true;
+export const GUEST_HACKATHON_PREMIUM = false;

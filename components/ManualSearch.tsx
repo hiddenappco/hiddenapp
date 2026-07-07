@@ -4,10 +4,11 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useDestinations, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
-import { rankLocalizedSearch } from '../utils/localizedContent';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
 import { DESTINATION_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
-import { SearchListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface ManualSearchProps {
   language: Language;
@@ -22,73 +23,56 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
 
   const { data: destinations, loading } = useDestinations();
 
+  const rankedResults = useLocalizedSearch(
+    destinations as Record<string, unknown>[],
+    searchTerm,
+    DESTINATION_PICKER_SEARCH_FIELDS,
+    { limit: 50 }
+  );
+
   const filteredResults = React.useMemo(() => {
-    const term = searchTerm.trim();
-    if (!term) {
+    if (!searchTerm.trim()) {
       return [...destinations].sort(() => 0.5 - Math.random()).slice(0, 5);
     }
+    return rankedResults as typeof destinations;
+  }, [destinations, searchTerm, rankedResults]);
 
-    return rankLocalizedSearch(
-      destinations as Record<string, unknown>[],
-      term,
-      DESTINATION_PICKER_SEARCH_FIELDS,
-      50
-    ) as typeof destinations;
-  }, [destinations, searchTerm]);
+  if (loading) {
+    return <PageLoadingScreen titleKey="explore.loading" />;
+  }
 
   return (
     <div className="bg-background-dark text-content font-display antialiased h-screen w-full flex flex-col overflow-hidden">
 
-      {/* Unified Sticky Header Area */}
-      <div className="sticky top-0 z-30 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 transition-all">
-        {/* Top Row: Menu, Title & Logo */}
-        <div className="flex items-center justify-between px-4 pt-safe pb-2">
-          <button
-            onClick={onMenuClick}
-            className="flex size-10 items-center justify-center rounded-2xl bg-overlay/5 hover:bg-overlay/10 text-content border border-overlay/10 transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[20px]">menu</span>
-          </button>
-          <h2 className="text-lg font-bold leading-tight text-content text-center flex-1">{t('explore.title')}</h2>
-          <div className="flex size-10 items-center justify-center">
-            <img src="/assets/ui/logo.png" alt="Hidden Logo" className="w-8 h-8 object-contain" />
+      <StickyGlassHeader onMenuClick={onMenuClick} title={t('explore.title')} titleLarge>
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <span className="material-symbols-outlined text-content/40 group-focus-within:text-primary transition-colors text-[22px]">search</span>
           </div>
-        </div>
-
-        {/* Search Input Row */}
-        <div className="px-4 pb-4 pt-2">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-content/40 group-focus-within:text-primary transition-colors text-[22px]">search</span>
+          <input
+            className="w-full h-12 rounded-2xl bg-overlay/5 border border-overlay/5 text-content placeholder:text-content/40 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-base font-medium"
+            placeholder={t('explore.placeholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm ? (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-content/40 hover:text-content cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[20px]">cancel</span>
+            </button>
+          ) : (
+            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-content/40">
+              <span className="material-symbols-outlined text-[20px]">mic</span>
             </div>
-            <input
-              className="w-full h-12 rounded-2xl bg-overlay/5 border border-overlay/5 text-content placeholder:text-content/40 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-base font-medium"
-              placeholder={t('explore.placeholder')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm ? (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-content/40 hover:text-content cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[20px]">cancel</span>
-              </button>
-            ) : (
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-content/40">
-                <span className="material-symbols-outlined text-[20px]">mic</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </div>
+      </StickyGlassHeader>
 
       {/* Results List */}
       <div className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
-        {loading ? (
-          <SearchListSkeleton count={5} />
-        ) : (
           <>
             {/* Section Title */}
             <div className="flex items-center justify-between pt-2">
@@ -153,7 +137,6 @@ export const ManualSearch: React.FC<ManualSearchProps> = ({ onMenuClick, onResul
               )}
             </div>
           </>
-        )}
 
         {/* Footer Hint */}
         <div className="mt-8 flex flex-col items-center gap-4 opacity-20">

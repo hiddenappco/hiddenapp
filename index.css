@@ -155,6 +155,14 @@
   /*
    * Thumb nav spacing — bar height + edge gap + content clearance (see docs/UI_FIELD_CONSTRAINTS.md)
    * Requires viewport-fit=cover in index.html for env(safe-area-inset-bottom).
+   *
+   * `--safe-area-inset-*` is injected natively by Capacitor's SystemBars plugin
+   * (>= 8.3, `insetsHandling: 'css'`) and is the source of truth on Android —
+   * WebView versions below Chromium 140 report wrong/zero values for the raw
+   * `env(safe-area-inset-*)` CSS function, especially with edge-to-edge enforced
+   * on Android 15+ (targetSdk 35+). `--safe-bottom`/`--safe-top` below always
+   * prefer the injected variable and fall back to `env()` for iOS / older setups.
+   * NEVER read `env(safe-area-inset-*)` directly elsewhere — use these instead.
    */
   :root {
     --bottom-nav-edge-gap: 0.875rem;
@@ -162,16 +170,18 @@
     --bottom-nav-content-gap: 1.25rem;
     --bottom-nav-fab-height: 3.5rem;
     --bottom-nav-fab-gap: 0.875rem;
+    --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
 
   .bottom-nav-host {
-    padding-bottom: calc(var(--bottom-nav-edge-gap) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--bottom-nav-edge-gap) + var(--safe-bottom));
   }
 
   .bottom-nav-scroll-pad {
     padding-bottom: calc(
       var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
-        env(safe-area-inset-bottom, 0px)
+        var(--safe-bottom)
     );
   }
 
@@ -181,7 +191,7 @@
     flex-shrink: 0;
     min-height: calc(
       var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
-        env(safe-area-inset-bottom, 0px)
+        var(--safe-bottom)
     );
   }
 
@@ -189,14 +199,14 @@
     position: absolute;
     bottom: calc(
       var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
-        env(safe-area-inset-bottom, 0px)
+        var(--safe-bottom)
     );
   }
 
   .bottom-nav-scroll-pad-fab {
     padding-bottom: calc(
       var(--bottom-nav-bar-height) + var(--bottom-nav-edge-gap) + var(--bottom-nav-content-gap) +
-        var(--bottom-nav-fab-height) + var(--bottom-nav-fab-gap) + env(safe-area-inset-bottom, 0px)
+        var(--bottom-nav-fab-height) + var(--bottom-nav-fab-gap) + var(--safe-bottom)
     );
   }
 }
@@ -248,31 +258,49 @@
   border-radius: 20px;
 }
 
-/* Safe Area for Mobile (Dynamic Notches & Navigation Bars) */
+/* Safe Area for Mobile (Dynamic Notches & Navigation Bars) — see --safe-top/--safe-bottom above */
 .pt-safe {
-  padding-top: max(1.5rem, env(safe-area-inset-top));
+  padding-top: max(1.5rem, var(--safe-top));
 }
 
 .pt-safe-hero {
   /* For immersive hero images that have a back button floating on top */
-  padding-top: max(3rem, env(safe-area-inset-top, 3rem));
+  padding-top: max(3rem, var(--safe-top));
 }
 
 .pb-safe {
-  padding-bottom: max(2rem, env(safe-area-inset-bottom, 2rem));
+  padding-bottom: max(2rem, var(--safe-bottom));
 }
 
 .top-safe {
-  top: max(1rem, env(safe-area-inset-top));
+  top: max(1rem, var(--safe-top));
 }
 
 .bottom-safe {
-  bottom: max(1rem, env(safe-area-inset-bottom));
+  bottom: max(1rem, var(--safe-bottom));
 }
 
 .pb-safe-input {
   /* For chat inputs and bottom bars */
-  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+  padding-bottom: max(1rem, var(--safe-bottom));
+}
+
+/* Skeleton loading shimmer — sweep highlight so placeholder bars read clearly
+   as "loading" instead of flat static blocks (used by ExpeditionSkeleton). */
+@keyframes skeleton-shimmer-sweep {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(var(--color-overlay) / 0.16) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer-sweep 1.6s ease-in-out infinite;
 }
 
 /* Tactical Scanning Animation */

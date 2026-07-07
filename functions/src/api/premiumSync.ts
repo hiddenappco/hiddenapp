@@ -39,18 +39,19 @@ function durationPayloadEqual(a: unknown, b: Record<string, Timestamp>): boolean
 }
 
 /**
+ * `isPremium` is the single source of truth for EVERY account, guest or
+ * registered — this sync must not skip guests, otherwise an admin-granted or
+ * paid Premium on a guest doc would never auto-expire like everyone else's.
+ *
  * `premiumExpiresAt` (Rowy Duration):
  * - **Empty** → Premium sin caducidad.
  * - **Con endDate** → expira y desactiva `isPremium` al vencer.
  * - **Auto-relleno** solo si `premiumPlan` es `trip_pass` | `monthly` | `annual` (compra/admin explícito).
- * - **Guests** (`isGuest`) → no tocar hasta post-hackathon (jul 2026).
  */
 export const onUserPremiumSync = onDocumentWritten("users/{uid}", async (event) => {
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
     if (!after) return;
-
-    if (after.isGuest === true) return;
 
     const uid = event.params.uid;
     const wasPremium = before?.isPremium === true;
@@ -80,7 +81,7 @@ export const onUserPremiumSync = onDocumentWritten("users/{uid}", async (event) 
     });
 });
 
-/** Hourly sweep — only users with a finite `premiumExpiresAt.end`. */
+/** Hourly sweep — only users with a finite `premiumExpiresAt.end`. Applies to every account, including guests. */
 export const scheduledPremiumExpiry = onSchedule("every 60 minutes", async () => {
     const snap = await db.collection("users").where("isPremium", "==", true).get();
     const batch = db.batch();
@@ -88,7 +89,6 @@ export const scheduledPremiumExpiry = onSchedule("every 60 minutes", async () =>
 
     for (const docSnap of snap.docs) {
         const data = docSnap.data();
-        if (data.isGuest === true) continue;
 
         const end = getPremiumExpiryDate(data.premiumExpiresAt);
         if (end && end.getTime() <= Date.now()) {

@@ -4,6 +4,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuth } from './layout/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../hooks/useFirestore';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 interface NotificationsProps {
   language: Language;
@@ -53,42 +54,33 @@ export const Notifications: React.FC<NotificationsProps> = ({ onBack, onSettings
       {/* Background Gradient Effect */}
       <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none z-0"></div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 flex items-center justify-between bg-background-dark/95 backdrop-blur-md px-5 pb-5 pt-safe border-b border-overlay/5 shadow-sm transition-colors">
-        <button
-          onClick={onBack}
-          className="flex size-10 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
-        >
-          <span className="material-symbols-outlined text-[24px]">arrow_back_ios_new</span>
-        </button>
-        <div className="flex flex-col items-center">
-          <h2 className="text-xl font-bold leading-tight tracking-tight text-content shadow-sm">{t('notifications.title')}</h2>
-        </div>
-        <div className="flex items-center gap-1">
-          {hasUnread && (
-            <button
-              onClick={handleMarkAllAsRead}
-              className="flex size-10 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-orange-400 group relative"
-              title={t('notifications.markAllRead')}
-            >
-              <span className="material-symbols-outlined text-[24px]">done_all</span>
-              {/* Tooltip simple for desktop if needed */}
-              <span className="absolute -bottom-10 right-0 bg-black/80 text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                {t('notifications.markAllRead')}
-              </span>
-            </button>
-          )}
-          <button
-            onClick={onSettings}
-            className="flex size-10 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
-          >
-            <span className="material-symbols-outlined text-[24px]">tune</span>
-          </button>
-        </div>
-      </header>
+      <StickyGlassHeader
+        onBack={onBack}
+        title={t('notifications.title')}
+        titleLarge
+        showLogo={false}
+        right={
+          <div className="flex items-center gap-1">
+            {hasUnread && (
+              <StickyHeaderActionButton
+                icon="done_all"
+                onClick={handleMarkAllAsRead}
+                active
+                activeClassName="text-orange-400"
+                label={t('notifications.markAllRead')}
+              />
+            )}
+            <StickyHeaderActionButton
+              icon="tune"
+              onClick={onSettings}
+              label={t('notifications.title')}
+            />
+          </div>
+        }
+      />
 
       {/* Content List */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 px-4 no-scrollbar z-10 relative">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(6rem+var(--safe-bottom))] px-4 no-scrollbar z-10 relative">
         {loading && visibleLimit === 20 ? (
           <div className="flex flex-col items-center justify-center py-32 opacity-60">
             <div className="size-10 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>

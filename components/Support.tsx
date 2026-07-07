@@ -9,6 +9,7 @@ import {
   sendTicketReply,
   markTicketAsRead
 } from '../hooks/useSocial';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface SupportProps {
   language: Language;
@@ -92,21 +93,7 @@ export const Support: React.FC<SupportProps> = ({ onBack }) => {
 
   return (
     <div className="bg-background-dark font-display antialiased text-content relative flex h-full min-h-screen w-full flex-col max-w-md mx-auto shadow-2xl overflow-hidden transition-colors">
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/5 transition-colors">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBack}
-            className="text-content flex size-10 shrink-0 items-center justify-center cursor-pointer transition-opacity hover:opacity-70"
-          >
-            <span className="material-symbols-outlined text-2xl">arrow_back</span>
-          </button>
-          <h2 className="text-content text-lg font-bold leading-tight tracking-[-0.015em]">
-            {t('support.title')}
-          </h2>
-        </div>
-        <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-      </header>
+      <StickyGlassHeader onBack={onBack} title={t('support.title')} titleLarge />
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto no-scrollbar">
@@ -132,7 +119,7 @@ export const Support: React.FC<SupportProps> = ({ onBack }) => {
               </div>
             </div>
 
-            <div className="px-5 pb-8">
+            <div className="px-5 pb-[calc(2rem+var(--safe-bottom))]">
               {activeTab === 'new' ? (
                 <form onSubmit={handleCreateTicket} className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-2">
                   <div className="space-y-1.5">
@@ -246,7 +233,7 @@ export const Support: React.FC<SupportProps> = ({ onBack }) => {
             </div>
 
             {/* Reply Footer */}
-            <div className="p-4 bg-white dark:bg-background-dark border-t border-gray-100 dark:border-overlay/5 shrink-0">
+            <div className="p-4 pb-[calc(1rem+var(--safe-bottom))] bg-white dark:bg-background-dark border-t border-gray-100 dark:border-overlay/5 shrink-0">
               <div className="flex gap-2">
                 <input
                   type="text"

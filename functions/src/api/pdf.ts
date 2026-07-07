@@ -14,6 +14,7 @@ import {
     isDestinationPdfCacheValid,
 } from '../lib/destinationPdfCache';
 import { computeDirectCommunityFromRefugioPricing } from '../lib/directCommunity';
+import { DESTINATION_PDF_TEMPLATE_VERSION } from '../pdf/constants';
 
 async function userIsPremium(uid: string): Promise<boolean> {
     const snap = await db.collection('users').doc(uid).get();
@@ -43,7 +44,7 @@ async function handlePdfRequest(
 }
 
 export const generateTripPdf = onRequest(
-    { cors: true, timeoutSeconds: 120, memory: '4GiB' },
+    { cors: true, timeoutSeconds: 120, memory: '4GiB', maxInstances: 1 },
     async (req, res) => {
         try {
             const uid = await requireAuthUid(req);
@@ -103,7 +104,7 @@ export const generateTripPdf = onRequest(
 );
 
 export const generateDestinationPdf = onRequest(
-    { cors: true, timeoutSeconds: 120, memory: '2GiB' },
+    { cors: true, timeoutSeconds: 120, memory: '2GiB', maxInstances: 1 },
     async (req, res) => {
         res.set('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {
@@ -148,13 +149,12 @@ export const generateDestinationPdf = onRequest(
                     pdfUrl: cached.url,
                     pdfExpiresAt: cached.expiresAt.toISOString(),
                     cached: true,
+                    sizeBytes: null,
                 });
                 return;
             }
 
             const localized = localizeDestination(raw, lang);
-            const heroImage = String(raw.heroImage || raw.image || '').trim();
-            if (heroImage) localized.heroImage = heroImage;
 
             let departmentName = String(raw.departmentId || '');
             const deptId = String(raw.departmentId || '');
@@ -182,6 +182,7 @@ export const generateDestinationPdf = onRequest(
                     url,
                     expiresAt,
                     fingerprint,
+                    templateVersion: DESTINATION_PDF_TEMPLATE_VERSION,
                 },
             });
 
@@ -190,6 +191,7 @@ export const generateDestinationPdf = onRequest(
                 pdfUrl: url,
                 pdfExpiresAt: expiresAt.toISOString(),
                 cached: false,
+                sizeBytes: buffer.length,
             });
         } catch (error) {
             if (error instanceof AuthError) {
@@ -250,7 +252,7 @@ async function enrichItineraryRefugioEsg(
 }
 
 export const generateExpeditionPdf = onRequest(
-    { cors: true, timeoutSeconds: 120, memory: '4GiB' },
+    { cors: true, timeoutSeconds: 120, memory: '4GiB', maxInstances: 1 },
     async (req, res) => {
         res.set('Access-Control-Allow-Origin', '*');
         if (req.method === 'OPTIONS') {

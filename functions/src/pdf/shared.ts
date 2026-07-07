@@ -1,4 +1,4 @@
-import { HIDDEN_LOGO_URL, HIDDEN_QR_URL, HIDDEN_WEB_URL, PDF_MARGIN_MM } from './constants';
+import { HIDDEN_WEB_URL, PDF_LOGO_SRC, PDF_QR_SRC, PDF_MARGIN_MM } from './constants';
 
 export type PdfLanguage = 'es' | 'en';
 
@@ -43,7 +43,7 @@ export function pdfBaseStyles(): string {
             padding: 0;
             width: 100%;
             min-height: 100%;
-            font-family: 'Outfit', -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #020710;
             color: #fff;
         }
@@ -53,6 +53,8 @@ export function pdfBaseStyles(): string {
             min-height: 100%;
             background: #020710;
             position: relative;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
         }
 
         .content {
@@ -60,6 +62,8 @@ export function pdfBaseStyles(): string {
             z-index: 1;
             width: 100%;
             padding: ${PDF_MARGIN_MM.top} ${PDF_MARGIN_MM.right} ${PDF_MARGIN_MM.bottom} ${PDF_MARGIN_MM.left};
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
         }
 
         .header {
@@ -71,7 +75,13 @@ export function pdfBaseStyles(): string {
             margin-bottom: 28px;
             break-after: avoid;
         }
-        .logo-img { height: 32px; width: auto; display: block; }
+        .logo-img {
+            height: 32px;
+            width: auto;
+            max-width: 160px;
+            display: block;
+            object-fit: contain;
+        }
         .header-badge {
             background: rgba(255,108,82,0.1);
             border: 1px solid rgba(255,108,82,0.22);
@@ -117,13 +127,15 @@ export function pdfBaseStyles(): string {
             font-size: 13px;
             font-weight: 800;
             color: #fff;
-            margin: 22px 0 12px;
+            margin: 0 0 12px;
+            padding-top: 22px;
             padding-bottom: 8px;
             border-bottom: 1px solid rgba(255,255,255,0.06);
             display: flex;
             align-items: center;
             gap: 8px;
             break-after: avoid;
+            break-inside: avoid;
         }
         .section-title::before {
             content: '';
@@ -195,6 +207,7 @@ export function pdfBaseStyles(): string {
             border-radius: 12px;
             padding: 14px 16px;
             margin-top: 8px;
+            margin-bottom: 18px;
             break-inside: avoid;
         }
         .tip-label {
@@ -215,7 +228,7 @@ export function pdfBaseStyles(): string {
         }
 
         .footer {
-            margin-top: 32px;
+            margin-top: 40px;
             padding-top: 18px;
             border-top: 1px solid rgba(255,255,255,0.06);
             display: flex;
@@ -223,8 +236,16 @@ export function pdfBaseStyles(): string {
             align-items: flex-end;
             gap: 16px;
             break-inside: avoid;
+            page-break-inside: avoid;
         }
-        .footer-qr { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
+        .footer-qr {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            flex-shrink: 0;
+            object-fit: contain;
+            display: block;
+        }
         .footer-text { font-size: 9.5px; color: #475569; font-weight: 600; line-height: 1.45; }
         .footer-accent { color: #ff6c52; font-weight: 800; }
         .footer-link {
@@ -256,17 +277,6 @@ export function pdfBaseStyles(): string {
             word-wrap: break-word;
         }
         .price-row strong { color: #fff; font-weight: 700; flex-shrink: 0; }
-
-        .hero-image {
-            width: 100%;
-            max-height: 180px;
-            object-fit: cover;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-            display: block;
-            break-inside: avoid;
-        }
 
         .budget-card {
             background: linear-gradient(135deg, rgba(34,197,94,0.08), transparent);
@@ -342,7 +352,7 @@ export function pdfHeroStyles(): string {
 export function pdfHeader(badge: string): string {
     return `
         <div class="header">
-            <img src="${HIDDEN_LOGO_URL}" class="logo-img" alt="Hidden" />
+            <img src="${PDF_LOGO_SRC}" class="logo-img" alt="" />
             <div class="header-badge">${escapeHtml(badge)}</div>
         </div>
     `;
@@ -353,7 +363,7 @@ export function pdfFooter(lang: PdfLanguage, sealLine1: string, sealLine2: strin
     return `
         <div class="footer">
             <div style="display:flex;gap:10px;align-items:flex-start;min-width:0;">
-                <img src="${HIDDEN_QR_URL}" class="footer-qr" alt="QR" />
+                <img src="${PDF_QR_SRC}" class="footer-qr" alt="" />
                 <div style="min-width:0;">
                     <div class="footer-text">${escapeHtml(c.generatedBy)}</div>
                     <div class="footer-text footer-accent">${escapeHtml(c.scanQr)}</div>
@@ -379,7 +389,6 @@ export function wrapPdfDocument(
 <head>
     <meta charset="UTF-8" />
     <title>${escapeHtml(title)}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <style>${pdfBaseStyles()}${additionalStyles}</style>
 </head>
 <body>

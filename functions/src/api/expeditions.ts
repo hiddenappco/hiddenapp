@@ -11,6 +11,7 @@ import { hasActivePremium } from '../lib/premiumAccess';
 import { assertExpeditionQuota, consumeExpeditionQuota } from '../lib/expeditionQuota';
 import { assertUserExpeditionHistoryCapacity } from '../lib/expeditionHistory';
 import { MAX_EXPEDITION_DAYS, MAX_REVISION_NOTES_LENGTH } from '../lib/premiumLimits';
+import { assessMustVisitFeasibility, buildFeasibilityNote } from '../lib/expeditionFeasibility';
 
 const MAX_DAYS = MAX_EXPEDITION_DAYS;
 
@@ -145,6 +146,12 @@ export const createExpedition = onRequest(
             let parentExpeditionId: string | undefined;
             let revisionIncluded = false;
 
+            // Deferred side-effects: resolved below but only applied AFTER validation,
+            // so a rejected request (400) never consumes quota or a revision credit.
+            let chargeQuota = false;
+            let parentRefToBump: admin.firestore.DocumentReference | null = null;
+            let revisionsUsedNext = 0;
+
             if (parsed.parentExpeditionId) {
                 const parentRef = db.collection('expeditions').doc(parsed.parentExpeditionId);
                 const parentSnap = await parentRef.get();
@@ -165,20 +172,7 @@ export const createExpedition = onRequest(
 
                 const revisionsUsed = Math.max(0, Math.floor(Number(parent.revisionsUsed ?? 0)));
                 revisionIncluded = revisionsUsed === 0;
-
-                if (!revisionIncluded) {
-                    const quota = await assertExpeditionQuota(db, userId);
-                    if (!quota.allowed) {
-                        res.status(403).json({
-                            error: quota.reason ?? 'EXPEDITION_QUOTA_EXCEEDED',
-                            remaining: quota.remaining,
-                            limit: quota.limit,
-                            resetAt: quota.resetAt,
-                        });
-                        return;
-                    }
-                    await consumeExpeditionQuota(db, userId);
-                }
+                chargeQuota = !revisionIncluded;
 
                 const parentRequest = parent.request as ExpeditionRequest;
                 const priorNotes = String(parentRequest.travelerNotes || '').trim();
@@ -193,11 +187,51 @@ export const createExpedition = onRequest(
                 };
 
                 parentExpeditionId = parsed.parentExpeditionId;
-                await parentRef.update({
-                    revisionsUsed: revisionsUsed + 1,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+                parentRefToBump = parentRef;
+                revisionsUsedNext = revisionsUsed + 1;
             } else {
+                chargeQuota = true;
+            }
+
+            // Validate must-visit BEFORE charging quota / bumping the revision counter.
+            const mustVisit = requestPayload.mustVisitDestinationIds ?? [];
+            if (mustVisit.length > 0) {
+                const uniqueIds = [...new Set(mustVisit)];
+                const refs = uniqueIds.map((id) => db.collection('destinations').doc(id));
+                const snaps = await db.getAll(...refs);
+                const existing = new Set(snaps.filter((s) => s.exists).map((s) => s.id));
+                for (const id of uniqueIds) {
+                    if (!existing.has(id)) {
+                        res.status(400).json({ error: 'INVALID_MUST_VISIT', destinationId: id });
+                        return;
+                    }
+                }
+
+                const destRows = snaps
+                    .filter((s) => s.exists)
+                    .map((s) => ({ id: s.id, ...s.data() } as Record<string, unknown>));
+                const feasibility = assessMustVisitFeasibility(
+                    requestPayload.days,
+                    uniqueIds,
+                    destRows
+                );
+                if (!feasibility.ok) {
+                    res.status(400).json({
+                        error: 'REQUEST_NOT_FEASIBLE',
+                        suggestedDays: feasibility.suggestedDays,
+                        issues: feasibility.issues,
+                        note: buildFeasibilityNote(feasibility, parsed.language),
+                    });
+                    return;
+                }
+            }
+
+            // Capacity check before any cost side-effect (avoids charging a
+            // credit when the plan can't be stored anyway).
+            await assertUserExpeditionHistoryCapacity(db, userId);
+
+            // Request is valid — now apply the cost side-effects.
+            if (chargeQuota) {
                 const quota = await assertExpeditionQuota(db, userId);
                 if (!quota.allowed) {
                     res.status(403).json({
@@ -211,21 +245,12 @@ export const createExpedition = onRequest(
                 await consumeExpeditionQuota(db, userId);
             }
 
-            const mustVisit = requestPayload.mustVisitDestinationIds ?? [];
-            if (mustVisit.length > 0) {
-                const uniqueIds = [...new Set(mustVisit)];
-                const refs = uniqueIds.map((id) => db.collection('destinations').doc(id));
-                const snaps = await db.getAll(...refs);
-                const existing = new Set(snaps.filter((s) => s.exists).map((s) => s.id));
-                for (const id of uniqueIds) {
-                    if (!existing.has(id)) {
-                        res.status(400).json({ error: 'INVALID_MUST_VISIT', destinationId: id });
-                        return;
-                    }
-                }
+            if (parentRefToBump) {
+                await parentRefToBump.update({
+                    revisionsUsed: revisionsUsedNext,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
             }
-
-            await assertUserExpeditionHistoryCapacity(db, userId);
 
             const docRef = await db.collection('expeditions').add({
                 userId,

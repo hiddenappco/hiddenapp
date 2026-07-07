@@ -1,24 +1,98 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
 import { PREMIUM_CHECKOUT_ENABLED } from '../config/constants';
+import { PREMIUM_REFERENCE_PRICES, type PremiumPlanId } from '../config/premiumPricing';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
+import { usePaywallRoiContext } from '../hooks/usePaywallRoiContext';
+import { PaywallRoiBanner } from './paywall/PaywallRoiBanner';
 
 interface PremiumProps {
   onMenuClick: () => void;
 }
 
-type PlanId = 'trip' | 'monthly' | 'annual' | 'lifetime';
+type PlanId = PremiumPlanId;
 
-const REFERENCE_PRICES: Record<PlanId, string> = {
-  trip: '$4.99',
-  monthly: '$7.99',
-  annual: '$79.99',
-  lifetime: '$149.99',
+type CompareRow = {
+  labelKey: string;
+  freeKey: string;
+  tripKey: string;
+  vipKey: string;
+  tooltipKey: string;
+  demoPath: string;
 };
+
+const COMPARE_ROWS: CompareRow[] = [
+  {
+    labelKey: 'compareCatalog',
+    freeKey: 'compareIncluded',
+    tripKey: 'compareIncluded',
+    vipKey: 'compareIncluded',
+    tooltipKey: 'tooltipCompareCatalog',
+    demoPath: '/offgrid-vault',
+  },
+  {
+    labelKey: 'compareChat',
+    freeKey: 'compareChatFree',
+    tripKey: 'compareChatPremium',
+    vipKey: 'compareChatPremium',
+    tooltipKey: 'tooltipCompareChat',
+    demoPath: '/search',
+  },
+  {
+    labelKey: 'compareRanger',
+    freeKey: 'compareRangerFree',
+    tripKey: 'compareRangerPremium',
+    vipKey: 'compareRangerPremium',
+    tooltipKey: 'tooltipCompareRanger',
+    demoPath: '/environmental-monitor',
+  },
+  {
+    labelKey: 'compareLive',
+    freeKey: 'compareLiveFree',
+    tripKey: 'compareLivePremium',
+    vipKey: 'compareLivePremium',
+    tooltipKey: 'tooltipCompareLive',
+    demoPath: '/home',
+  },
+  {
+    labelKey: 'comparePlanner',
+    freeKey: 'comparePlannerFree',
+    tripKey: 'comparePlannerTrip',
+    vipKey: 'comparePlannerPremium',
+    tooltipKey: 'tooltipComparePlanner',
+    demoPath: '/expedition/plan',
+  },
+  {
+    labelKey: 'compareCoupons',
+    freeKey: 'compareNotIncluded',
+    tripKey: 'compareIncluded',
+    vipKey: 'compareIncluded',
+    tooltipKey: 'tooltipCompareCoupons',
+    demoPath: '/coupons',
+  },
+  {
+    labelKey: 'comparePdfs',
+    freeKey: 'compareNotIncluded',
+    tripKey: 'compareIncluded',
+    vipKey: 'compareIncluded',
+    tooltipKey: 'tooltipComparePdfs',
+    demoPath: '/search',
+  },
+  {
+    labelKey: 'compareLedger',
+    freeKey: 'compareLedgerFree',
+    tripKey: 'compareLedgerPremium',
+    vipKey: 'compareLedgerPremium',
+    tooltipKey: 'tooltipCompareLedger',
+    demoPath: '/budget',
+  },
+];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,9 +110,18 @@ const itemVariants = {
 
 export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const planSectionRef = useRef<HTMLElement>(null);
   const { offerings, isPremium, purchasePackage, restorePurchases } = useRevenueCat();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('annual');
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  const {
+    estimate: roiEstimate,
+    loading: roiLoading,
+    departmentName,
+    isContextual: roiIsContextual,
+  } = usePaywallRoiContext({ kind: 'lastVisited' });
 
   const checkoutLive =
     PREMIUM_CHECKOUT_ENABLED && Capacitor.isNativePlatform() && Boolean(offerings?.length);
@@ -48,11 +131,11 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
   const lifetimePackage = offerings?.find((pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME);
 
   const planPrice = (plan: PlanId): string => {
-    if (!checkoutLive) return REFERENCE_PRICES[plan];
-    if (plan === 'monthly') return monthlyPackage?.product.priceString || REFERENCE_PRICES.monthly;
-    if (plan === 'annual') return annualPackage?.product.priceString || REFERENCE_PRICES.annual;
-    if (plan === 'lifetime') return lifetimePackage?.product.priceString || REFERENCE_PRICES.lifetime;
-    return REFERENCE_PRICES.trip;
+    if (!checkoutLive) return PREMIUM_REFERENCE_PRICES[plan];
+    if (plan === 'monthly') return monthlyPackage?.product.priceString || PREMIUM_REFERENCE_PRICES.monthly;
+    if (plan === 'annual') return annualPackage?.product.priceString || PREMIUM_REFERENCE_PRICES.annual;
+    if (plan === 'lifetime') return lifetimePackage?.product.priceString || PREMIUM_REFERENCE_PRICES.lifetime;
+    return PREMIUM_REFERENCE_PRICES.trip;
   };
 
   const benefits = [
@@ -68,21 +151,17 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
   ];
 
   const userTypes = [
-    { icon: 'hiking', titleKey: 'userTypeFreeTitle', descKey: 'userTypeFreeDesc', tooltipKey: 'tooltipFreeAccount', accent: 'border-overlay/15 bg-surface-dark' },
-    { icon: 'luggage', titleKey: 'userTypeTripTitle', descKey: 'userTypeTripDesc', tooltipKey: 'tooltipTripAccount', accent: 'border-primary/25 bg-primary/5' },
-    { icon: 'workspace_premium', titleKey: 'userTypePremiumTitle', descKey: 'userTypePremiumDesc', tooltipKey: 'tooltipPremiumAccount', accent: 'border-amber-500/25 bg-amber-500/5' },
+    { icon: 'hiking', titleKey: 'userTypeFreeTitle', descKey: 'userTypeFreeDesc', tooltipKey: 'tooltipFreeAccount', accent: 'border-overlay/15 bg-surface-alt dark:bg-surface-dark' },
+    { icon: 'luggage', titleKey: 'userTypeTripTitle', descKey: 'userTypeTripDesc', tooltipKey: 'tooltipTripAccount', accent: 'border-primary/30 bg-primary/5 dark:border-primary/25' },
+    { icon: 'workspace_premium', titleKey: 'userTypePremiumTitle', descKey: 'userTypePremiumDesc', tooltipKey: 'tooltipPremiumAccount', accent: 'border-amber-500/35 bg-amber-500/10 dark:border-amber-500/25 dark:bg-amber-500/5' },
   ];
 
-  const compareRows: { labelKey: string; freeKey: string; premiumKey: string; tooltipKey?: string }[] = [
-    { labelKey: 'compareCatalog', freeKey: 'compareIncluded', premiumKey: 'compareIncluded' },
-    { labelKey: 'compareChat', freeKey: 'compareChatFree', premiumKey: 'compareChatPremium', tooltipKey: 'tooltipCompareChat' },
-    { labelKey: 'compareRanger', freeKey: 'compareRangerFree', premiumKey: 'compareRangerPremium', tooltipKey: 'tooltipCompareRanger' },
-    { labelKey: 'compareLive', freeKey: 'compareLiveFree', premiumKey: 'compareLivePremium', tooltipKey: 'tooltipCompareLive' },
-    { labelKey: 'comparePlanner', freeKey: 'comparePlannerFree', premiumKey: 'comparePlannerPremium', tooltipKey: 'tooltipComparePlanner' },
-    { labelKey: 'compareCoupons', freeKey: 'compareNotIncluded', premiumKey: 'compareIncluded', tooltipKey: 'tooltipCompareCoupons' },
-    { labelKey: 'comparePdfs', freeKey: 'compareNotIncluded', premiumKey: 'compareIncluded' },
-    { labelKey: 'compareLedger', freeKey: 'compareLedgerFree', premiumKey: 'compareLedgerPremium', tooltipKey: 'tooltipCompareLedger' },
-  ];
+  const compareRows = COMPARE_ROWS;
+
+  const scrollToPlans = (plan: PlanId) => {
+    setSelectedPlan(plan);
+    planSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleSubscribe = async () => {
     if (!checkoutLive || isPremium || isPurchasing) return;
@@ -114,21 +193,15 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
     if (selected) {
       return 'border-primary bg-primary/5 dark:bg-primary/10 shadow-lg scale-[1.01]';
     }
-    return 'border-gray-200 bg-white dark:border-overlay/10 dark:bg-premium-surface-dark';
+    return 'border-gray-200 bg-white dark:border-overlay/10 dark:bg-premium-surface-dark shadow-sm dark:shadow-none';
   };
 
   return (
-    <div className="relative h-full w-full max-w-md mx-auto flex flex-col bg-background-light dark:bg-premium-bg-dark font-display text-premium-secondary dark:text-content antialiased overflow-hidden shadow-xl sm:border-x sm:border-overlay/10">
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative w-full">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="sticky top-safe left-4 z-50 -mb-10 flex items-center justify-center size-10 rounded-full text-white bg-black/35 backdrop-blur-md border border-white/15 hover:bg-black/50 shadow-lg transition-all active:scale-95 ml-4"
-        >
-          <span className="material-symbols-outlined text-2xl">menu</span>
-        </button>
+    <div className="relative h-full w-full max-w-md mx-auto flex flex-col bg-background-light dark:bg-premium-bg-dark font-display text-content antialiased overflow-hidden shadow-xl sm:border-x sm:border-overlay/10">
+      <StickyGlassHeader onMenuClick={onMenuClick} showLogo={false} className="shrink-0 z-50" />
 
-        <div className="relative -mt-10 h-[min(46vh,440px)] min-h-[300px] w-full overflow-hidden rounded-b-[40px] shadow-2xl shadow-premium-secondary/15 shrink-0">
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative w-full">
+        <div className="relative h-[min(46vh,440px)] min-h-[300px] w-full overflow-hidden rounded-b-[40px] shadow-2xl shadow-premium-secondary/15 shrink-0">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
@@ -161,7 +234,7 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
 
         <div className="flex flex-col px-5 pt-8 pb-8 gap-8">
           {!checkoutLive && (
-            <div className="rounded-2xl border border-primary/25 bg-primary/10 px-4 py-4 flex gap-3 items-start">
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 dark:border-primary/25 dark:bg-primary/10 px-4 py-4 flex gap-3 items-start">
               <span className="material-symbols-outlined text-primary text-[22px] shrink-0 mt-0.5">storefront</span>
               <div>
                 <p className="text-sm font-bold text-content">{t('premium.storesComingSoonTitle')}</p>
@@ -170,9 +243,25 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
             </div>
           )}
 
+          {!isPremium && !roiLoading && roiEstimate && (
+            <PaywallRoiBanner
+              estimate={roiEstimate}
+              title={
+                roiIsContextual && departmentName
+                  ? t('premium.paywallRoi.contextualTitle', { dept: departmentName })
+                  : undefined
+              }
+              subtitle={
+                roiIsContextual
+                  ? t('premium.paywallRoi.contextualSubtitle')
+                  : t('premium.paywallRoi.genericSubtitle')
+              }
+            />
+          )}
+
           <section className="flex flex-col gap-3">
             <div className="px-1 flex items-center gap-1.5">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-content-muted dark:text-content-subtle">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-content-muted">
                 {t('premium.userTypesTitle')}
               </h2>
               <HelpTooltip label={t('premium.helpLabel')} content={t('premium.tooltipUserTypes')} />
@@ -202,32 +291,83 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="px-1 text-sm font-bold uppercase tracking-wider text-content-muted dark:text-content-subtle">
+            <h2 className="px-1 text-sm font-bold uppercase tracking-wider text-content-muted">
               {t('premium.compareTitle')}
             </h2>
-            <div className="rounded-2xl border border-overlay/10 overflow-hidden bg-surface-dark/50">
-              <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr] gap-2 px-3 py-2.5 bg-overlay/5 text-[10px] font-black uppercase tracking-wider text-content-muted border-b border-overlay/10">
-                <span />
-                <span className="text-center">{t('premium.compareFree')}</span>
-                <span className="text-center text-primary">{t('premium.comparePremium')}</span>
+            <div className="rounded-2xl border border-overlay/10 overflow-hidden bg-surface-alt/80 dark:bg-surface-dark/50 shadow-sm dark:shadow-none">
+              {/* Sticky plan headers + CTAs (Baymard §8.1) */}
+              <div className="sticky top-0 z-20 bg-surface-alt/95 dark:bg-surface-dark/95 backdrop-blur-md border-b border-overlay/10 shadow-sm shadow-black/5 dark:shadow-black/20">
+                <div className="grid grid-cols-[minmax(0,1.35fr)_repeat(3,minmax(0,0.72fr))] gap-1 px-2 py-2.5 text-[9px] font-black uppercase tracking-wider text-content-muted">
+                  <span className="self-end pb-0.5">{t('premium.compareFeature')}</span>
+                  <span className="text-center self-end pb-0.5">{t('premium.compareFree')}</span>
+                  <span className="text-center text-primary self-end pb-0.5">
+                    {t('premium.compareTripPass')}
+                    <span className="block text-[8px] font-semibold normal-case tracking-normal text-content-subtle mt-0.5">
+                      {planPrice('trip')}
+                      {t('premium.tripPeriod')}
+                    </span>
+                  </span>
+                  <span className="text-center text-amber-600 dark:text-amber-400 self-end pb-0.5">
+                    {t('premium.compareVip')}
+                    <span className="block text-[8px] font-semibold normal-case tracking-normal text-content-subtle mt-0.5">
+                      {t('premium.compareVipFrom', { price: planPrice('monthly') })}
+                    </span>
+                  </span>
+                </div>
+                {!isPremium && (
+                  <div className="grid grid-cols-[minmax(0,1.35fr)_repeat(3,minmax(0,0.72fr))] gap-1 px-2 pb-2">
+                    <span />
+                    <span />
+                    <button
+                      type="button"
+                      onClick={() => scrollToPlans('trip')}
+                      className="rounded-lg border border-primary/40 dark:border-primary/30 bg-primary/15 dark:bg-primary/10 px-1 py-1.5 text-[9px] font-bold uppercase tracking-wide text-primary active:scale-[0.98] transition-transform"
+                    >
+                      {t('premium.compareCtaTrip')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollToPlans('annual')}
+                      className="rounded-lg border border-amber-500/40 dark:border-amber-500/30 bg-amber-500/15 dark:bg-amber-500/10 px-1 py-1.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400 active:scale-[0.98] transition-transform"
+                    >
+                      {t('premium.compareCtaVip')}
+                    </button>
+                  </div>
+                )}
               </div>
-              {compareRows.map((row) => (
+              {compareRows.map((row, index) => (
                 <div
                   key={row.labelKey}
-                  className="grid grid-cols-[1.4fr_0.8fr_0.8fr] gap-2 px-3 py-2.5 border-b border-overlay/5 last:border-0 text-[11px]"
+                  className={`grid grid-cols-[minmax(0,1.35fr)_repeat(3,minmax(0,0.72fr))] gap-1 px-2 py-2.5 border-b border-overlay/5 last:border-0 text-[10px] items-center ${
+                    index % 2 === 1 ? 'bg-overlay/[0.03] dark:bg-overlay/[0.04]' : ''
+                  }`}
                 >
-                  <span className="text-content-secondary font-medium leading-snug inline-flex items-center gap-1 flex-wrap">
-                    {t(`premium.${row.labelKey}`)}
-                    {row.tooltipKey && (
+                  <div className="min-w-0 pr-1">
+                    <button
+                      type="button"
+                      onClick={() => navigate(row.demoPath)}
+                      className="text-left text-content-secondary font-medium leading-snug hover:text-primary transition-colors underline-offset-2 hover:underline"
+                    >
+                      {t(`premium.${row.labelKey}`)}
+                    </button>
+                    <div className="mt-0.5 flex items-center gap-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => navigate(row.demoPath)}
+                        className="text-[9px] font-bold uppercase tracking-wide text-primary/70 hover:text-primary"
+                      >
+                        {t('premium.compareDemo')} →
+                      </button>
                       <HelpTooltip
                         label={t('premium.helpLabel')}
                         content={t(`premium.${row.tooltipKey}`)}
                         align="end"
                       />
-                    )}
-                  </span>
-                  <span className="text-center text-content-muted">{t(`premium.${row.freeKey}`)}</span>
-                  <span className="text-center text-content font-semibold">{t(`premium.${row.premiumKey}`)}</span>
+                    </div>
+                  </div>
+                  <span className="text-center text-content-muted leading-tight">{t(`premium.${row.freeKey}`)}</span>
+                  <span className="text-center text-primary font-semibold leading-tight">{t(`premium.${row.tripKey}`)}</span>
+                  <span className="text-center text-content font-semibold leading-tight">{t(`premium.${row.vipKey}`)}</span>
                 </div>
               ))}
             </div>
@@ -235,9 +375,9 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
 
           <div className="h-px w-full bg-gray-100 dark:bg-overlay/5" />
 
-          <section className="flex flex-col gap-4">
+          <section ref={planSectionRef} className="flex flex-col gap-4 scroll-mt-4">
             <div>
-              <h2 className="px-1 text-sm font-bold uppercase tracking-wider text-content-muted dark:text-content-subtle">
+              <h2 className="px-1 text-sm font-bold uppercase tracking-wider text-content-muted">
                 {t('premium.planTitle')}
               </h2>
               {!checkoutLive && (
@@ -252,15 +392,15 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
               </div>
               <div className="flex items-center justify-between pt-1">
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-premium-secondary dark:text-content inline-flex items-center gap-1.5 flex-wrap">
+                  <span className="text-lg font-bold text-content inline-flex items-center gap-1.5 flex-wrap">
                     {t('premium.tripTitle')}
                     <HelpTooltip label={t('premium.helpLabel')} content={t('premium.tooltipTripPass')} />
                   </span>
-                  <span className="text-xs text-premium-secondary/50 dark:text-content-muted mt-1">{t('premium.tripFlex')}</span>
+                  <span className="text-xs text-content-muted mt-1">{t('premium.tripFlex')}</span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-3xl font-black tracking-tight text-premium-secondary dark:text-content">{planPrice('trip')}</span>
-                  <span className="text-xs font-bold text-premium-secondary/50 dark:text-content-muted">{t('premium.tripPeriod')}</span>
+                  <span className="text-3xl font-black tracking-tight text-content">{planPrice('trip')}</span>
+                  <span className="text-xs font-bold text-content-muted">{t('premium.tripPeriod')}</span>
                 </div>
               </div>
             </label>
@@ -268,15 +408,15 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
             <label className={`relative flex cursor-pointer items-center justify-between rounded-3xl border-2 p-5 transition-all duration-300 ${planCardClass('monthly')}`}>
               <input type="radio" name="pricing" className="sr-only" checked={selectedPlan === 'monthly'} onChange={() => setSelectedPlan('monthly')} />
               <div className="flex flex-col gap-1">
-                <span className="text-base font-bold text-premium-secondary dark:text-content inline-flex items-center gap-1.5">
+                <span className="text-base font-bold text-content inline-flex items-center gap-1.5">
                   {t('premium.monthlyTitle')}
                   <HelpTooltip label={t('premium.helpLabel')} content={t('premium.tooltipRecurring')} />
                 </span>
-                <span className="text-xs text-premium-secondary/50 dark:text-content-muted">{t('premium.monthlyFlex')}</span>
+                <span className="text-xs text-content-muted">{t('premium.monthlyFlex')}</span>
               </div>
               <div className="flex items-end gap-1">
-                <span className="text-xl font-black tracking-tight text-premium-secondary dark:text-content">{planPrice('monthly')}</span>
-                <span className="mb-1 text-xs font-bold text-premium-secondary/50 dark:text-content-muted">{t('premium.monthlyPeriod')}</span>
+                <span className="text-xl font-black tracking-tight text-content">{planPrice('monthly')}</span>
+                <span className="mb-1 text-xs font-bold text-content-muted">{t('premium.monthlyPeriod')}</span>
               </div>
             </label>
 
@@ -287,17 +427,17 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-premium-secondary dark:text-content inline-flex items-center gap-1.5 flex-wrap">
+                  <span className="text-lg font-bold text-content inline-flex items-center gap-1.5 flex-wrap">
                     {t('premium.annualTitle')}
                     <HelpTooltip label={t('premium.helpLabel')} content={t('premium.tooltipRecurring')} />
                   </span>
-                  <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-md w-fit mt-1">
+                  <span className="text-xs font-bold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-md w-fit mt-1">
                     {t('premium.annualSave')}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-3xl font-black tracking-tight text-premium-secondary dark:text-content">{planPrice('annual')}</span>
-                  <span className="text-xs font-bold text-premium-secondary/50 dark:text-content-muted">{t('premium.annualPeriod')}</span>
+                  <span className="text-3xl font-black tracking-tight text-content">{planPrice('annual')}</span>
+                  <span className="text-xs font-bold text-content-muted">{t('premium.annualPeriod')}</span>
                 </div>
               </div>
             </label>
@@ -309,17 +449,17 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-premium-secondary dark:text-content inline-flex items-center gap-1.5 flex-wrap">
+                  <span className="text-lg font-bold text-content inline-flex items-center gap-1.5 flex-wrap">
                     {t('premium.lifetimeTitle')}
                     <HelpTooltip label={t('premium.helpLabel')} content={t('premium.tooltipLifetime')} />
                   </span>
-                  <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-md w-fit mt-1">
+                  <span className="text-xs font-bold text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-md w-fit mt-1">
                     {t('premium.lifetimePeriod')}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-3xl font-black tracking-tight text-premium-secondary dark:text-content">{planPrice('lifetime')}</span>
-                  <span className="text-xs font-bold text-premium-secondary/50 dark:text-content-muted">{t('premium.once')}</span>
+                  <span className="text-3xl font-black tracking-tight text-content">{planPrice('lifetime')}</span>
+                  <span className="text-xs font-bold text-content-muted">{t('premium.once')}</span>
                 </div>
               </div>
             </label>
@@ -338,7 +478,7 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
                 <motion.div
                   key={benefit.titleKey}
                   variants={itemVariants}
-                  className="group relative flex items-start gap-4 p-5 rounded-3xl bg-white border border-gray-100 shadow-sm dark:bg-white/[0.03] dark:border-white/[0.05] hover:border-primary/30 dark:hover:bg-white/[0.05] transition-all duration-500"
+                  className="group relative flex items-start gap-4 p-5 rounded-3xl bg-white border border-gray-200 shadow-sm dark:bg-white/[0.03] dark:border-white/[0.05] hover:border-primary/30 dark:hover:bg-white/[0.05] transition-all duration-500"
                 >
                   <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary shadow-lg shadow-primary/5 group-hover:bg-primary group-hover:text-black transition-all duration-500">
@@ -393,14 +533,14 @@ export const Premium: React.FC<PremiumProps> = ({ onMenuClick }) => {
               </div>
             </button>
           ) : (
-            <div className="w-full min-h-14 rounded-2xl border border-overlay/15 bg-surface-dark flex flex-col items-center justify-center gap-1 px-4 py-3">
+            <div className="w-full min-h-14 rounded-2xl border border-overlay/15 bg-surface-alt dark:bg-surface-dark flex flex-col items-center justify-center gap-1 px-4 py-3">
               <span className="material-symbols-outlined text-primary text-[22px]">store</span>
               <span className="text-sm font-bold text-content text-center">{t('premium.storesComingSoonCta')}</span>
             </div>
           )}
 
           <div className="flex flex-col items-center gap-1">
-            <p className="text-center text-[11px] font-medium text-premium-secondary/60 dark:text-content-muted">
+            <p className="text-center text-[11px] font-medium text-content-muted">
               {isPremium ? t('premium.thankYouVip') : t('premium.subscribeSub')}
             </p>
             {!isPremium && checkoutLive && (

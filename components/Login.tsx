@@ -79,7 +79,7 @@ export const Login: React.FC<LoginProps> = ({
       </div>
 
       {/* Increased negative margin from -mt-8 to -mt-12 */}
-      <div className="relative -mt-12 flex flex-1 flex-col rounded-t-3xl bg-surface px-8 pt-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pb-10">
+      <div className="relative -mt-12 flex flex-1 flex-col rounded-t-3xl bg-surface px-8 pt-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pb-[calc(2.5rem+var(--safe-bottom))]">
         <div className="absolute -top-10 left-1/2 flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-2xl bg-surface shadow-xl shadow-deep-blue/10 p-4">
           <img src="/assets/ui/logo.png" alt="Hidden Logo" className="w-full h-full object-contain drop-shadow-md" />
         </div>

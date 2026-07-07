@@ -5,6 +5,7 @@ import { useExchangeRates } from '../hooks/useExchangeRates';
 import { convertFromCop, convertToCop, formatCop, formatForeign } from '../utils/currency';
 import type { TripCurrency } from '../types/trips';
 import { CurrencyPicker } from './trips/CurrencyPicker';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface CurrencyConverterProps {
     language: Language;
@@ -33,12 +34,7 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ onBack }) 
 
     return (
         <div className="bg-background-dark h-screen flex flex-col text-content font-display">
-            <header className="sticky top-0 z-30 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
-                <button onClick={onBack} className="touch-target flex items-center justify-center rounded-full hover:bg-overlay/10">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h1 className="flex-1 text-center font-bold pr-10">{t('trips.converterTitle')}</h1>
-            </header>
+            <StickyGlassHeader onBack={onBack} title={t('trips.converterTitle')} titleLarge />
 
             <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
                 <p className="text-content-muted text-sm text-center">{t('trips.converterSubtitle')}</p>

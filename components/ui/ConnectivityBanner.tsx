@@ -8,12 +8,15 @@ interface ConnectivityBannerProps {
     variant: ConnectivityBannerVariant;
     className?: string;
     compact?: boolean;
+    /** Shown on offline banner — opens the dedicated offline hub */
+    onOpenOfflineHub?: () => void;
 }
 
 export const ConnectivityBanner: React.FC<ConnectivityBannerProps> = ({
     variant,
     className = '',
     compact = false,
+    onOpenOfflineHub,
 }) => {
     const { t } = useTranslation();
 
@@ -55,6 +58,7 @@ export const ConnectivityBanner: React.FC<ConnectivityBannerProps> = ({
     return (
         <div
             role="status"
+            aria-live="polite"
             className={`glass-surface rounded-2xl border ${config.border} ${config.bg} p-3 flex gap-3 ${className}`}
         >
             <span className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${config.text}`}>
@@ -65,13 +69,30 @@ export const ConnectivityBanner: React.FC<ConnectivityBannerProps> = ({
                 {!compact && (
                     <p className="text-[11px] text-content-muted mt-1 leading-relaxed">{config.body}</p>
                 )}
+                {onOpenOfflineHub && !compact && (
+                    <button
+                        type="button"
+                        onClick={onOpenOfflineHub}
+                        className="mt-2 text-[11px] font-bold text-primary hover:text-primary/90 underline-offset-2 hover:underline"
+                    >
+                        {t('connectivity.offlineHubLink')}
+                    </button>
+                )}
             </div>
         </div>
     );
 };
 
-export function networkBannerVariant(network: NetworkDetails): ConnectivityBannerVariant | null {
-    if (!network.isOnline) return 'offline';
+/**
+ * P1-OFF-03 — priority: offline → server unreachable → cellular advisory.
+ */
+export function resolveConnectivityBannerVariant(
+    network: NetworkDetails,
+    isOnline: boolean,
+    serverReachable: boolean
+): ConnectivityBannerVariant | null {
+    if (!isOnline || !network.isOnline) return 'offline';
+    if (!serverReachable) return 'server';
     if (network.isCellular) return 'cellular';
     return null;
 }

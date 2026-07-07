@@ -7,6 +7,18 @@ import { Language } from '../../types/core';
 import { ExpeditionCouponWidget } from './ExpeditionCouponWidget';
 import { ExpeditionMobilityBadge } from './ExpeditionMobilityBadge';
 import { isGroundMobility } from '../../utils/expeditionMobility';
+import {
+    formatTravelSegmentLine,
+    resolveStopTravelSegments,
+} from '../../utils/expeditionTravelSegments';
+
+/** Walking legs are emphasized as a safety cue (terrain / footwear); others stay neutral. */
+function segmentTone(kind: string): { icon: string; text: string } {
+    if (kind === 'walking') {
+        return { icon: 'text-emerald-400', text: 'text-emerald-300/90' };
+    }
+    return { icon: 'text-content/45', text: 'text-content/55' };
+}
 
 function formatCop(amount: number, language: Language | null): string {
     const locale = language === Language.English ? 'en-US' : 'es-CO';
@@ -17,11 +29,11 @@ function formatCop(amount: number, language: Language | null): string {
     }).format(amount);
 }
 
-export const ExpeditionDayBlock: React.FC<{ day: ExpeditionDay; defaultOpen: boolean; index: number }> = ({
-    day,
-    defaultOpen,
-    index,
-}) => {
+export const ExpeditionDayBlock: React.FC<{
+    day: ExpeditionDay;
+    defaultOpen: boolean;
+    index: number;
+}> = ({ day, defaultOpen, index }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [open, setOpen] = useState(defaultOpen);
@@ -56,14 +68,29 @@ export const ExpeditionDayBlock: React.FC<{ day: ExpeditionDay; defaultOpen: boo
 
             {open && (
                 <div className="px-3 pb-3 space-y-2.5">
-                    {day.stops.map((stop, i) => (
+                    {day.stops.map((stop, i) => {
+                        const segments = resolveStopTravelSegments(stop.travel, stop.travelSegments);
+
+                        return (
                         <div key={`${stop.destinationId}-${i}`}>
-                            {stop.travel && (stop.travel.durationText || stop.travel.distanceText) && (
-                                <div className="flex items-center gap-1.5 mb-1.5 text-content/50">
-                                    <span className="material-symbols-outlined text-[13px]">route</span>
-                                    <span className="text-[10px] font-semibold">
-                                        {[stop.travel.durationText, stop.travel.distanceText].filter(Boolean).join(' · ')}
-                                    </span>
+                            {segments.length > 0 && (
+                                <div className="flex flex-col gap-1 mb-1.5">
+                                    {segments.map((segment, segIdx) => {
+                                        const tone = segmentTone(segment.kind);
+                                        return (
+                                            <div
+                                                key={`${segment.kind}-${segIdx}`}
+                                                className="flex items-center gap-1.5"
+                                            >
+                                                <span className={`material-symbols-outlined text-[13px] shrink-0 ${tone.icon}`}>
+                                                    {segment.icon}
+                                                </span>
+                                                <span className={`text-[10px] font-semibold leading-snug ${tone.text}`}>
+                                                    {formatTravelSegmentLine(segment)}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                             <button
@@ -78,7 +105,8 @@ export const ExpeditionDayBlock: React.FC<{ day: ExpeditionDay; defaultOpen: boo
                                 <p className="text-content/80 text-[11px] leading-snug mt-0.5">{stop.plan}</p>
                             </button>
                         </div>
-                    ))}
+                        );
+                    })}
 
                     {day.refugio && (
                         <button

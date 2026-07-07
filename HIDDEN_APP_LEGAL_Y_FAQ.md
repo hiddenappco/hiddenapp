@@ -69,7 +69,7 @@ La IA asiste, no reemplaza el juicio humano. Puede generar información inexacta
 Verifique de forma independiente información crítica sobre horarios, cierres de vías, refugios, requisitos legales y condiciones de orden público. Las recomendaciones de presupuesto, rutas y hospedaje no garantizan disponibilidad ni precios finales.
 
 **Modo offline y Gemma**  
-La Bóveda Off-Grid y el chat offline con RAG local pueden devolver información limitada o desactualizada. Gemma on-device (opcional) está en roadmap; sin él, opera el modo búsqueda guiada de bajo consumo.
+La Bóveda Off-Grid y el chat offline con RAG local pueden devolver información limitada o desactualizada. **Gemma on-device** (~1.29 GB, instalación opcional vía Wi‑Fi en la Bóveda) mejora el chat offline con respuestas conversacionales; sin él, opera el modo búsqueda guiada de bajo consumo sobre los packs SQLite descargados.
 
 ---
 
@@ -293,7 +293,7 @@ Sí. Cancela la renovación automática desde App Store (iOS) o Google Play (And
 Texto: 10 mensajes/día en Free; ilimitados con Pase o Premium. Ranger: 5/día (Free) o 10/día (pago). Hub Planificador: sin acceso en Free; Pase 1 consulta; Premium 3/mes. Modo Live: prueba 5 min una vez (Free) o 30 min cada 30 días (pago).
 
 **¿Cómo me aseguro de que la información funcione si me quedo sin señal?**  
-La Bóveda Off-Grid es gratuita para todos. Descarga packs SQLite por departamento antes de perder señal. Sin red, consulta localmente o chatea offline con RAG local. Gemma on-device (~1.5 GB vía Wi‑Fi) es opcional en roadmap.
+La Bóveda Off-Grid es gratuita para todos. Descarga packs SQLite por departamento antes de perder señal. Sin red, consulta localmente o chatea offline con RAG local. **Gemma on-device** (~1.29 GB, opcional, solo Wi‑Fi) mejora el chat con respuestas conversacionales; la instalación muestra progreso por fases y la desinstalación requiere confirmación.
 
 **¿Cómo funciona el Monitor Ambiental?**  
 Weather Command Center con AccuWeather, Open-Meteo y Stormglass: lectura sin límite para todos. Consultas al Ranger IA: 5/día (Free) o 10/día (Pase y Premium). Environmental Shield y Hidden Guard en planes de pago.
@@ -360,7 +360,7 @@ Bitácora v2: viajes solo (gratis) o grupales (Pase o Premium) con HIDDEN-XXXX. 
 ### Sostenibilidad
 
 **¿Cómo contribuye mi viaje a la sostenibilidad?**  
-Al usar HiddenApp firmas el Pacto Hidden: conexión con negocios locales verificados, rutas menos congestionadas y promoción de «Cero Huella» (Leave No Trace).
+Al usar HiddenApp firmas el Pacto Hidden: conexión con negocios locales verificados, rutas menos congestionadas y promoción de «Cero Huella» (Leave No Trace). Si registras un canje de cupón VIP en un refugio verificado dentro de la Bitácora (categoría hospedaje), la app puede contabilizar la **inyección económica directa** al anfitrión (sin comisión Hidden sobre ese canje) y mostrarte un total acumulado en tu perfil; los agregados mensuales sirven para reportes de impacto territorial.
 
 ---
 

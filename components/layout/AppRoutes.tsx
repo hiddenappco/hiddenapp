@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { Layout } from './Layout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PactGate } from './PactGate';
+import { PactGateLoading } from './PactGateLoading';
 import { PageTransition } from './PageTransition';
 
 // Types
@@ -19,6 +20,8 @@ import { TermsOfUse } from '../TermsOfUse';
 import { Home } from '../Home';
 import { Budget } from '../Budget';
 import { SignalLostFallback } from '../SignalLostFallback';
+import { ConnectivityGuard } from './ConnectivityGuard';
+import type { ConnectivityPolicy } from '../../utils/connectivityRoutePolicy';
 import { PactDeclined } from '../PactDeclined';
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -38,6 +41,7 @@ import {
     CreateTrip,
     TripExpenses,
     TripHistoryDetail,
+    TripDocumentsPage,
     JoinTrip,
     CurrencyConverter,
     SavedDestinations,
@@ -96,44 +100,25 @@ interface AppRoutesProps {
     profileLoading?: boolean;
 }
 
-interface OfflineGuardianProps {
+interface RouteConnectivityProps {
     isOnline: boolean;
     serverReachable: boolean;
-    language: Language;
     onGoToVault: () => void;
-    children: React.ReactNode;
+    onGoToOfflineHub: () => void;
 }
 
-const OfflineGuardian: React.FC<OfflineGuardianProps> = ({
-    isOnline,
-    serverReachable,
-    language,
-    onGoToVault,
-    children
-}) => {
-    const navigate = useNavigate();
-    if (!isOnline) {
-        return (
-            <SignalLostFallback
-                language={language}
-                variant="offline"
-                onGoToVault={onGoToVault}
-                onGoToLedger={() => navigate('/budget')}
-            />
-        );
-    }
-    if (!serverReachable) {
-        return (
-            <SignalLostFallback
-                language={language}
-                variant="server"
-                onGoToVault={onGoToVault}
-                onGoToLedger={() => navigate('/budget')}
-            />
-        );
-    }
-    return <>{children}</>;
-};
+/** Shorthand to wrap a screen with P1-OFF-03 connectivity policy. */
+function withConnectivity(
+    policy: ConnectivityPolicy,
+    props: RouteConnectivityProps,
+    children: React.ReactNode
+) {
+    return (
+        <ConnectivityGuard policy={policy} {...props}>
+            {children}
+        </ConnectivityGuard>
+    );
+}
 
 const TypedRoutes = Routes as React.ComponentType<any>;
 
@@ -180,6 +165,20 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
     const handleGoToVault = () => {
         navigate('/offgrid-vault');
     };
+
+    const handleGoToOfflineHub = () => {
+        navigate('/offline');
+    };
+
+    const routeCx: RouteConnectivityProps = {
+        isOnline,
+        serverReachable,
+        onGoToVault: handleGoToVault,
+        onGoToOfflineHub: handleGoToOfflineHub,
+    };
+
+    const cx = (policy: ConnectivityPolicy, children: React.ReactNode) =>
+        withConnectivity(policy, routeCx, children);
 
     return (
             <TypedRoutes location={location}>
@@ -241,7 +240,10 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
 
                 <Route path="/faq" element={
                     <PageTransition>
-                        <Faq onBack={() => navigate(-1)} />
+                        <Faq
+                            onBack={() => navigate(-1)}
+                            onSupportClick={() => navigate('/support')}
+                        />
                     </PageTransition>
                 } />
 
@@ -267,7 +269,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     </ProtectedRoute>
                 }>
                     <Route path="/home" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <Home
                                     {...commonProps}
@@ -276,11 +278,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onSearchClick={() => navigate('/search')}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/search" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <ManualSearch
                                     {...commonProps}
@@ -288,11 +290,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onResultClick={(id) => navigate(`/destination/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/department/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <DepartmentBriefing
                                     {...commonProps}
@@ -301,95 +303,95 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onDestinationClick={(id: string) => navigate(`/destination/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/agent-select/:contextId" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <AgentSelector
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/live/:contextId" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <LiveAgent
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/destination/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <DestinationDetail
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/expedition/plan" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <ExpeditionDepartmentPicker
                                     {...commonProps}
                                     onMenuClick={() => setMenuOpen(true)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/expedition/plan/:departmentId" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <ExpeditionPlannerPage
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/expedition/:expeditionId" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <ExpeditionResultPage
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/chat/:contextId" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <Chat
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/support" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <Support
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/profile" element={
@@ -410,7 +412,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     } />
 
                     <Route path="/calendar" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <FairsCalendar
                                     {...commonProps}
@@ -418,35 +420,35 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onFairClick={(id) => navigate(`/calendar/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/calendar/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <FairDetail {...commonProps} onBack={() => navigate(-1)} />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/news/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <NewsDetail {...commonProps} onBack={() => navigate(-1)} />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/coupons/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <CouponDetail {...commonProps} onBack={() => navigate(-1)} />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/notifications" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <Notifications
                                     {...commonProps}
@@ -454,7 +456,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onSettings={() => navigate('/settings/notifications')}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/settings" element={
@@ -476,11 +478,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     } />
 
                     <Route path="/settings/notifications" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <NotificationSettings {...commonProps} onBack={() => navigate(-1)} />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/settings/profile" element={
@@ -554,6 +556,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onDeleteExpense={handleDeleteExpense}
                                     onFinishTrip={handleFinishTrip}
                                     onOpenConverter={() => navigate('/trips/converter')}
+                                    onOpenDocuments={() => navigate(`/trips/${activeTrip.id}/documents`)}
                                     pastTripCount={pastTrips?.length ?? 0}
                                     pendingCount={tripPendingCount}
                                     syncing={tripSyncing}
@@ -585,6 +588,15 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                         </PageTransition>
                     } />
 
+                    <Route path="/trips/:tripId/documents" element={
+                        <PageTransition>
+                            <TripDocumentsPage
+                                {...commonProps}
+                                onBack={() => navigate(-1)}
+                            />
+                        </PageTransition>
+                    } />
+
                     <Route path="/trip-history/:id" element={
                         <PageTransition>
                             <TripHistoryDetail
@@ -595,7 +607,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     } />
 
                     <Route path="/news" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <NewsFeed
                                     {...commonProps}
@@ -604,11 +616,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onNewsItemClick={(news) => navigate(`/news/${news.id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/coupons" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <Coupons
                                     {...commonProps}
@@ -619,11 +631,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onCouponClick={(id) => navigate(`/coupons/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/refugios" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <Refugios
                                     {...commonProps}
@@ -632,74 +644,80 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onPremiumClick={() => navigate('/premium')}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/refugio/:id" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <RefugioDetail
                                     {...commonProps}
                                     onBack={() => navigate(-1)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/premium" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('block',
                             <PageTransition>
                                 <Premium {...commonProps} onMenuClick={() => setMenuOpen(true)} />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/budget" element={
-                        <PageTransition>
-                            <Budget
-                                {...commonProps}
-                                activeTrip={activeTrip}
-                                pastTrips={pastTrips}
-                                onBack={() => navigate('/home')}
-                                onMenuClick={() => setMenuOpen(true)}
-                                onCreateTrip={() => navigate('/create-trip')}
-                                onJoinTrip={() => navigate('/trips/join')}
-                                onOpenConverter={() => navigate('/trips/converter')}
-                                onOpenTrip={() => navigate('/current-trip')}
-                                onOpenHistoryTrip={(t) => navigate(`/trip-history/${t.id}`)}
-                                onDeleteTrip={handleDeleteTrip}
-                                pendingSyncCount={tripPendingCount}
-                                isOnline={isOnline}
-                            />
-                        </PageTransition>
+                        cx('banner',
+                            <PageTransition>
+                                <Budget
+                                    {...commonProps}
+                                    activeTrip={activeTrip}
+                                    pastTrips={pastTrips}
+                                    onBack={() => navigate('/home')}
+                                    onMenuClick={() => setMenuOpen(true)}
+                                    onCreateTrip={() => navigate('/create-trip')}
+                                    onJoinTrip={() => navigate('/trips/join')}
+                                    onOpenConverter={() => navigate('/trips/converter')}
+                                    onOpenTrip={() => navigate('/current-trip')}
+                                    onOpenHistoryTrip={(t) => navigate(`/trip-history/${t.id}`)}
+                                    onDeleteTrip={handleDeleteTrip}
+                                    pendingSyncCount={tripPendingCount}
+                                    isOnline={isOnline}
+                                />
+                            </PageTransition>
+                        )
                     } />
 
                     <Route path="/pact" element={
                         profileLoading ? (
-                            <div className="h-screen w-full bg-[#0c1f17] text-content flex items-center justify-center font-display font-medium">
-                                {t('common.loading')}
-                            </div>
-                        ) : userProfile?.pactAccepted === true ? (
-                            <Navigate to="/home" replace />
+                            <PactGateLoading />
                         ) : (
                         <PageTransition>
-                            {pactDeclined ? (
+                            {pactDeclined && userProfile?.pactAccepted !== true ? (
                                 <PactDeclined onLogout={handleLogout} />
                             ) : (
                                 <HiddenPact
                                     {...commonProps}
-                                    isAccepted={userProfile?.pactAccepted}
+                                    isAccepted={userProfile?.pactAccepted === true}
                                     gateMode={userProfile?.pactAccepted !== true}
                                     onMenuClick={() => setMenuOpen(true)}
-                                    onDecline={() => setPactDeclined(true)}
-                                    onAccept={async () => {
-                                        if (user) {
-                                            await updateUserProfile(user.uid, { pactAccepted: true });
-                                            const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
-                                            const target = from && from !== '/pact' ? from : '/home';
-                                            setTimeout(() => navigate(target, { replace: true }), 400);
-                                        }
-                                    }}
+                                    onDecline={
+                                        userProfile?.pactAccepted !== true
+                                            ? () => setPactDeclined(true)
+                                            : undefined
+                                    }
+                                    onAccept={
+                                        userProfile?.pactAccepted !== true
+                                            ? async () => {
+                                                if (user) {
+                                                    await updateUserProfile(user.uid, { pactAccepted: true });
+                                                    const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+                                                    const target = from && from !== '/pact' ? from : '/home';
+                                                    setTimeout(() => navigate(target, { replace: true }), 400);
+                                                }
+                                            }
+                                            : undefined
+                                    }
                                 />
                             )}
                         </PageTransition>
@@ -707,7 +725,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                     } />
 
                     <Route path="/saved" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <SavedDestinations
                                     {...commonProps}
@@ -717,11 +735,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onDestinationClick={(id) => navigate(`/destination/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/saved/refugios" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <SavedRefugios
                                     {...commonProps}
@@ -731,11 +749,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onRefugioClick={(id) => navigate(`/refugio/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/saved/coupons" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <SavedCoupons
                                     {...commonProps}
@@ -745,18 +763,18 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onCouponClick={(id) => navigate(`/coupons/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/environmental-monitor" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <EnvironmentalMonitor
                                     {...commonProps}
                                     onMenuClick={() => setMenuOpen(true)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
 
                     <Route path="/offgrid-vault" element={
@@ -768,8 +786,19 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                         </PageTransition>
                     } />
 
+                    <Route path="/offline" element={
+                        <PageTransition>
+                            <SignalLostFallback
+                                variant={!isOnline ? 'offline' : !serverReachable ? 'server' : 'offline'}
+                                onGoToVault={handleGoToVault}
+                                onGoToLedger={() => navigate('/budget')}
+                                onMenuClick={() => setMenuOpen(true)}
+                            />
+                        </PageTransition>
+                    } />
+
                     <Route path="/saved/fairs" element={
-                        <OfflineGuardian isOnline={isOnline} serverReachable={serverReachable} language={currentLanguage || Language.Spanish} onGoToVault={handleGoToVault}>
+                        cx('banner',
                             <PageTransition>
                                 <SavedFairs
                                     {...commonProps}
@@ -777,7 +806,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({
                                     onFairClick={(id) => navigate(`/calendar/${id}`)}
                                 />
                             </PageTransition>
-                        </OfflineGuardian>
+                        )
                     } />
                 </Route>
             </TypedRoutes>

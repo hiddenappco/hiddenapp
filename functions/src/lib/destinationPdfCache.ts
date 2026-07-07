@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import type { AppLanguage } from './localizedContent';
 import { localizeDestination } from './localizeCatalog';
 import { normalizeDestinationCoordinates, normalizeDestinationStats } from './destinationFields';
+import { DESTINATION_PDF_TEMPLATE_VERSION } from '../pdf/constants';
 
 type RawDoc = Record<string, unknown>;
 
@@ -15,6 +16,7 @@ export interface DestinationPdfCacheEntry {
 export function destinationPdfFingerprint(raw: RawDoc, lang: AppLanguage): string {
     const localized = localizeDestination(raw, lang);
     const payload = {
+        pdfTemplateVersion: DESTINATION_PDF_TEMPLATE_VERSION,
         title: localized.title,
         location: localized.location,
         description: localized.description,
@@ -27,7 +29,6 @@ export function destinationPdfFingerprint(raw: RawDoc, lang: AppLanguage): strin
         planningNotes: localized.planningNotes,
         stats: normalizeDestinationStats(raw),
         coordinates: normalizeDestinationCoordinates(raw),
-        heroImage: String(raw.heroImage || raw.image || ''),
         status: raw.status,
     };
     return createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 20);

@@ -68,6 +68,8 @@ export interface UserProfile {
     premiumExpiresAt?: unknown;
     /** Rowy: trip_pass | monthly | annual | lifetime — drives auto Duration on premium activation */
     premiumPlan?: 'trip_pass' | 'monthly' | 'annual' | 'lifetime' | string;
+    /** Server-maintained sum of verified direct-to-host COP (P2-ESG-01). */
+    directInjectionTotalCop?: number;
 }
 
 export interface TicketMessage {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Language } from '../types/core';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTrip, useTripExpenses } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { exportTripToPdf } from '../services/pdfExportService';
@@ -12,7 +12,8 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { EXPENSE_CATEGORIES_CONFIG, EXPENSE_CATEGORY_KEYS } from '../utils/tripCategories';
 import { formatCop } from '../utils/currency';
 import { TripBalances } from './trips/TripBalances';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 import type { ExpenseCategory, Trip } from '../types/trips';
 
 interface TripHistoryDetailProps {
@@ -24,12 +25,13 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
   const { t } = useTranslation();
   const isOnline = useNetworkStatus();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { trip, loading: loadingTrip } = useTrip(id, isOnline);
   const { expenses: firestoreExpenses } = useTripExpenses(id, isOnline);
   const [isExporting, setIsExporting] = useState(false);
 
-  if (loadingTrip) return <PageDetailSkeleton />;
+  if (loadingTrip) return <PageLoadingScreen titleKey="trips.loading" />;
   if (!trip) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('trips.tripNotFound')}</div>;
 
   const getCategoryLabel = (category: ExpenseCategory) => t(EXPENSE_CATEGORY_KEYS[category]);
@@ -95,27 +97,13 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
 
   return (
     <div className="bg-background-dark font-display antialiased text-content h-screen w-full flex flex-col overflow-hidden relative">
+      <StickyGlassHeader
+        onBack={onBack}
+        title={trip.name}
+        subtitle={t('trips.tripCompleted')}
+      />
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/5 transition-colors">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBack}
-            className="text-content flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-          </button>
-          <div className="flex flex-col items-start max-w-[150px]">
-            <span className="text-[10px] font-bold text-content-muted uppercase tracking-widest">{t('trips.tripCompleted')}</span>
-            <h2 className="text-content text-sm font-bold leading-tight truncate w-full">
-              {trip.name}
-            </h2>
-          </div>
-        </div>
-        <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-      </header>
-
-      <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-24">
+      <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-[calc(6rem+var(--safe-bottom))]">
 
         {!isOnline && (
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-[11px] font-medium text-blue-200 flex items-center gap-2">
@@ -186,6 +174,21 @@ export const TripHistoryDetail: React.FC<TripHistoryDetailProps> = ({ language, 
         {trip.type === 'group' && (
           <TripBalances trip={trip as Trip} expenses={firestoreExpenses} currentUid={user?.uid} />
         )}
+
+        <button
+          type="button"
+          onClick={() => id && navigate(`/trips/${id}/documents`)}
+          className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-overlay/5 border border-overlay/10 w-full"
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-budget-primary">folder</span>
+            <div className="text-left">
+              <p className="text-xs font-bold text-content">{t('trips.documentsTitle')}</p>
+              <p className="text-[10px] text-content-muted">{t('trips.documentsSubtitle')}</p>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-content-muted">chevron_right</span>
+        </button>
 
         {/* Export Button Section */}
         <div className="mt-8 mb-10 px-8">

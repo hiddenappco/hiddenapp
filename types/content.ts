@@ -66,6 +66,8 @@ export interface ResolvedPackingGuide {
 
 export interface Destination {
     id: string;
+    /** Rowy/catalog slug when it differs from the Firestore document id. */
+    customId?: string;
     departmentId: string; 
     title: string;
     title_en?: string;
@@ -98,10 +100,17 @@ export interface Destination {
     packingSummary_en?: string;
     planningNotes?: string;
     planningNotes_en?: string;
+    /** Editorial zone for expedition clustering (Rowy / P0-ROWY-01). */
+    regionCluster?: string;
+    /** Minimum days this destination deserves in an itinerary. */
+    recommendedMinDays?: number;
+    suggestedDaysMin?: number;
+    suggestedDaysMax?: number;
+    accessModes?: string[];
     isCoastal?: "Sí" | "No";
     pdfCache?: {
-        es?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string };
-        en?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string };
+        es?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string; templateVersion?: number };
+        en?: { url?: string; expiresAt?: { toDate?: () => Date } | string | Date; fingerprint?: string; templateVersion?: number };
     };
 }
 

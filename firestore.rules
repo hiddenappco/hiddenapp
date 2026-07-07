@@ -11,6 +11,31 @@ service cloud.firestore {
     // --- 2. PERFILES DE USUARIO (SEGURIDAD INDIVIDUAL) ---
     // Cada usuario puede editar sus propios datos (nombre, ubicación, bio, favoritos).
     // Permitimos lectura pública para que la app pueda mostrar nombres/fotos.
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && (
+          !('liveCallUsage' in request.resource.data)
+          || (resource != null && request.resource.data.liveCallUsage == resource.data.liveCallUsage)
+        )
+        && (
+          !('liveTrialUsedSeconds' in request.resource.data)
+          || (resource != null && request.resource.data.liveTrialUsedSeconds == resource.data.liveTrialUsedSeconds)
+        )
+        && (
+          !('expeditionPlansUsed' in request.resource.data)
+          || (resource != null && request.resource.data.expeditionPlansUsed == resource.data.expeditionPlansUsed)
+        )
+        && (
+          !('rangerUsage' in request.resource.data)
+          || (resource != null && request.resource.data.rangerUsage == resource.data.rangerUsage)
+        )
+        && (
+          !('directInjectionTotalCop' in request.resource.data)
+          || (resource != null && request.resource.data.directInjectionTotalCop == resource.data.directInjectionTotalCop)
+        );
+    }
+
     match /users/{userId}/{allPaths=**} {
       allow read: if true;
       // Owners may write their own profile, but NOT tamper with live-call usage:
@@ -32,7 +57,24 @@ service cloud.firestore {
         && (
           !('rangerUsage' in request.resource.data)
           || (resource != null && request.resource.data.rangerUsage == resource.data.rangerUsage)
+        )
+        && (
+          !('directInjectionTotalCop' in request.resource.data)
+          || (resource != null && request.resource.data.directInjectionTotalCop == resource.data.directInjectionTotalCop)
         );
+    }
+
+    // P2-ESG-01 — server-maintained aggregates (Admin SDK only).
+    // Write is denied for every client (integrity of the ESG metric); the Admin
+    // SDK bypasses rules. Read stays public to match the current DB-wide read
+    // model; tightening reads app-wide is a separate hardening pass.
+    match /esg_direct_injections/{injectionId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /esg_monthly_totals/{monthKey} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // --- 3. BITÁCORA DE GASTOS (trips) ---
@@ -93,6 +135,42 @@ service cloud.firestore {
           );
         allow update, delete: if false;
       }
+
+      match /documents/{documentId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds != null
+            && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds)
+        );
+        allow create: if request.auth != null
+          && request.resource.data.uploadedByUid == request.auth.uid
+          && request.resource.data.deleted == false
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPremium == true
+          && (
+            get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid ||
+            get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
+            (get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds != null
+              && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds)
+          );
+        allow update: if request.auth != null && (
+          get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid ||
+          (
+            get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds != null
+            && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.editorIds
+            && resource.data.uploadedByUid == request.auth.uid
+          )
+        ) && (
+          // Tombstone (soft delete)
+          request.resource.data.deleted == true
+          // OR a title-only rename that keeps the doc active
+          || (
+            request.resource.data.deleted == false
+            && resource.data.deleted == false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title'])
+          )
+        );
+        allow delete: if false;
+      }
     }
 
     match /config/{docId} {
@@ -104,15 +182,54 @@ service cloud.firestore {
     match /expeditions/{expeditionId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if false;
+      allow create: if false;
+      // Owner may only toggle `notifyWhenReady` (P1-OFF-04 "notify me when ready").
+      // Pipeline writes run via Admin SDK and bypass these rules.
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifyWhenReady']);
     }
 
-    // --- 4. REGLA GENERAL DE CONTENIDO ---
-    // Permite lectura pública para que los visitantes vean el contenido (destinos, noticias, etc).
-    // Restringe escritura a usuarios autenticados (Rowy Admins o Usuarios de la App según el caso).
-    match /{document=**} {
+    // --- 4. DATOS DE APP ESCRIBIBLES POR EL CLIENTE ---
+    // Se preserva el comportamiento previo (escritura por usuario autenticado)
+    // para NO alterar flujos existentes. El endurecimiento fino de `trips`
+    // (roles, gate premium) es una tarea aparte con QA dedicada.
+    match /trips/{tripId}/{document=**} {
+      allow write: if request.auth != null;
+    }
+    match /support_tickets/{ticketId} {
+      allow read, write: if request.auth != null;
+    }
+    // Caché de telemetría ambiental — el cliente la refresca; lectura pública.
+    match /environmental_cache/{destinationId} {
       allow read: if true;
       allow write: if request.auth != null;
+    }
+
+    // --- 5. CONTENIDO GESTIONADO EN ROWY ---
+    // Lectura pública; escritura solo para usuarios autenticados (panel Rowy).
+    match /destinations/{docId}       { allow read: if true; allow write: if request.auth != null; }
+    match /Coupons/{docId}            { allow read: if true; allow write: if request.auth != null; }
+    match /Events/{docId}             { allow read: if true; allow write: if request.auth != null; }
+    match /News/{docId}               { allow read: if true; allow write: if request.auth != null; }
+    match /refugios/{docId}           { allow read: if true; allow write: if request.auth != null; }
+    match /departments/{docId}        { allow read: if true; allow write: if request.auth != null; }
+    match /survival_protocols/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /assistants/{docId}         { allow read: if true; allow write: if request.auth != null; }
+
+    // Generado por Cloud Functions (Admin SDK); el cliente solo lee.
+    match /department_packs/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // --- 6. CIERRE SEGURO ---
+    // Lectura pública para cualquier documento (modelo actual). Ya NO existe un
+    // `allow write` global: las colecciones server-only (esg_*, department_packs,
+    // config) quedan protegidas porque las reglas se combinan con OR y ninguna
+    // regla concede escritura de cliente sobre ellas.
+    match /{document=**} {
+      allow read: if true;
     }
   }
 }

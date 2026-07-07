@@ -10,7 +10,7 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONO
 
 | Tipo | Cómo se reconoce | Duración | Notas |
 |------|------------------|----------|--------|
-| **Invitado (Guest)** | Firebase Auth anónimo · `users.isGuest === true` | Sesión / dispositivo | **Hackathon (hasta ~1 jul):** Premium completo (`GUEST_HACKATHON_PREMIUM`). **Post-hackathon:** mismos poderes que **Free**; CTA vincular en Ajustes; TTL **30 días** sin actividad (`scheduledGuestCleanup` + `lastActiveAt`). |
+| **Invitado (Guest)** | Firebase Auth anónimo · `users.isGuest === true` | Sesión / dispositivo | Mismos poderes que **Free**; CTA vincular cuenta en Ajustes; TTL **30 días** sin actividad (`scheduledGuestCleanup` + `lastActiveAt`). |
 | **Free (registrado)** | Cuenta Google/email · `isPremium === false` | Permanente | Chat, monitor, bóveda, bitácora solo. **Sin hub planificador.** |
 | **Premium — Pase Viaje** | `isPremium === true` · `premiumPlan === 'trip_pass'` (+ `premiumExpiresAt` ~10 días) | 10 días | Hub **1 consulta** en la ventana del pase. |
 | **Premium — Mensual / Anual / Vitalicio** | `isPremium === true` · `premiumPlan` monthly/annual/lifetime (vitalicio sin expiración) | Según plan | Hub **3 consultas / mes** rodante. |
@@ -21,7 +21,7 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONO
 
 | Campo Firestore | Uso |
 |-----------------|-----|
-| `users.isGuest` | Sesión demo / hackathon |
+| `users.isGuest` | Sesión anónima / exploración sin registro |
 | `users.isPremium` | Acceso Premium (Rowy, cupón admin o RevenueCat) |
 | `users.premiumPlan` | `trip_pass` · `monthly` · `annual` · `lifetime` — distingue cuota hub (1 vs 3) |
 | `users.premiumExpiresAt` | Fin del Pase Viaje 10 días (Rowy Duration o Timestamp) |
@@ -31,6 +31,7 @@ Matriz de referencia para producto, ingeniería y copy. Complementa [`UNIT_ECONO
 | `users.liveTrialUsedSeconds` | Free: prueba Live **5 min lifetime** — **solo server** |
 | `users.expeditionPlansUsed` | Contador hub (1 pase · 3/mes) — **solo server** |
 | `users.rangerUsage` | Consultas Ranger IA / día — **solo server** |
+| `users.directInjectionTotalCop` | Total COP inyectado a anfitriones vía cupones en bitácora — **solo server** (P2-ESG-01) |
 
 Constantes: [`config/premiumLimits.ts`](../config/premiumLimits.ts) · server: [`functions/src/lib/premiumLimits.ts`](../functions/src/lib/premiumLimits.ts)
 
@@ -40,25 +41,23 @@ Constantes: [`config/premiumLimits.ts`](../config/premiumLimits.ts) · server: [
 
 Leyenda: **✓** incluido · **◐** parcial / con límite · **✗** no incluido
 
-| Capacidad | Invitado¹ | Free | Pase 10d | Premium |
+| Capacidad | Invitado | Free | Pase 10d | Premium |
 |-----------|:--------:|:----:|:--------:|:-------:|
 | Catálogo, refugios, contacto anfitrión | ✓ | ✓ | ✓ | ✓ |
 | Bóveda Off-Grid | ✓ | ✓ | ✓ | ✓ |
 | Chat hiperlocal (texto) | ◐ 10/día | ◐ 10/día | ✓ ∞ | ✓ ∞ |
 | Environmental Ranger (consultas IA) | ◐ 5/día | ◐ 5/día | ✓ ∞ | ✓ ∞ |
 | Telemetría monitor (sin IA nueva) | ✓ | ✓ | ✓ | ✓ |
-| Modo Live (voz) | ✓ 30 min³ | ◐ 5 min prueba⁴ | ✓ 30 min/30d | ✓ 30 min/30d |
-| **Planificador hub** | ✓³ | **✗** | ◐ **1/pase** | ◐ **3/mes** |
-| Revisión itinerario (1 incluida/consulta) | ✓ | ✗ | ✓ | ✓ |
-| Cupones catálogo Premium | ✓³ | ✗ | ✓ | ✓ |
-| PDF destino / expedición / bitácora | ✓³ | ✗ | ✓ | ✓ |
+| Modo Live (voz) | ◐ 5 min prueba⁴ | ◐ 5 min prueba⁴ | ✓ 30 min/30d | ✓ 30 min/30d |
+| **Planificador hub** | **✗** | **✗** | ◐ **1/pase** | ◐ **3/mes** |
+| Revisión itinerario (1 incluida/consulta) | ✗ | ✗ | ✓ | ✓ |
+| Cupones catálogo Premium | ✗ | ✗ | ✓ | ✓ |
+| PDF destino / expedición / bitácora | ✗ | ✗ | ✓ | ✓ |
 | Bitácora **solo** | ✗ | ✓ | ✓ | ✓ |
-| Bitácora **grupal** | ✓³ | ✗ | ✓ | ✓ |
+| Bitácora **grupal** | ✗ | ✗ | ✓ | ✓ |
 | Soporte | estándar | estándar | **prioridad**⁵ | **prioridad**⁵ |
 
-¹ Invitado hackathon = Premium en UI y cuotas (temporal).  
 ² Cuenta cada llamada Ranger con IA (análisis automático o pregunta táctica).  
-³ Solo durante temporada hackathon con `isGuest + isPremium` demo.  
 ⁴ Prueba **única** de 5 min (`liveTrialUsedSeconds`), no renovable.  
 ⁵ Prioridad = SLA humano en chat interno de soporte (sin gate técnico).
 
@@ -83,6 +82,8 @@ Leyenda: **✓** incluido · **◐** parcial / con límite · **✗** no incluid
 
 Backend: `assertAndConsumeRangerQuota` en `environmentalAgent` (`functions/src/api/agents.ts`). Hint de cuota en `EnvironmentalMonitor` para usuarios free.
 
+Invitado y Free comparten límites de chat, Ranger y Live (prueba única de 5 min).
+
 ### 3.3 Modo Live (voz)
 
 | | Free registrado | Premium |
@@ -90,8 +91,6 @@ Backend: `assertAndConsumeRangerQuota` en `environmentalAgent` (`functions/src/a
 | Acceso | **5 min prueba (1× en la vida)** | **30 min / 30 días** |
 | Campos | `liveTrialUsedSeconds` | `liveCallUsage` |
 | Agotado | → `/premium` | HTTP 403 `LIVE_QUOTA_EXCEEDED` |
-
-Guest hackathon: bypass cuota (comportamiento Premium).
 
 ### 3.4 Planificador de expedición (hub)
 
@@ -114,15 +113,38 @@ Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PD
 
 ### 3.6 Off-Grid Vault
 
-**No es Premium** — gancho gratuito y diferenciador para cualquier usuario autenticado. Gemma 4 (inferencia MediaPipe) es **opcional** y no bloquea búsqueda local ni chat con datos del pack.
+**No es Premium** — gancho gratuito y diferenciador para cualquier usuario autenticado. Gemma 4 (inferencia MediaPipe, ~1.29 GB) es **opcional** y no bloquea búsqueda local ni chat con datos del pack.
 
-### 3.7 Página `/premium` (Jun 2026)
+**Instalación Gemma (Jun 30, 2026):** Wi‑Fi obligatorio; modal `DataConfirmModal` antes de descargar; descarga en **streaming a disco** (RAM acotada); barra de progreso con fases, MB guardados, tiempo transcurrido; verificación `isGemmaModelReady()` antes del banner verde; requisitos mínimos en UI (~1.29 GB almacenamiento, 4 GB RAM).
 
-- Tipos de cuenta, tabla comparativa Free vs Premium, 9 beneficios, precios referencia **USD**.
+**Desinstalación Gemma (Jun 30, 2026):** modal destructivo de confirmación; barra de progreso (liberar motor → borrar archivos → verificar tamaño 0); estado «Desinstalado por completo» antes de volver al botón Instalar.
+
+### 3.7 Página `/premium` (Jul 2026 — P1-MON-01)
+
+- Matriz comparativa **3 columnas** estilo Baymard: **Free · Pase Viaje · VIP** (no tabla 2 columnas).
+- Headers de plan y CTAs **sticky** al hacer scroll en móvil.
+- Cada fila de feature: icono `?` → tooltip ES/EN (viewport-safe) + enlace a demo (bóveda, planificador, bitácora).
+- Precios referencia **USD** en `config/premiumPricing.ts` ($4.99 / $7.99 / $79.99 / $149.99); `SettingsPremium` alinea copy.
 - `PREMIUM_CHECKOUT_ENABLED = false` — CTA «Disponible pronto en tiendas» hasta Play/App Store + RevenueCat.
-- Tooltips `?` (`HelpTooltip`) en tipos de cuenta, filas de comparación y tarjetas de plan (`P0-PREMIUM-TOOLTIPS`); portal con posicionamiento seguro en viewport.
 
-### 3.8 Upgrade invitado → cuenta oficial (Jun 2026)
+### 3.8 Paywall ROI (Jul 2026 — P1-MON-02)
+
+| | |
+|--|--|
+| **Utilidad** | `utils/paywallRoi.ts` · hook `usePaywallRoiContext()` |
+| **Fórmula** | Ahorro cupón COP − precio Pase Viaje (~$4.99 USD) cuando el neto es positivo |
+| **Dónde** | Bitácora (`PaywallRoiCard`), ficha destino al bloquear feature premium (`PaywallRoiBanner`), `/premium` (cupón del departamento del último destino visitado) |
+| **Regla** | Sin cupón activo → ejemplo genérico con disclaimer; no inventar cifras |
+
+### 3.9 Inyección económica directa — perfil (Jul 2026 — P2-ESG-01)
+
+| | |
+|--|--|
+| **Dónde** | `Profile` → `DirectCommunityImpact` |
+| **Fuente** | `users.directInjectionTotalCop` (solo escritura servidor vía `onTripExpenseWritten`) |
+| **Origen** | Gastos de alojamiento en bitácora etiquetados `directCommunity` (refugio verificado + cupón) |
+
+### 3.10 Upgrade invitado → cuenta oficial (Jun 2026)
 
 | | |
 |--|--|
@@ -130,11 +152,10 @@ Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PD
 | **Métodos** | Google (`linkWithPopup`) o email + contraseña (`linkWithCredential`) |
 | **UID** | **No cambia** — viajes, favoritos e historial de expediciones se conservan |
 | **Firestore** | `isGuest: false`; email y displayName actualizados |
-| **Hackathon** | `GUEST_HACKATHON_PREMIUM = true` → `isPremium` se mantiene tras vincular |
-| **Post-hackathon** | `GUEST_HACKATHON_PREMIUM = false` → upgrade pasa a tier Free |
+| **Tier tras vincular** | Free salvo compra Premium activa (`isPremium` / RevenueCat) |
 | **Retención** | `scheduledGuestCleanup` — borra guests anónimos inactivos ≥30 días (`isGuest` + sin providers tras upgrade) |
 
-### 3.9 Pacto Hidden (onboarding)
+### 3.11 Pacto Hidden (onboarding)
 
 | | |
 |--|--|
@@ -145,18 +166,7 @@ Sin cambio respecto a política jun 2026: cupones premium bloqueados en Free; PD
 
 ---
 
-## 4. Excepción hackathon / demo
-
-```ts
-// utils/userIdentity.ts — GUEST_USER_PROFILE_FIELDS
-{ isPremium: true, isGuest: true, ... }
-```
-
-Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=false` o guest = Free sin `isPremium`.
-
----
-
-## 5. Estado de implementación
+## 4. Estado de implementación
 
 | Regla | Código |
 |-------|--------|
@@ -177,20 +187,25 @@ Mantener hasta fin de temporada hackathon. Después: `VITE_ENABLE_GUEST_LOGIN=fa
 | Backfill lazy `memberIds` | ✅ `tripMemberBackfill.ts` |
 | PDFs Premium (todos) | ✅ `pdf.ts` |
 | Bitácora grupal Premium | ✅ `CreateTrip` + rules |
-| Guest hackathon Premium | ✅ temporal |
-| Premium page USD + tooltips | ✅ `Premium.tsx` + `HelpTooltip` (portal viewport-safe) |
+| Guest tier Free (sin bypass Premium) | ✅ `GUEST_HACKATHON_PREMIUM = false` |
+| Premium page Baymard 3-col + ROI | ✅ `Premium.tsx` · `config/premiumPricing.ts` · `paywallRoi.ts` (Jul 2026) |
+| Paywall ROI embudo | ✅ `PaywallRoiBanner` · `PaywallRoiCard` · `DestinationDetail` (Jul 2026) |
+| Métrica ESG inyección directa | ✅ `onTripExpenseWritten` · `DirectCommunityImpact` · script mensual (Jul 2026) |
+| Premium page USD + tooltips | ✅ `HelpTooltip` legacy + matriz Baymard (Jul 2026) |
 | Coach marks primera visita | ✅ `FeatureCoachmark` + `useFeatureTooltip` |
 | Bitácora historial offline | ✅ `tripLedgerStore` mirror (10 viajes) |
 | Feed actividad viajes grupales | ✅ `trips/{id}/activity` + `TripActivityFeed` |
 | Upgrade invitado → cuenta oficial | ✅ `GuestAccountUpgrade` + `AuthProvider` link |
 | ID usuario copiable en perfil | ✅ `ProfileUserIdBadge` |
 | Gemma inferencia MediaPipe | ✅ `gemmaEngine.ts` (opcional, WebGPU) |
+| Gemma install streaming + progress UX | ✅ `gemmaModelStore.ts`, `gemmaInstallProgress.ts`, `useOffGrid.ts` (Jun 30, 2026) |
+| Gemma uninstall confirm + verified progress | ✅ `OffGridVault.tsx`, `removeGemmaModel(onProgress)` (Jun 30, 2026) |
 | Store checkout RevenueCat | ⏳ `PREMIUM_CHECKOUT_ENABLED = false` |
 | `premiumExpiresAt` en compra store | ⏳ RevenueCat pendiente |
 
 ---
 
-## 6. Referencias
+## 5. Referencias
 
 | Recurso | Ruta |
 |---------|------|

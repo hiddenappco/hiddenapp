@@ -5,7 +5,6 @@ import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { NEW_USER_IDENTITY_FIELDS, GUEST_USER_PROFILE_FIELDS } from '../../utils/userIdentity';
-import { GUEST_HACKATHON_PREMIUM } from '../../utils/guestAccess';
 import { deactivateEnvironmentalShield } from '../../services/environmentalShield';
 
 interface AuthContextType {
@@ -207,8 +206,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 displayName,
                 ...(linkedUser.photoURL ? { photoURL: linkedUser.photoURL } : {}),
                 isGuest: false,
-                // Hackathon: keep Premium after linking; post-hackathon set GUEST_HACKATHON_PREMIUM=false
-                ...(GUEST_HACKATHON_PREMIUM ? {} : { isPremium: false }),
+                // `isPremium`/`premiumExpiresAt` are NOT touched here: whatever the guest
+                // doc already had (paid or admin-granted) must survive the account link.
             },
             { merge: true }
         );

@@ -5,10 +5,11 @@ import { useAuth } from './layout/AuthProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useRevenueCat } from './layout/RevenueCatProvider';
 import { useTranslation } from '../hooks/useTranslation';
-import { rankLocalizedSearch } from '../utils/localizedContent';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
 import { COUPON_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
-import { MediaListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface CouponsProps {
   language: Language;
@@ -51,30 +52,33 @@ export const Coupons: React.FC<CouponsProps> = ({
   };
 
   // Filter logic
-  const filteredCoupons = React.useMemo(() => {
-    // If no search term and no filter, show 5 random ones as suggested
+  const categoryPool = React.useMemo(() => {
     if (!searchTerm.trim() && activeFilter === 'all') {
-      return [...coupons].sort(() => 0.5 - Math.random()).slice(0, 5);
+      return null;
     }
-
-    let pool = coupons.filter(c => {
+    return coupons.filter((c) => {
       if (activeFilter === 'all') return true;
       const targetCategory = filterMap[activeFilter];
       return c.category === targetCategory;
     });
-
-    const term = searchTerm.trim();
-    if (term) {
-      pool = rankLocalizedSearch(
-        pool as Record<string, unknown>[],
-        term,
-        COUPON_PICKER_SEARCH_FIELDS,
-        50
-      ) as typeof pool;
-    }
-
-    return pool;
   }, [coupons, searchTerm, activeFilter]);
+
+  const rankedCoupons = useLocalizedSearch(
+    (categoryPool ?? []) as Record<string, unknown>[],
+    searchTerm,
+    COUPON_PICKER_SEARCH_FIELDS,
+    { limit: 50 }
+  );
+
+  const filteredCoupons = React.useMemo(() => {
+    if (!searchTerm.trim() && activeFilter === 'all') {
+      return [...coupons].sort(() => 0.5 - Math.random()).slice(0, 5);
+    }
+    if (searchTerm.trim()) {
+      return rankedCoupons as typeof coupons;
+    }
+    return categoryPool ?? [];
+  }, [coupons, searchTerm, activeFilter, categoryPool, rankedCoupons]);
 
   const regularCoupons = filteredCoupons.filter(c => !c.isPremium);
   const premiumCoupons = filteredCoupons.filter(c => c.isPremium);
@@ -82,24 +86,13 @@ export const Coupons: React.FC<CouponsProps> = ({
   // Show only coupons with featuredCoupon toggle active
   const featuredCoupons = coupons.filter(c => c.featuredCoupon);
 
-  return (
-    <div className={`bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-y-auto no-scrollbar flex flex-col ${BOTTOM_NAV_SCROLL_PADDING}`}>
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 flex items-center justify-between transition-colors duration-300 shrink-0">
-        <button
-          onClick={onMenuClick}
-          className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-secondary/90 shadow-sm border border-overlay/10 transition-colors active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[20px]">menu</span>
-        </button>
-        <h1 className="text-lg font-bold tracking-tight text-content flex-1 text-center">{t('coupon.listTitle')}</h1>
-        <div className="flex size-10 items-center justify-center">
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="w-8 h-8 object-contain" />
-        </div>
-      </div>
+  if (loading) {
+    return <PageLoadingScreen titleKey="coupon.loading" />;
+  }
 
-      {/* Search */}
-      <div className="px-4 py-4 shrink-0">
+  return (
+    <div className="bg-background-dark text-content font-display antialiased overflow-x-hidden h-screen overflow-hidden flex flex-col">
+      <StickyGlassHeader onMenuClick={onMenuClick} title={t('coupon.listTitle')} titleLarge>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="material-symbols-outlined text-content-subtle group-focus-within:text-perks-primary transition-colors">search</span>
@@ -120,10 +113,7 @@ export const Coupons: React.FC<CouponsProps> = ({
             </button>
           )}
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-3 px-4 pb-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
         <button
           onClick={() => setActiveFilter('all')}
           className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 transition-all active:scale-95 ${activeFilter === 'all' ? 'bg-perks-primary text-white shadow-lg shadow-perks-primary/20' : 'bg-overlay/5 border border-overlay/10 text-content-secondary'}`}
@@ -159,14 +149,11 @@ export const Coupons: React.FC<CouponsProps> = ({
           <span className={`material-symbols-outlined text-[18px] ${activeFilter === 'tours' ? 'text-white' : 'text-perks-accent dark:text-green-400'}`}>tour</span>
           <span className="text-sm font-medium">Tours</span>
         </button>
-      </div>
-
-      {/* Featured Offers - Hide when searching */}
-      {loading && coupons.length === 0 ? (
-        <div className="px-4 mt-2 flex-1">
-          <MediaListSkeleton count={4} />
         </div>
-      ) : (
+      </StickyGlassHeader>
+
+      <div className={`flex-1 overflow-y-auto no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
+      {/* Featured Offers - Hide when searching */}
       <>
       {featuredCoupons.length > 0 && (
         <div className="mt-2 shrink-0">
@@ -309,8 +296,8 @@ export const Coupons: React.FC<CouponsProps> = ({
         </div>
       </div>
       </>
-      )}
 
+      </div>
     </div>
   );
 };

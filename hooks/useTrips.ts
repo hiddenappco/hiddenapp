@@ -18,6 +18,7 @@ import {
     addDoc,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { trackDirectEconomicInjection } from '../services/analytics';
 import { generateTripCode } from '../utils/tripCode';
 import type {
     Expense,
@@ -47,6 +48,21 @@ import { backfillTripMemberIds } from '../services/tripMemberBackfill';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
+
+/**
+ * Firestore's `setDoc`/`addDoc` throw `Unsupported field value: undefined`
+ * for any top-level key set to `undefined` (e.g. optional expense fields
+ * like `amountOriginal`/`exchangeRate`/`splitAmong` when not applicable).
+ * Strip those keys instead of sending them — omitting a field is valid,
+ * an explicit `undefined` value is not.
+ */
+function stripUndefined<T extends Record<string, unknown>>(data: T): Partial<T> {
+    const clean: Partial<T> = {};
+    for (const key of Object.keys(data) as (keyof T)[]) {
+        if (data[key] !== undefined) clean[key] = data[key];
+    }
+    return clean;
+}
 
 function maybeBackfillTrip(tripId: string, data: Record<string, unknown>) {
     void backfillTripMemberIds(tripId, data).catch((err) => {
@@ -418,6 +434,8 @@ export async function logTripActivity(
         amountCOP?: number;
         note?: string;
         category?: ExpenseCategory;
+        documentId?: string;
+        documentName?: string;
     }
 ): Promise<void> {
     if (tripId.startsWith('local_')) return;
@@ -425,7 +443,7 @@ export async function logTripActivity(
         kind,
         actorUid: actor.uid,
         actorName: actor.displayName,
-        ...details,
+        ...stripUndefined(details ?? {}),
         createdAt: serverTimestamp(),
     });
 }
@@ -445,7 +463,7 @@ export const addExpenseToTrip = async (
     const { id, pendingSync, localOnly, ...expenseData } = expense;
 
     await setDoc(expenseRef, {
-        ...expenseData,
+        ...stripUndefined(expenseData),
         createdAt: now,
     });
 
@@ -460,6 +478,14 @@ export const addExpenseToTrip = async (
             amountCOP: expense.amount,
             note: expense.note,
             category: expense.category,
+        });
+    }
+
+    if (expense.directCommunity?.injectionCop) {
+        trackDirectEconomicInjection({
+            amountCop: expense.directCommunity.injectionCop,
+            refugioId: expense.directCommunity.refugioId,
+            couponId: expense.directCommunity.couponId,
         });
     }
 

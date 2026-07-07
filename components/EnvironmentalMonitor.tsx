@@ -9,10 +9,10 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { rankLocalizedSearch } from '../utils/localizedContent';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
 import { DESTINATION_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING, BOTTOM_NAV_SCROLL_SPACER } from '../utils/bottomNav';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
 
 import { EnvironmentalHeader } from './environmental/EnvironmentalHeader';
 import { IntelligenceAdvice } from './environmental/IntelligenceAdvice';
@@ -50,15 +50,11 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
     const [shieldError, setShieldError] = useState<string | null>(null);
     const { data: selectedDestination } = useDestination(selectedId || undefined);
 
-    const filteredDestinations = useMemo(
-        () =>
-            rankLocalizedSearch(
-                destinations as Record<string, unknown>[],
-                searchTerm,
-                DESTINATION_PICKER_SEARCH_FIELDS,
-                20
-            ),
-        [destinations, searchTerm]
+    const filteredDestinations = useLocalizedSearch(
+        destinations as Record<string, unknown>[],
+        searchTerm,
+        DESTINATION_PICKER_SEARCH_FIELDS,
+        { limit: 20 }
     );
 
     useEffect(() => {
@@ -187,7 +183,7 @@ export const EnvironmentalMonitor: React.FC<EnvironmentalMonitorProps> = ({ lang
               : null;
 
     if (loadingDests) {
-        return <PageDetailSkeleton />;
+        return <PageLoadingScreen titleKey="explore.loading" />;
     }
 
     if (showManual) {

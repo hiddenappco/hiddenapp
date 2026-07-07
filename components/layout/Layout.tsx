@@ -4,6 +4,7 @@ import { NavigationMenu } from '../NavigationMenu';
 import { BottomNav } from '../BottomNav';
 import { Language } from '../../types/core';
 import { AnimatedLayoutOutlet } from './AnimatedLayoutOutlet';
+import { LayoutMenuContext } from '../../contexts/LayoutMenuContext';
 import { getBottomNavTab, isBottomNavVisible } from '../../utils/bottomNav';
 
 interface LayoutProps {
@@ -46,6 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 onSearchClick={() => { handleMenuClose(); onNavigate('/search'); }}
                 onNewsClick={() => { handleMenuClose(); onNavigate('/news'); }}
                 onPerksClick={() => { handleMenuClose(); onNavigate('/coupons'); }}
+                onFaqClick={() => { handleMenuClose(); onNavigate('/faq'); }}
                 onSupportClick={() => { handleMenuClose(); onNavigate('/support'); }}
                 onProfileClick={() => { handleMenuClose(); onNavigate('/profile'); }}
                 onPremiumClick={() => { handleMenuClose(); onNavigate('/premium'); }}
@@ -57,12 +59,15 @@ export const Layout: React.FC<LayoutProps> = ({
                 onMonitorClick={() => { handleMenuClose(); onNavigate('/environmental-monitor'); }}
                 onRefugiosClick={() => { handleMenuClose(); onNavigate('/refugios'); }}
                 onOffGridClick={() => { handleMenuClose(); onNavigate('/offgrid-vault'); }}
+                onOfflineHubClick={() => { handleMenuClose(); onNavigate('/offline'); }}
                 onPlannerClick={() => { handleMenuClose(); onNavigate('/expedition/plan'); }}
             />
 
             {/* Main Content Area */}
             <div className="w-full h-full min-h-0">
-                <AnimatedLayoutOutlet outletContext={{ openMenu: handleMenuOpen }} />
+                <LayoutMenuContext.Provider value={handleMenuOpen}>
+                    <AnimatedLayoutOutlet outletContext={{ openMenu: handleMenuOpen }} />
+                </LayoutMenuContext.Provider>
             </div>
 
             {showBottomNav && bottomNavTab && (

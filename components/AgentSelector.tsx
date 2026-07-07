@@ -4,6 +4,7 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { motion } from 'framer-motion';
 import { useDepartment, useAssistant } from '../hooks/useFirestore';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface AgentSelectorProps {
     language: Language;
@@ -71,39 +72,29 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ language, onBack }
                 <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-500/5 rounded-full blur-[100px]"></div>
             </div>
 
-            {/* Header */}
-            <header className="sticky top-0 z-30 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
-                <button
-                    onClick={onBack}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
-                >
-                    <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-                </button>
-
-                {/* Personalized Dynamic Header Micro-Interface */}
-                <div className="flex-1 flex items-center gap-3 ml-2 min-w-0">
-                    {getAgentAvatar()}
-                    <div className="text-left min-w-0">
-                        <div className="flex items-center gap-1.5">
-                            <h2 className="text-sm font-extrabold text-content leading-tight truncate">
-                                {agentName}
-                            </h2>
-                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+            <StickyGlassHeader
+                onBack={onBack}
+                showLogo
+                center={
+                    <div className="flex items-center gap-3 min-w-0">
+                        {getAgentAvatar()}
+                        <div className="text-left min-w-0">
+                            <div className="flex items-center gap-1.5">
+                                <h2 className="text-sm font-extrabold text-content leading-tight truncate">
+                                    {agentName}
+                                </h2>
+                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            </div>
+                            <p className="text-[10px] font-bold tracking-wider text-content-muted uppercase truncate leading-none mt-0.5">
+                                {getDepartmentDisplayName()}
+                            </p>
                         </div>
-                        <p className="text-[10px] font-bold tracking-wider text-content-muted uppercase truncate leading-none mt-0.5">
-                            {getDepartmentDisplayName()}
-                        </p>
                     </div>
-                </div>
-
-                {/* App Brand Logo Top Right Corner */}
-                <div className="shrink-0 flex items-center justify-center size-10 ml-auto mr-1">
-                    <img src="/assets/ui/logo.png" alt="Hidden App Logo" className="h-6 w-auto object-contain" />
-                </div>
-            </header>
+                }
+            />
 
             {/* Main Content (Aligned naturally to the top with perfect padding to eliminate dead space) */}
-            <main className="flex-1 overflow-y-auto no-scrollbar px-6 pt-10 pb-6 flex flex-col gap-6 z-10 max-w-md mx-auto w-full">
+            <main className="flex-1 overflow-y-auto no-scrollbar px-6 pt-10 pb-[calc(1.5rem+var(--safe-bottom))] flex flex-col gap-6 z-10 max-w-md mx-auto w-full">
                 
                 {/* Title */}
                 <div className="text-center pb-2">

@@ -224,6 +224,12 @@ export function normalizeIsPremium(raw: unknown, legacyRole?: unknown): boolean 
     return false;
 }
 
+/**
+ * `isPremium` in Firestore is the SINGLE source of truth for every account —
+ * guest, registered, whatever `userType`. Never special-case `isGuest` here:
+ * an admin can grant/revoke Premium for a guest doc directly in Rowy/Firestore
+ * and the app must reflect it immediately, exactly like any other account.
+ */
 export function getIdentityFromProfile(
     profile: Partial<UserProfile> | null | undefined
 ): UserIdentity {
@@ -231,10 +237,9 @@ export function getIdentityFromProfile(
         return { userType: DEFAULT_USER_TYPE, isPremium: false };
     }
     const record = profile as Record<string, unknown>;
-    const legacyRole = record.role;
     return {
         userType: normalizeUserType(extractRawUserType(record)),
-        isPremium: normalizeIsPremium(extractRawIsPremium(record), legacyRole),
+        isPremium: normalizeIsPremium(extractRawIsPremium(record), record.role),
     };
 }
 
@@ -243,13 +248,12 @@ export const NEW_USER_IDENTITY_FIELDS = {
     isPremium: false,
 } as const;
 
-/** Firestore fields for hackathon / demo anonymous explorers (see loginAsGuest). */
+/** Firestore fields for anonymous guest explorers (see loginAsGuest). */
 export const GUEST_USER_PROFILE_FIELDS = {
     userType: DEFAULT_USER_TYPE,
-    isPremium: true,
+    isPremium: false,
     isGuest: true,
     pactAccepted: false,
-    /** Sin `premiumExpiresAt` → Premium sin caducidad hasta post-hackathon (jul 2026). */
 } as const;
 
 export function isGuestProfile(profile: Partial<UserProfile> | null | undefined): boolean {

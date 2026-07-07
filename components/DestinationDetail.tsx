@@ -6,12 +6,16 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { Browser } from '@capacitor/browser';
 import { exportDestinationToPdf } from '../services/pdfExportService';
+import { formatPdfSizeMb } from '../config/pdf';
+import { DataConfirmModal } from './ui/DataConfirmModal';
+import { useNetworkDetails } from '../hooks/useNetworkDetails';
 import { Language } from '../types/core';
 import { readDestinationPdfCacheUrl } from '../utils/pdfCache';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { GettingThereItem, PricingItem } from '../types/content';
 import { useTranslation } from '../hooks/useTranslation';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 // Sub-components
 import { DestinationHero } from './destination/DestinationHero';
@@ -24,6 +28,9 @@ import { DestinationPricing } from './destination/DestinationPricing';
 import { DestinationPacking } from './destination/DestinationPacking';
 import { DestinationAccessTimes } from './destination/DestinationAccessTimes';
 import { hasAccessTimes, parseAccessTimesFromPlanningNotes } from '../utils/planningNotesAccess';
+import { usePaywallRoiContext } from '../hooks/usePaywallRoiContext';
+import { recordLastVisitedDestination } from '../utils/paywallRoi';
+import { PaywallRoiBanner } from './paywall/PaywallRoiBanner';
 
 interface DestinationDetailProps {
   language: Language;
@@ -43,11 +50,13 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   const { user } = useAuth();
   const { isSaved } = useIsFavorite(user?.uid, finalId, 'destination');
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfConfirmOpen, setPdfConfirmOpen] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const { data: userProfile } = useUserProfile(user?.uid);
   const completedActivities = userProfile?.completedActivities?.[finalId || ''] || [];
 
   const navigate = useNavigate();
+  const network = useNetworkDetails();
   const { isPremium } = useRevenueCat();
   const { data: allRefugios } = useRefugios();
   const { data: allEvents } = useEvents();
@@ -79,6 +88,23 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [paywallRoiOpen, setPaywallRoiOpen] = useState(false);
+
+  const { estimate: destRoiEstimate, loading: destRoiLoading } = usePaywallRoiContext({
+    kind: 'destination',
+    destinationId: finalId || '',
+    departmentId: destination?.departmentId,
+    locationHint: destination?.location,
+  });
+
+  useEffect(() => {
+    if (destination?.id && destination.departmentId) {
+      recordLastVisitedDestination({
+        id: destination.id,
+        departmentId: destination.departmentId,
+      });
+    }
+  }, [destination?.id, destination?.departmentId]);
 
   useHardwareBackHandler(() => {
     if (expandedIdx !== null) {
@@ -143,7 +169,17 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     await Browser.open({ url });
   };
 
-  const handleDownloadPdf = async () => {
+  const pdfSizeMb = formatPdfSizeMb();
+
+  const handlePremiumFeatureGate = () => {
+    if (!isPremium && destRoiEstimate && !destRoiLoading) {
+      setPaywallRoiOpen(true);
+      return;
+    }
+    navigate('/premium');
+  };
+
+  const runPdfDownload = async () => {
     if (!finalId || !user) {
       navigate('/login');
       return;
@@ -152,6 +188,7 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
       navigate('/premium');
       return;
     }
+    setPdfConfirmOpen(false);
     setPdfLoading(true);
     try {
       const lang = language === Language.English ? 'en' : 'es';
@@ -170,10 +207,25 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!finalId || !user) {
+      navigate('/login');
+      return;
+    }
+    if (!isPremium) {
+      handlePremiumFeatureGate();
+      return;
+    }
+    setPdfConfirmOpen(true);
+  };
+
   const texts = {
     closed: t('destination.closed'),
     verified: t('destination.verified'),
-    downloadPdf: t('destination.downloadPdf'),
+        downloadPdf: t('destination.downloadPdf'),
+        pdfConfirmTitle: t('destination.pdfConfirmTitle'),
+        pdfConfirmBody: t('destination.pdfConfirmBody', { mb: pdfSizeMb }),
+        pdfConfirmAction: t('destination.pdfConfirmAction'),
         downloadPremium: t('destination.downloadPremium'),
         pdfLocked: t('destination.pdfLocked'),
         pdfGenerating: t('destination.pdfGenerating'),
@@ -198,10 +250,11 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
 
   // Hooks must run before any early return to keep call order stable across renders.
   const accessTimes = React.useMemo(() => {
-    return parseAccessTimesFromPlanningNotes(destination?.planningNotes);
-  }, [destination?.planningNotes]);
+    const lang = language === Language.English ? 'en' : 'es';
+    return parseAccessTimesFromPlanningNotes(destination?.planningNotes, lang);
+  }, [destination?.planningNotes, language]);
 
-  if (loading) return <PageDetailSkeleton />;
+  if (loading) return <PageLoadingScreen titleKey="destination.loading" />;
   if (!destination) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{texts.notFound}</div>;
 
   const localizedAiTip = destination?.aiTip || '';
@@ -219,17 +272,30 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
   const galleryImages = destination.galleryImages?.map(img => normalizeImage(img)) || [];
 
   return (
-    <div className="bg-background-dark text-content font-display antialiased h-screen w-full overflow-y-auto no-scrollbar flex flex-col relative pb-32">
+    <div className="bg-background-dark text-content font-display antialiased h-screen w-full overflow-y-auto no-scrollbar flex flex-col relative pb-[calc(8rem+var(--safe-bottom))]">
+      <StickyGlassHeader
+        onBack={onBack}
+        title={localizedTitle}
+        showLogo={false}
+        right={
+          <>
+            <StickyHeaderActionButton icon="share" onClick={handleShare} label="Share" />
+            <StickyHeaderActionButton
+              icon="favorite"
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              active={isSaved}
+              label="Favorite"
+            />
+          </>
+        }
+      />
+
       <DestinationHero
         destination={destination}
         displayTitle={localizedTitle}
         displayLocation={localizedLocation}
         galleryImages={galleryImages}
-        onBack={onBack}
-        onShare={handleShare}
-        onToggleFavorite={handleToggleFavorite}
-        isSaved={isSaved}
-        favLoading={favLoading}
         texts={texts}
       />
 
@@ -241,10 +307,33 @@ export const DestinationDetail: React.FC<DestinationDetailProps> = ({
         <DestinationActions
           onDownloadPdf={handleDownloadPdf}
           onOpenMap={handleOpenMap}
-          onPremiumClick={() => navigate('/premium')}
+          onPremiumClick={handlePremiumFeatureGate}
           isPremium={isPremium}
           pdfLoading={pdfLoading}
+          pdfSizeMb={pdfSizeMb}
           texts={texts}
+        />
+
+        {!isPremium && paywallRoiOpen && destRoiEstimate && (
+          <div className="px-5 pb-2">
+            <PaywallRoiBanner
+              estimate={destRoiEstimate}
+              compact
+              onDismiss={() => setPaywallRoiOpen(false)}
+              subtitle={t('destination.paywallRoiGateHint')}
+            />
+          </div>
+        )}
+
+        <DataConfirmModal
+          open={pdfConfirmOpen}
+          title={texts.pdfConfirmTitle}
+          body={texts.pdfConfirmBody}
+          warning={network.isCellular ? t('connectivity.cellularWarning') : undefined}
+          confirmLabel={texts.pdfConfirmAction}
+          cancelLabel={t('common.cancel')}
+          onConfirm={runPdfDownload}
+          onCancel={() => setPdfConfirmOpen(false)}
         />
 
         <DestinationInfo

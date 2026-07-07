@@ -1,7 +1,7 @@
 # Hidden App — Modelo de negocio y unit economics (Jun 2026)
 
 Resumen interno en español del modelo económico. Las cifras están en **USD** salvo donde se indique COP.
-Complemento de [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (versión pública / judges).
+Complemento de [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) (versión pública / inversores).
 
 > **Estado (Jun 2026):** precios B2C cerrados en código. **Precios B2B actualizados** a **USD 15/mes**
 > y **USD 150/año** (política jun 2026; facturación y onboarding aliados pendiente).
@@ -98,6 +98,9 @@ ciclo de renovación de ~600 aliados) aunque el MRR reconocido por asiento baje 
 - **B2B anclado a economía local** (una noche = una membresía) mejora conversión en ventas de campo.
 - **B2C y B2B se refuerzan:** más aliados verificados → mejor catálogo → más Premium viajero → más
   demanda de verificación.
+- **Métrica ESG auditable (P2-ESG-01):** inyección económica directa en COP desde canjes de cupón
+  en refugios verificados (bitácora) — agregados mensuales en Firestore + script `report:direct-injection`
+  para pitch B2G / inversión.
 
 ---
 
@@ -109,6 +112,7 @@ ciclo de renovación de ~600 aliados) aunque el MRR reconocido por asiento baje 
 | B2C precios y límites en código | ✅ Live |
 | Facturación B2B + onboarding aliados | ⏳ Planeado |
 | RevenueCat / tiendas (B2C) | ⏳ Pendiente |
+| Métrica ESG inyección directa (P2-ESG-01) | ✅ Live (jul 2026) |
 
 ---
 
@@ -116,7 +120,7 @@ ciclo de renovación de ~600 aliados) aunque el MRR reconocido por asiento baje 
 
 | Documento | Contenido |
 |-----------|-----------|
-| [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) | Versión pública EN (judges / inversores) |
+| [`UNIT_ECONOMICS_EN.md`](./UNIT_ECONOMICS_EN.md) | Versión pública EN (inversores / partners) |
 | [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md) | Matriz B2C por tier |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Implementación técnica y monetización |
 

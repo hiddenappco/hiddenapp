@@ -7,7 +7,7 @@ Expedition-tech platform for remote tourism in Colombia — PWA, Capacitor Andro
 | **Production PWA** | https://gen-lang-client-0040858908.web.app |
 | **Architecture diagrams (standalone web)** | https://gen-lang-client-0040858908.web.app/architecture.html |
 | **Architecture diagrams (source)** | [`public/architecture.html`](../public/architecture.html) |
-| **Hackathon demo video** | https://www.youtube.com/watch?v=cTfFi36K3qI |
+| **Product overview video** | https://www.youtube.com/watch?v=cTfFi36K3qI |
 | **Source code** | https://github.com/hiddenappco/hiddenapp |
 | **README** | [`README.md`](../README.md) |
 
@@ -46,6 +46,7 @@ flowchart TB
             PDF["generateTripPdf<br/>bilingual trip ledger"]
             FX["getExchangeRates + scheduledExchangeRates<br/>TRM cache"]
             LKT["generateLiveKitToken<br/>recordLiveCallSeconds"]
+            ESG["onTripExpenseWritten<br/>direct economic injection"]
             PACK["department packs + Rowy triggers"]
             CRON["scheduledEnvironmentalMonitor<br/>+ entity alerts"]
         end
@@ -79,6 +80,7 @@ flowchart TB
         D3["destinations<br/>coords · activities · refugios"]
         D4["environmental_cache"]
         D5["trips · Events · Coupons · News"]
+        D8["esg_direct_injections<br/>esg_monthly_totals"]
         D6["expeditions<br/>live pipeline status + itinerary"]
         D7["adk_sessions<br/>persistent chat memory"]
     end
@@ -244,8 +246,7 @@ Ranking: exact match → prefix → word prefix → substring; all query tokens 
 | UI | `GuestAccountUpgrade` in `ProfileSettings` (ES/EN) |
 | Firestore | `users.isGuest: false`; email/displayName updated |
 | Retention | `scheduledGuestCleanup` (daily 05:00 America/Bogota) deletes anonymous guests with `isGuest === true` and ≥30 days without activity (`lastActiveAt` + `lastSignInTime`); upgraded accounts have `providerData.length > 0` → never deleted |
-| Hackathon | `GUEST_HACKATHON_PREMIUM = true` in `utils/guestAccess.ts` keeps `isPremium` after upgrade |
-| Post-hackathon (1 Jul) | Set flag `false` so guests and upgraded accounts become Free tier |
+| Tier | Guests use **Free** limits (`GUEST_HACKATHON_PREMIUM = false`); linking preserves UID and data; Premium only via purchase or admin |
 
 ### Hidden Pact (onboarding gate)
 
@@ -290,8 +291,25 @@ Copy oriented to end users (how to use), not backend jargon (Jun 2026).
 | **Access times** | `utils/planningNotesAccess.ts` parses `TIEMPOS DE ACCESO` / `ACCESS TIMES` in `planningNotes`; `DestinationAccessTimes` chips |
 | **Packing checklist** | `DestinationPacking` — interactive toggles; `utils/packingChecklist.ts` (`localStorage` per `destinationId`, index-stable keys) |
 | **ESG badge** | `DirectCommunityBadge` when `porcentaje_anfitrion` / `hostSharePercent` documented (`utils/directCommunity.ts`) |
+| **Destination PDF** | `generateDestinationPdf` — dark Hidden template, inline logo/QR assets, `planningNotes` sanitization, Storage + Firestore cache with `templateVersion` purge (`destinationPdfCache`) |
 
 `planningNotes` included in offline SQLite packs (`functions/src/api/packs.ts`).
+
+### Direct economic injection (P2-ESG-01 · Jul 2026)
+
+Measures COP flowing to verified local hosts when travelers redeem VIP coupons in the trip ledger (0% Hidden commission on tagged redemptions).
+
+| Layer | Implementation |
+|-------|----------------|
+| **Expense tag** | `Expense.directCommunity` on lodging expenses — active refugio, `coupon: true`, documented `hostSharePercent`, linked coupon for destination |
+| **Client validation** | `utils/directCommunityExpense.ts` · `DirectCommunityExpenseFields` in `TripExpenses` (lodging only) |
+| **Analytics** | `direct_economic_injection` event (`services/analytics.ts`) after save via `useTrips` |
+| **Trigger** | `onTripExpenseWritten` — `reconcileInjection()` in transaction; injection COP = `amountCop × hostSharePercent / 100`; idempotent on at-least-once retries |
+| **Aggregates** | `esg_direct_injections`, `esg_monthly_totals`, `users.directInjectionTotalCop` |
+| **Profile** | `DirectCommunityImpact` on `/profile` |
+| **Ops** | `npm run report:direct-injection -- --month YYYY-MM [--verify]` |
+
+Firestore index: `esg_direct_injections` composite `(monthKey, status)`. Client writes to `esg_*` denied in rules; `directInjectionTotalCop` server-only on user profile.
 
 ---
 
@@ -436,22 +454,52 @@ Full-duplex voice via **LiveKit** + **Gemini Multimodal Live** on Cloud Run. `ge
 3. During the call, elapsed seconds are reported best-effort to `recordLiveCallSeconds` (same Bearer auth); usage is written with the **Admin SDK** (`addLiveCallSecondsAdmin`).
 4. Firestore rules prevent clients from modifying `users.liveCallUsage` directly; only server-side accounting updates the field.
 
-See [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md) for guest bypass policy during hackathon demo.
+See [`PREMIUM_ENTITLEMENTS.md`](./PREMIUM_ENTITLEMENTS.md) for the full Guest · Free · Premium matrix.
 
 ### Off-Grid Vault
 
 Client-side SQLite department packs (`sql.js` + Capacitor). Local RAG and guided search without network; optional **MediaPipe Gemma 2B IT GPU int4** (`@mediapipe/tasks-genai`, WebGPU) when the model is installed.
 
-| Piece | Path / config |
-|-------|----------------|
-| Model config | `config/gemma.ts` — `storageDownloadUrl` → Firebase Storage `gemma-2b-it-gpu-int4.bin` (~1.29 GB) |
-| Override URL | `VITE_GEMMA_MODEL_URL` or Firestore `config/gemmaModel.downloadUrl` |
-| Download / install | `services/gemmaModelStore.ts` — axios download; accepts `.bin` or `.tar.gz` (`utils/extractGemmaArchive.ts` + `fflate`) |
-| Inference | `services/gemmaEngine.ts` — `LlmInference` GPU delegate; streaming in `OfflineChat.tsx` |
-| Orchestration | `services/localLlmService.ts` — Gemma + RAG context; fallback to guided search if WebGPU/model missing |
-| Uninstall | `removeGemmaModel()` + UI «Liberar» in `OffGridVault.tsx` |
+**Bóveda flow (`OffGridVault.tsx` — Pasos 1–4):**
 
-Gemma is **optional** — vault search and pack-based chat work without it.
+| Step | Capability | Requires Gemma? |
+|------|------------|-----------------|
+| 1 | Download department SQLite packs | No |
+| 2 | Local catalog search (protocols, destinations, refugios, etc.) | No |
+| 3 | Offline chat with local RAG | No (guided search fallback) |
+| 4 | Optional Gemma engine (~1.29 GB, Wi‑Fi only) | Yes — enhances same chat with conversational replies |
+
+One offline chat (`OfflineChat`); Gemma does **not** open a separate chat. Packs and Gemma install independently; updating a pack does not reinstall Gemma.
+
+#### Gemma model store & install (Jun 30, 2026)
+
+| Piece | Path / behavior |
+|-------|-----------------|
+| Config | `config/gemma.ts` — ~1.29 GB, `minRamGb: 4`, `minBytes` validation, Firebase Storage `gemma-2b-it-gpu-int4.bin` |
+| URL override | `VITE_GEMMA_MODEL_URL` or Firestore `config/gemmaModel.downloadUrl` |
+| **Primary install** | `streamModelToDisk()` in `services/gemmaModelStore.ts` — `fetch` + `response.body.getReader()`, writes base64 in 3 MiB blocks to Capacitor `Filesystem` **while downloading** (bounded RAM, avoids OOM on 4 GB devices) |
+| **Fallback install** | `bufferedDownloadToDisk()` — full buffer for `.tar.gz` (`utils/extractGemmaArchive.ts` + `fflate`) or runtimes without streaming body |
+| Chunk writer | `writeModelInChunks()` — `writeFile` + `appendFile`; intermediate blocks are multiples of 3 bytes so concatenated base64 decodes correctly (fixes `RangeError: Invalid string length` on ~1.3 GB models) |
+| Progress bands | `utils/gemmaInstallProgress.ts` — overall UI bar: streaming 0–90%, verify 90–100% |
+| Hook / UI | `hooks/useOffGrid.ts`, `components/OffGridVault.tsx` — phase label, `{saved}/{total} MB`, elapsed time, error banner |
+| Watchdogs | Stall 8 min without progress; hard cap 45 min total → abort + user-visible error |
+| Verification | `isGemmaModelReady()` — `localStorage` flag + on-disk size ≥ `minBytes` before success banner |
+| Format guard | `assertLooksLikeGemmaModel()` — header sniff on load; corrupt/partial installs auto-invalidated (`No model format matched` recovery, Jul 2026) |
+| Partial cleanup | `cleanupPartialGemmaInstall()` on mount if install incomplete; removes `.tmp` |
+| Notifications | Throttled ongoing progress; error replaces same notification id (no stuck tray icon) |
+| Inference | `services/gemmaEngine.ts` — `LlmInference` GPU delegate; streaming tokens in `OfflineChat.tsx` |
+| Orchestration | `services/localLlmService.ts` — RAG context + Gemma; fallback to guided search if WebGPU/model missing |
+
+#### Gemma uninstall (Jun 30, 2026)
+
+| Step | Behavior |
+|------|----------|
+| Confirm | `DataConfirmModal` (`destructive`) — explains ~1.29 GB freed; chat stays on pack RAG without conversational mode |
+| Progress | Bar: dispose engine (15%) → delete files per path (40–90%) → verify size 0 (95%) → 100% «Desinstalado por completo» |
+| Verify | `getGemmaModelSizeBytes()` must be 0; retry delete on failure; `GEMMA_UNINSTALL_INCOMPLETE` → error banner |
+| State | `removeGemmaModel()`, `localLlm.dispose()`, storage estimate refresh, local notification |
+
+Gemma is **optional** — vault search and pack-based offline chat work without it.
 
 ### Trip ledger (Bitácora v2)
 
@@ -472,8 +520,10 @@ Expense tracking independent from the expedition planner (`/expedition/plan`). C
 | **Join by code** | `joinTripByCode` reads trip data from `QuerySnapshot.docs[0]`, not the snapshot itself |
 | **Offline routes** | `/budget`, `/create-trip`, `/current-trip`, `/trips/converter`, `/trip-history/:id` work without `OfflineGuardian`; group join (`/trips/join`) requires network |
 | **Offline hub CTA** | `SignalLostFallback` links to Off-Grid vault and trip ledger |
+| **ESG coupon redemption** | Lodging expenses may tag `directCommunity` when redeeming at verified refugio — feeds P2-ESG-01 pipeline (`onTripExpenseWritten`) |
+| **Trip documents** | Premium upload/rename; Cloud Functions `onTripDocumentWritten`, `onTripDeletedCleanupDocuments`; offline mirror in IndexedDB **v4** (`documents` store) |
 
-**Frontend:** `Budget`, `CreateTrip`, `TripExpenses`, `JoinTrip`, `CurrencyConverter`, `TripHistoryDetail`, `components/trips/*` (`TripActivityFeed`, `TripBalances`, …)  
+**Frontend:** `Budget`, `CreateTrip`, `TripExpenses`, `JoinTrip`, `CurrencyConverter`, `TripHistoryDetail`, `TripDocumentsPage`, `components/trips/*` (`TripActivityFeed`, `TripBalances`, `DirectCommunityExpenseFields`, …)  
 **Hooks:** `useTrips` (`useTripActivity`, `logTripActivity`), `useTripSync`, `useExchangeRates`  
 **Firestore index:** composite `memberIds` (array-contains) + `status` + `createdAt`
 
@@ -501,11 +551,13 @@ Monetization (business model, pricing, B2B, projections) is summarized in [`UNIT
 
 B2B billed direct (web/transfer). Rationale: ~one guest-night revenue in Colombia/LATAM (~COP 50k) covers the monthly fee. Onboarding & billing **planned**, not in app checkout yet.
 
-**UX (Jun 2026):** `HelpTooltip` on account types, compare table, and plan cards (`P0-PREMIUM-TOOLTIPS`) — portal + viewport clamp (Jun 20). `users.isPremium` in Firestore remains source of truth until store billing ships.
+**UX (Jul 2026 — P1-MON-01 / P1-MON-02):** `/premium` — Baymard-style **3-column** matrix (Free · Pase Viaje · VIP): sticky plan headers/CTAs, per-feature `?` tooltips (ES/EN), demo deep-links to vault, planner, ledger. Prices centralized in `config/premiumPricing.ts`. **Paywall ROI:** `utils/paywallRoi.ts` + `usePaywallRoiContext` — surfaces in trip ledger (`PaywallRoiCard`), destination premium gates (`PaywallRoiBanner`), and `/premium` (last visited department). Formula: coupon savings COP − Trip Pass price when net positive.
 
-**Plans & expiry (Jun 2026):** `users.premiumPlan` — `trip_pass` | `monthly` | `annual` | `lifetime`. Empty `premiumExpiresAt` = no expiry (lifetime). Duration auto-filled by `onUserPremiumSync` only for timed plans. **`isTripPassPlan`** checks `premiumPlan === 'trip_pass'` (not merely presence of expiry) so monthly/annual get hub quota **3/month**, not pase **1**. Guests excluded from premium sync triggers until post-hackathon.
+**UX (Jun 2026):** `HelpTooltip` on account types (`P0-PREMIUM-TOOLTIPS`) — portal + viewport clamp. `users.isPremium` in Firestore remains source of truth until store billing ships.
 
-**Profile (Jun 2026):** `ProfileUserIdBadge` — copyable Firebase UID above identity block (support, group trips, hackathon demos).
+**Plans & expiry (Jun 2026):** `users.premiumPlan` — `trip_pass` | `monthly` | `annual` | `lifetime`. Empty `premiumExpiresAt` = no expiry (lifetime). Duration auto-filled by `onUserPremiumSync` only for timed plans. **`isTripPassPlan`** checks `premiumPlan === 'trip_pass'` (not merely presence of expiry) so monthly/annual get hub quota **3/month**, not pase **1**. Guests (`isGuest`) are excluded from premium auto-sync triggers.
+
+**Profile (Jun 2026):** `ProfileUserIdBadge` — copyable Firebase UID above identity block (support, group trips).
 
 ### Push notifications & scheduled jobs
 
@@ -516,6 +568,7 @@ B2B billed direct (web/transfer). Rationale: ~one guest-night revenue in Colombi
 | `onNewCoupon` / `onNewEvent` / `onNewNews` | entity updates | Promo / ferias / noticias |
 | `scheduledEnvironmentalMonitor` | cron | Shield push alerts |
 | `scheduledExchangeRates` | cron | TRM cache |
+| `onTripExpenseWritten` | `trips/{tripId}/expenses/{expenseId}` write | ESG direct economic injection — reconcile `esg_direct_injections`, monthly totals, user aggregate |
 | `scheduledPremiumExpiry` | hourly | Deactivate expired `isPremium` |
 | `scheduledGuestCleanup` | daily 05:00 Bogotá | Delete inactive anonymous guests ≥30d |
 
@@ -562,7 +615,7 @@ API keys (Gemini, Maps, weather providers, LiveKit) are **not** in the public re
 | `generateLiveKitToken` | Bearer required | UID from token; quota check before minting LiveKit JWT |
 | `recordLiveCallSeconds` | Bearer required | Server-side `liveCallUsage` increment (Admin SDK) |
 
-**Firestore rules:** users may write their own profile document, but writes that change `liveCallUsage` are rejected — usage is updated only by Cloud Functions with the Admin SDK.
+**Firestore rules (Jul 2026 hardening):** removed catch-all `allow write` on `/{document=**}` that could OR-bypass collection rules. Client writes are explicit per collection; `esg_*`, `department_packs`, `config` → `write: if false` for clients; `users/{userId}` rejects client changes to `liveCallUsage` and `directInjectionTotalCop` (Admin SDK only).
 
 **Client:** `services/authHeaders.ts` attaches `Authorization: Bearer` from `auth.currentUser.getIdToken()` for the endpoints above.
 
@@ -575,6 +628,7 @@ API keys (Gemini, Maps, weather providers, LiveKit) are **not** in the public re
 | Cloud Functions | `cd functions && npm run build && firebase deploy --only functions` |
 | Trip TRM + PDF | `firebase deploy --only functions:getExchangeRates,functions:scheduledExchangeRates,functions:generateTripPdf` |
 | Firestore rules/indexes | `firebase deploy --only firestore:indexes,firestore:rules` |
+| ESG injection trigger | `firebase deploy --only functions:onTripExpenseWritten` |
 | Firebase Hosting | `npm run build && firebase deploy --only hosting` |
 | Full backend | `firebase deploy --only hosting,functions,firestore:rules,firestore:indexes,storage` — if Cloud Run CPU quota fails, deploy functions one-by-one |
 | Live agent worker | `gcloud run deploy hidden-agent-worker --source ./agent-worker` |

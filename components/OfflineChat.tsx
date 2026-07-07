@@ -3,6 +3,8 @@ import { useOffGrid } from '../hooks/useOffGrid';
 import { useDepartments } from '../hooks/useContent';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
+import { GEMMA_CONFIG } from '../config/gemma';
 
 interface Message {
   id: string;
@@ -282,6 +284,10 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
     };
   });
 
+  const lastMessage = messages[messages.length - 1];
+  const showTypingIndicator =
+    isGenerating && lastMessage?.sender === 'bot' && !lastMessage.text?.trim();
+
   const renderEngineStatus = () => {
     if (isInitializing) {
       return (
@@ -314,34 +320,27 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
 
   return (
     <div className="relative bg-background-dark font-display antialiased overflow-hidden h-screen w-full max-w-full flex flex-col text-content">
-      <header className="shrink-0 flex items-center justify-between px-4 pb-3 pt-safe bg-background-dark/95 backdrop-blur-md border-b border-overlay/10 z-10">
-        <button
-          onClick={onBack}
-          className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-overlay/10 transition-colors text-content shrink-0"
-        >
-          <span className="material-symbols-outlined">arrow_back_ios_new</span>
-        </button>
-
-        <div className="flex flex-col items-center min-w-0 px-2">
-          <h1 className="text-content text-base font-bold leading-tight truncate max-w-[220px]">
-            {t('vault.offlineChatTitle')}
-          </h1>
-          <div className="flex items-center gap-1.5 mt-0.5">{renderEngineStatus()}</div>
-        </div>
-
-        {downloadedDepts.length > 0 ? (
-          <button
-            onClick={handleClearHistory}
-            className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-overlay/10 text-content/70 hover:text-red-400 transition-colors shrink-0"
-            title={t('vault.clearHistory')}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-xl">delete_sweep</span>
-          </button>
-        ) : (
-          <div className="w-10 shrink-0" />
-        )}
-      </header>
+      <StickyGlassHeader
+        onBack={onBack}
+        showLogo={false}
+        center={
+          <div className="flex flex-col items-center min-w-0">
+            <h1 className="text-content text-base font-bold leading-tight truncate max-w-[220px]">
+              {t('vault.offlineChatTitle')}
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5">{renderEngineStatus()}</div>
+          </div>
+        }
+        right={
+          downloadedDepts.length > 0 ? (
+            <StickyHeaderActionButton
+              icon="delete_sweep"
+              onClick={handleClearHistory}
+              label={t('vault.clearHistory')}
+            />
+          ) : undefined
+        }
+      />
 
       <div className="shrink-0 px-4 py-3 border-b border-overlay/5 bg-background-dark">
         <label className="text-[10px] font-bold text-content-subtle uppercase tracking-widest">
@@ -372,6 +371,13 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
           </div>
         )}
       </div>
+
+      {!gemmaInstalled && engineMode === 'fallback' && !isInitializing && downloadedDepts.length > 0 && (
+        <div className="shrink-0 mx-4 mt-2 p-3 bg-amber-950/25 border border-amber-900/30 rounded-2xl flex items-start gap-2 text-xs text-amber-300">
+          <span className="material-symbols-outlined text-sm shrink-0 mt-0.5">download</span>
+          <span>{t('vault.installGemmaChatBanner', { gb: GEMMA_CONFIG.approxDownloadGb })}</span>
+        </div>
+      )}
 
       <main
         ref={mainRef}
@@ -444,7 +450,7 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
                     <span className="material-symbols-outlined text-[10px]">
                       {msg.engine === 'gemma' ? 'memory' : 'bolt'}
                     </span>
-                    <span>{msg.engine === 'gemma' ? 'gemma 4 engine' : 'telemetry search'}</span>
+                    <span>{msg.engine === 'gemma' ? t('vault.offlineEngineBadgeGemma') : t('vault.offlineEngineBadgeCatalog')}</span>
                   </div>
                 )}
               </div>
@@ -452,7 +458,7 @@ export const OfflineChat: React.FC<OfflineChatProps> = ({ onBack }) => {
           );
         })}
 
-        {isGenerating && (
+        {showTypingIndicator && (
           <div className="flex w-full justify-start">
             <div className="max-w-[85%] bg-surface-dark border border-overlay/10 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-content-subtle flex items-center gap-2.5">
               <div className="flex gap-1">

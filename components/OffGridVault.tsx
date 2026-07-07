@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useOffGrid } from '../hooks/useOffGrid';
 import { useDepartments } from '../hooks/useContent';
 import { Language } from '../types/core';
@@ -7,12 +8,16 @@ import { OfflineChat } from './OfflineChat';
 import { OffGridManual } from './OffGridManual';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import type { VaultLocalSearchSource } from '../services/localLlmService';
-import { ConnectivityBanner, networkBannerVariant, networkStatusLabel } from './ui/ConnectivityBanner';
+import { ConnectivityBanner, resolveConnectivityBannerVariant, networkStatusLabel } from './ui/ConnectivityBanner';
+import { useServerReachability } from '../hooks/useServerReachability';
 import { DataConfirmModal } from './ui/DataConfirmModal';
 import { FeatureCoachmark } from './ui/FeatureCoachmark';
 import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { formatPackSize } from '../utils/formatPackSize';
 import { GEMMA_CONFIG } from '../config/gemma';
+import { formatInstallElapsed } from '../utils/gemmaInstallProgress';
+import type { GemmaInstallPhase } from '../hooks/useOffGrid';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface OffGridVaultProps {
   language: Language;
@@ -35,10 +40,12 @@ const VAULT_SOURCE_LABEL_KEYS: Record<VaultLocalSearchSource, string> = {
 
 export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClick }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const vaultCoachmark = useFeatureTooltip('vault');
   const [showOfflineChat, setShowOfflineChat] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<PendingDownload>(null);
+  const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
   const {
     downloadedPacks,
     updateAvailable,
@@ -47,6 +54,14 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     gemmaInstalled,
     installingGemma,
     gemmaProgress,
+    gemmaPhase,
+    gemmaPhaseProgress,
+    gemmaWriteSavedMb,
+    gemmaInstallError,
+    gemmaInstallElapsedSec,
+    uninstallingGemma,
+    gemmaUninstallProgress,
+    gemmaUninstallDone,
     network,
     storageEstimate,
     installGemma,
@@ -60,7 +75,8 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
   } = useOffGrid();
 
   const netStatus = networkStatusLabel(t, network);
-  const bannerVariant = networkBannerVariant(network);
+  const serverReachable = useServerReachability(network.isOnline);
+  const bannerVariant = resolveConnectivityBannerVariant(network, network.isOnline, serverReachable);
 
   const packsSectionRef = useRef<HTMLElement>(null);
 
@@ -96,10 +112,24 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
     return <OfflineChat language={language} onBack={() => setShowOfflineChat(false)} />;
   }
 
-  // Gemma download detail calculations
+  // Gemma install progress display
   const gemmaDownloadTotalMb = GEMMA_CONFIG.approxDownloadMb;
-  const gemmaMBDownloaded = Math.round((gemmaProgress / 100) * gemmaDownloadTotalMb);
-  const gemmaMBRemaining = gemmaDownloadTotalMb - gemmaMBDownloaded;
+  const gemmaPhaseLabel = (phase: GemmaInstallPhase): string => {
+    switch (phase) {
+      case 'streaming':
+        return t('vault.gemmaInstallStepStream');
+      case 'downloading':
+        return t('vault.gemmaInstallStepDownload');
+      case 'extracting':
+        return t('vault.extractingEngine');
+      case 'finalizing':
+        return t('vault.gemmaInstallStepWrite');
+      case 'verifying':
+        return t('vault.gemmaInstallStepVerify');
+      default:
+        return '';
+    }
+  };
 
   // Local storage circle parameters
   const strokeDash = 2 * Math.PI * 45; // radius is 45
@@ -172,21 +202,13 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
   };
 
   return (
-    <div className="bg-background-dark font-display text-content antialiased h-full w-full flex flex-col overflow-y-auto no-scrollbar relative selection:bg-primary selection:text-white">
-      
-      {/* Header — menú principal, título, estado de red */}
-      <header className="sticky top-0 z-50 bg-background-dark/90 dark:bg-[#05111e]/90 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5 shrink-0">
-        <div className="flex items-center gap-3 min-h-11">
-          <button
-            onClick={onMenuClick}
-            className="flex items-center justify-center size-10 rounded-lg text-content-muted bg-overlay/5 border border-overlay/10 hover:bg-overlay/10 transition-colors shrink-0 active:scale-95"
-            aria-label="Menu"
-          >
-            <span className="material-symbols-outlined text-[22px]">menu</span>
-          </button>
-          <h2 className="flex-1 min-w-0 text-base sm:text-lg font-bold leading-tight tracking-tight text-content truncate">
-            {t('vault.title')}
-          </h2>
+    <div className="bg-background-dark font-display text-content antialiased h-full w-full flex flex-col overflow-hidden relative selection:bg-primary selection:text-white">
+      <StickyGlassHeader
+        onMenuClick={onMenuClick}
+        title={t('vault.title')}
+        titleLarge
+        showLogo={false}
+        right={
           <div
             className={`flex items-center gap-1.5 shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
               netStatus.tone === 'ok'
@@ -211,12 +233,21 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
             <span className="material-symbols-outlined text-[14px] leading-none">{netStatus.icon}</span>
             <span className="hidden min-[360px]:inline">{netStatus.label}</span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
-      <main className="p-5 flex flex-col gap-6 pb-[calc(4rem+env(safe-area-inset-bottom,1.5rem))]">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+
+      <main className="p-5 flex flex-col gap-6 pb-[calc(4rem+var(--safe-bottom))]">
         {bannerVariant && (
-          <ConnectivityBanner variant={bannerVariant} />
+          <ConnectivityBanner
+            variant={bannerVariant}
+            onOpenOfflineHub={
+              bannerVariant === 'offline' || bannerVariant === 'server'
+                ? () => navigate('/offline')
+                : undefined
+            }
+          />
         )}
 
         {vaultCoachmark.visible && (
@@ -636,27 +667,53 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
 
           <div className="flex items-center gap-3">
             {!gemmaInstalled && !installingGemma && (
-              <button
-                onClick={requestGemmaInstall}
-                disabled={!network.isOnline || !network.isWifi}
-                className={`touch-target w-full h-12 font-bold text-xs uppercase tracking-wider rounded-[18px] shadow-lg transition-all ${
-                  network.isOnline && network.isWifi
-                    ? 'bg-overlay/10 hover:bg-overlay/15 text-content border border-emerald-600/40 active:scale-[0.98]'
-                    : 'bg-overlay/5 text-content/30 border border-overlay/5 cursor-not-allowed shadow-none'
-                }`}
-              >
-                {t('vault.installGemma')}
-              </button>
-            )}
-            {!network.isWifi && network.isOnline && !gemmaInstalled && !installingGemma && (
-              <p className="text-[10px] text-amber-400/90 mt-2 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">wifi</span>
-                {t('connectivity.wifiOnlyBlocked')}
-              </p>
+              <div className="flex flex-col gap-3 w-full">
+                {gemmaInstallError && (
+                  <div className="flex items-start gap-2 rounded-xl bg-red-950/40 border border-red-800/50 px-3 py-2.5">
+                    <span className="material-symbols-outlined text-base text-red-400 mt-0.5 shrink-0">error</span>
+                    <div>
+                      <p className="text-[10px] font-bold text-red-300 mb-0.5">{t('vault.gemmaInstallErrorTitle')}</p>
+                      <p className="text-[10px] text-red-200/90 leading-relaxed">{gemmaInstallError}</p>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={requestGemmaInstall}
+                  disabled={!network.isOnline || !network.isWifi}
+                  className={`touch-target w-full h-12 font-bold text-xs uppercase tracking-wider rounded-[18px] shadow-lg transition-all ${
+                    network.isOnline && network.isWifi
+                      ? 'bg-overlay/10 hover:bg-overlay/15 text-content border border-emerald-600/40 active:scale-[0.98]'
+                      : 'bg-overlay/5 text-content/30 border border-overlay/5 cursor-not-allowed shadow-none'
+                  }`}
+                >
+                  {t('vault.installGemma')}
+                </button>
+                {!network.isWifi && network.isOnline && (
+                  <p className="text-[10px] text-amber-400/90 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">wifi</span>
+                    {t('connectivity.wifiOnlyBlocked')}
+                  </p>
+                )}
+                <div className="rounded-xl bg-overlay/5 border border-overlay/10 px-3 py-2.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-content/40 mb-1.5">
+                    {t('vault.gemmaRequirementsTitle')}
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-content/55">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">sd_card</span>
+                      {t('vault.gemmaMinStorage', { gb: GEMMA_CONFIG.approxDownloadGb })}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">memory</span>
+                      {t('vault.gemmaMinRam', { gb: GEMMA_CONFIG.minRamGb })}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {installingGemma && (
-              <div className="flex-1">
+              <div className="flex-1 w-full">
                 <div className="w-full h-2.5 bg-overlay/5 rounded-full overflow-hidden border border-overlay/5 mb-2.5 relative">
                   <div
                     className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-300 rounded-full relative"
@@ -665,36 +722,120 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse rounded-full"></div>
                   </div>
                 </div>
-                <div className="flex justify-between text-[10px] text-content/60 mb-1">
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[12px] text-emerald-400 animate-pulse">downloading</span>
-                    {t('vault.downloadingEngine')}
+                <div className="flex justify-between text-[10px] text-content/60 mb-1 gap-2">
+                  <span className="flex items-center gap-1 min-w-0">
+                    <span className="material-symbols-outlined text-[12px] text-emerald-400 shrink-0 animate-spin">
+                      {gemmaPhase === 'verifying' ? 'verified' : 'progress_activity'}
+                    </span>
+                    <span className="truncate">{gemmaPhaseLabel(gemmaPhase)}</span>
                   </span>
-                  <span className="font-black text-emerald-400">{gemmaProgress}%</span>
+                  <span className="font-black text-emerald-400 shrink-0">{gemmaProgress}%</span>
                 </div>
-                <div className="flex justify-between text-[9px] text-content/40">
-                  <span>{gemmaMBDownloaded} MB / {gemmaDownloadTotalMb} MB</span>
-                  <span>{t('vault.mbRemaining', { n: gemmaMBRemaining })}</span>
+                <div className="flex justify-between text-[9px] text-content/40 mb-1">
+                  <span>
+                    {gemmaPhase === 'streaming'
+                      ? t('vault.gemmaStreamProgress', {
+                          pct: gemmaPhaseProgress,
+                          saved: gemmaWriteSavedMb,
+                          total: gemmaDownloadTotalMb,
+                        })
+                      : gemmaPhase === 'downloading'
+                        ? t('vault.gemmaDownloadPhaseDetail', {
+                            pct: gemmaPhaseProgress,
+                            saved: gemmaWriteSavedMb,
+                            total: gemmaDownloadTotalMb,
+                          })
+                        : gemmaPhase === 'finalizing'
+                          ? t('vault.gemmaWriteProgress', {
+                              saved: gemmaWriteSavedMb,
+                              total: gemmaDownloadTotalMb,
+                              pct: gemmaPhaseProgress,
+                            })
+                          : gemmaPhase === 'verifying'
+                            ? t('vault.verifyingEngine')
+                            : t('vault.extractingEngine')}
+                  </span>
+                  <span>{t('vault.gemmaInstallElapsed', { time: formatInstallElapsed(gemmaInstallElapsedSec) })}</span>
                 </div>
+                <p className="text-[9px] text-content/40 leading-relaxed">
+                  {gemmaPhase === 'streaming' || gemmaPhase === 'downloading'
+                    ? t('vault.gemmaInstallHintDownload')
+                    : gemmaPhase === 'finalizing'
+                      ? t('vault.finalizingHint')
+                      : t('vault.gemmaInstallHintKeepOpen')}
+                </p>
               </div>
             )}
 
-            {gemmaInstalled && (
-              <button
-                onClick={uninstallGemma}
-                className="w-full h-12 border border-red-900/40 text-red-400 hover:bg-red-950/30 hover:border-red-700 rounded-[18px] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                title={t('vault.freeSpaceTitle')}
-              >
-                <span className="material-symbols-outlined text-lg">delete</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  {t('vault.free')}
-                </span>
-              </button>
+            {uninstallingGemma && (
+              <div className="flex-1 w-full">
+                <div className="w-full h-2.5 bg-overlay/5 rounded-full overflow-hidden border border-overlay/5 mb-2.5 relative">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full relative ${
+                      gemmaUninstallDone
+                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+                        : 'bg-gradient-to-r from-red-600 to-red-400'
+                    }`}
+                    style={{ width: `${gemmaUninstallProgress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse rounded-full"></div>
+                  </div>
+                </div>
+                <div className="flex justify-between text-[10px] text-content/60 mb-1 gap-2">
+                  <span className="flex items-center gap-1 min-w-0">
+                    <span
+                      className={`material-symbols-outlined text-[12px] shrink-0 ${
+                        gemmaUninstallDone ? 'text-emerald-400' : 'text-red-400 animate-spin'
+                      }`}
+                    >
+                      {gemmaUninstallDone ? 'check_circle' : 'progress_activity'}
+                    </span>
+                    <span className="truncate">
+                      {gemmaUninstallDone
+                        ? t('vault.gemmaUninstallDone')
+                        : t('vault.gemmaUninstalling')}
+                    </span>
+                  </span>
+                  <span
+                    className={`font-black shrink-0 ${
+                      gemmaUninstallDone ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {gemmaUninstallProgress}%
+                  </span>
+                </div>
+                <p className="text-[9px] text-content/40 leading-relaxed">
+                  {t('vault.gemmaUninstallHint')}
+                </p>
+              </div>
+            )}
+
+            {gemmaInstalled && !installingGemma && !uninstallingGemma && (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-start gap-2 rounded-xl bg-emerald-950/40 border border-emerald-800/40 px-3 py-2.5">
+                  <span className="material-symbols-outlined text-base text-emerald-400 mt-0.5">verified</span>
+                  <p className="text-[10px] text-emerald-200/90 leading-relaxed">
+                    {t('vault.gemmaInstalledConfirm')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowUninstallConfirm(true)}
+                  className="w-full h-12 border border-red-900/40 text-red-400 hover:bg-red-950/30 hover:border-red-700 rounded-[18px] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  title={t('vault.freeSpaceTitle')}
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">
+                    {t('vault.free')}
+                  </span>
+                </button>
+              </div>
             )}
           </div>
         </section>
 
       </main>
+
+      </div>
 
       <DataConfirmModal
         open={pendingDownload?.kind === 'pack'}
@@ -716,6 +857,21 @@ export const OffGridVault: React.FC<OffGridVaultProps> = ({ language, onMenuClic
         cancelLabel={t('connectivity.cancel')}
         onConfirm={confirmPendingDownload}
         onCancel={() => setPendingDownload(null)}
+      />
+
+      <DataConfirmModal
+        open={showUninstallConfirm}
+        destructive
+        title={t('vault.gemmaUninstallConfirmTitle')}
+        body={t('vault.gemmaUninstallConfirmBody', { gb: GEMMA_CONFIG.approxDownloadGb })}
+        warning={t('vault.gemmaUninstallConfirmWarning')}
+        confirmLabel={t('vault.gemmaUninstallConfirmCta')}
+        cancelLabel={t('connectivity.cancel')}
+        onConfirm={() => {
+          setShowUninstallConfirm(false);
+          uninstallGemma();
+        }}
+        onCancel={() => setShowUninstallConfirm(false)}
       />
     </div>
   );

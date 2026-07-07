@@ -78,6 +78,9 @@ export const EVENT_SEARCH_FIELDS = [
     'priceType',
 ] as const;
 
+/** List / calendar search — title-first fields plus description for recall. */
+export const EVENT_PICKER_SEARCH_FIELDS = ['name', 'subtitle', 'location', 'description'] as const;
+
 export const REFUGIO_SEARCH_FIELDS = [
     'name',
     'tagline',

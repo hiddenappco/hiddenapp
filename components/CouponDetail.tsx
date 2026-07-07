@@ -7,7 +7,8 @@ import { useRevenueCat } from './layout/RevenueCatProvider';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 interface CouponDetailProps {
   language: Language;
@@ -86,7 +87,7 @@ export const CouponDetail: React.FC<CouponDetailProps> = ({ onBack, couponId: pr
     }
   };
 
-  if (loading) return <PageDetailSkeleton />;
+  if (loading) return <PageLoadingScreen titleKey="coupon.loading" />;
   if (!coupon) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('coupon.notFound')}</div>;
 
   const displayTitle = coupon.title;
@@ -96,44 +97,40 @@ export const CouponDetail: React.FC<CouponDetailProps> = ({ onBack, couponId: pr
   const heroImage = normalizeImage(coupon.image);
 
   return (
-    <div className="bg-background-dark font-display antialiased relative flex h-screen w-full flex-col overflow-y-auto overflow-x-hidden pb-24 no-scrollbar">
-      {/* TopAppBar */}
-      <div className="sticky top-0 z-50 flex items-center bg-surface-dark p-4 pt-safe justify-between border-b border-overlay/10 transition-colors">
-        <button
-          onClick={onBack}
-          className="text-perks-secondary dark:text-content flex size-10 shrink-0 items-center justify-center cursor-pointer rounded-full hover:bg-overlay/5 transition-colors"
-        >
-          <span className="material-symbols-outlined text-2xl">arrow_back</span>
-        </button>
-        <h2 className="text-perks-secondary dark:text-content text-lg font-bold leading-tight tracking-tight flex-1 text-center">
-          {displayTitle}
-        </h2>
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: displayTitle,
-                  text: displayDescription,
-                  url: window.location.href,
-                }).catch(console.error);
-              } else {
-                alert(t('common.shareNotSupported'));
-              }
-            }}
-            className="flex items-center justify-center rounded-full hover:bg-overlay/5 transition-colors size-10 text-perks-secondary dark:text-content"
-          >
-            <span className="material-symbols-outlined text-2xl">share</span>
-          </button>
-          <button
-            onClick={handleToggleFavorite}
-            disabled={favLoading}
-            className="flex items-center justify-center rounded-full hover:bg-overlay/5 transition-colors size-10 active:scale-90"
-          >
-            <span className={`material-symbols-outlined text-2xl transition-all ${isSaved ? 'filled-icon text-red-500' : 'text-perks-secondary dark:text-content'}`}>favorite</span>
-          </button>
-        </div>
-      </div>
+    <div className="bg-background-dark font-display antialiased relative flex h-screen w-full flex-col overflow-y-auto overflow-x-hidden pb-[calc(6rem+var(--safe-bottom))] no-scrollbar">
+      <StickyGlassHeader
+        onBack={onBack}
+        title={displayTitle}
+        showLogo={false}
+        right={
+          <>
+            <StickyHeaderActionButton
+              icon="share"
+              onClick={() => {
+                if (navigator.share) {
+                  navigator
+                    .share({
+                      title: displayTitle,
+                      text: displayDescription,
+                      url: window.location.href,
+                    })
+                    .catch(console.error);
+                } else {
+                  alert(t('common.shareNotSupported'));
+                }
+              }}
+              label="Share"
+            />
+            <StickyHeaderActionButton
+              icon="favorite"
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              active={isSaved}
+              label="Favorite"
+            />
+          </>
+        }
+      />
 
       {/* Hero Image Gallery */}
       <div className="w-full pt-4 pb-2 px-4">

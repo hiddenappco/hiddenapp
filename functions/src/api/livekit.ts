@@ -13,7 +13,7 @@ import { AuthError, requireAuthUid } from "../lib/verifyAuth";
  * with the Hyperlocal Agent. In production, this will gate on Premium status.
  * Premium users: 30 min / 30 d rolling window.
  * Free registered users: one-time 5 min trial (`liveTrialUsedSeconds`).
- * Hackathon guests (`isGuest`): full access until post-hackathon.
+ * Guests (`isGuest`): Free tier — same trial/limits as registered Free users.
  */
 export const generateLiveKitToken = onRequest(
     {

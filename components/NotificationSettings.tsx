@@ -3,6 +3,7 @@ import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
 import { useUserProfile, updateNotificationPrefs } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface NotificationSettingsProps {
   language: Language;
@@ -37,24 +38,10 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onBa
 
   return (
     <div className="bg-background-dark text-content font-display antialiased h-screen w-full flex flex-col overflow-hidden relative z-50">
-      {/* Top App Bar */}
-      <header className="sticky top-0 z-50 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/5 transition-colors">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBack}
-            className="text-content flex size-10 shrink-0 items-center justify-center cursor-pointer transition-opacity hover:opacity-70"
-          >
-            <span className="material-symbols-outlined text-2xl">arrow_back</span>
-          </button>
-          <h2 className="text-content text-lg font-bold leading-tight tracking-[-0.015em]">
-            {t('notifications.title')}
-          </h2>
-        </div>
-        <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-      </header>
+      <StickyGlassHeader onBack={onBack} title={t('notifications.title')} titleLarge />
 
       {/* Scrollable Content */}
-      <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-[calc(6rem+var(--safe-bottom))]">
         {/* Headline & Intro */}
         <div className="px-4 pt-6 pb-2">
           <h1 className="text-content tracking-tight text-[28px] font-bold leading-tight text-left mb-2">

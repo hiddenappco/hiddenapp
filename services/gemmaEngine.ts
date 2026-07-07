@@ -54,15 +54,31 @@ export async function ensureGemmaSession(modelAssetPath: string): Promise<LlmInf
 export async function generateGemmaResponse(
     modelAssetPath: string,
     prompt: string,
-    onPartial?: ProgressListener
+    onPartial?: ProgressListener,
+    timeoutMs: number = GEMMA_CONFIG.inferenceTimeoutMs
 ): Promise<string> {
     const llm = await ensureGemmaSession(modelAssetPath);
 
-    if (onPartial) {
-        return llm.generateResponse(prompt, onPartial);
+    const inference = onPartial
+        ? llm.generateResponse(prompt, onPartial)
+        : llm.generateResponse(prompt);
+
+    if (!timeoutMs || timeoutMs <= 0) {
+        return inference;
     }
 
-    return llm.generateResponse(prompt);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error('GEMMA_INFERENCE_TIMEOUT'));
+        }, timeoutMs);
+    });
+
+    try {
+        return await Promise.race([inference, timeout]);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
 }
 
 export function disposeGemmaSession(): void {

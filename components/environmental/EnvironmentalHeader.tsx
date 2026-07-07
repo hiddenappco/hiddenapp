@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLastUpdateText } from './environmentalUtils';
 import { useTranslation } from '../../hooks/useTranslation';
+import { STICKY_GLASS_HEADER_CLASS } from '../ui/StickyGlassHeader';
 
 interface EnvironmentalHeaderProps {
     isMonitoring: boolean;
@@ -35,7 +36,7 @@ export const EnvironmentalHeader: React.FC<EnvironmentalHeaderProps> = ({
     const { t, language } = useTranslation();
 
     return (
-        <div className="sticky top-0 z-40 bg-nav-bg-dark/90 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-3 shrink-0">
+        <div className={STICKY_GLASS_HEADER_CLASS}>
             <div className="flex items-center justify-between mb-4">
                 <button
                     onClick={onMenuClick}

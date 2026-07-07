@@ -8,7 +8,8 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { Browser } from '@capacitor/browser';
 import { RichTextContent } from './ui/RichTextContent';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 import { formatCop } from '../utils/currency';
 import { computeDirectCommunityFromRefugioPricing } from '../utils/directCommunity';
 import { DirectCommunityBadge } from './ui/DirectCommunityBadge';
@@ -199,7 +200,7 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
     );
   }, [refugio, allRefugios, linkedDestinations]);
 
-  if (loading) return <PageDetailSkeleton />;
+  if (loading) return <PageLoadingScreen titleKey="refugio.loading" />;
   if (!refugio) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">{t('refugio.notFound')}</div>;
 
   const displayName = refugio.name;
@@ -212,32 +213,23 @@ export const RefugioDetail: React.FC<RefugioDetailProps> = ({
 
   return (
     <div className="bg-background-dark font-display antialiased relative flex h-screen w-full flex-col overflow-y-auto overflow-x-hidden pb-safe no-scrollbar">
-      <div className="sticky top-0 z-50 flex items-center bg-surface-dark p-4 pt-safe justify-between border-b border-overlay/10 transition-colors">
-        <button
-          onClick={onBack}
-          className="text-content flex size-10 shrink-0 items-center justify-center cursor-pointer rounded-full hover:bg-overlay/5 transition-colors"
-        >
-          <span className="material-symbols-outlined text-2xl">arrow_back</span>
-        </button>
-        <h2 className="text-content text-lg font-bold leading-tight tracking-tight flex-1 text-center truncate px-2">
-          {displayName}
-        </h2>
-        <div className="flex items-center justify-center gap-1">
-          <button
-            onClick={handleShare}
-            className="flex items-center justify-center rounded-full hover:bg-overlay/5 transition-colors size-10 text-content"
-          >
-            <span className="material-symbols-outlined text-2xl">share</span>
-          </button>
-          <button
-            onClick={handleToggleFavorite}
-            disabled={favLoading}
-            className="flex items-center justify-center rounded-full hover:bg-overlay/5 transition-colors size-10 active:scale-90"
-          >
-            <span className={`material-symbols-outlined text-2xl transition-all ${isSaved ? 'filled-icon text-red-500' : 'text-content'}`}>favorite</span>
-          </button>
-        </div>
-      </div>
+      <StickyGlassHeader
+        onBack={onBack}
+        title={displayName}
+        showLogo={false}
+        right={
+          <>
+            <StickyHeaderActionButton icon="share" onClick={handleShare} label="Share" />
+            <StickyHeaderActionButton
+              icon="favorite"
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              active={isSaved}
+              label="Favorite"
+            />
+          </>
+        }
+      />
 
       <div className="w-full pt-4 pb-2 px-4 shrink-0">
         <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 no-scrollbar pb-2">

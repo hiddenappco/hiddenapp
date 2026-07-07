@@ -4,10 +4,11 @@ import { NewsArticle } from '../types/content';
 import { useNews } from '../hooks/useFirestore';
 import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
-import { rankLocalizedSearch } from '../utils/localizedContent';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
 import { NEWS_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
 import { BOTTOM_NAV_SCROLL_PADDING } from '../utils/bottomNav';
-import { MediaListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 interface NewsFeedProps {
   language: Language;
@@ -50,69 +51,69 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
     essential: t('news.essential')
   };
 
+  const categoryPool = React.useMemo(
+    () =>
+      newsItems.filter((item) => {
+        if (activeFilter === 'all') return true;
+        const targetCategory = filterMap[activeFilter];
+        return item.category === targetCategory;
+      }),
+    [newsItems, activeFilter]
+  );
+
+  const rankedNews = useLocalizedSearch(
+    categoryPool as Record<string, unknown>[],
+    searchTerm,
+    NEWS_PICKER_SEARCH_FIELDS,
+    { limit: 50 }
+  );
+
   const filteredNews = React.useMemo(() => {
-    let pool = newsItems.filter(item => {
-      if (activeFilter === 'all') return true;
-      const targetCategory = filterMap[activeFilter];
-      return item.category === targetCategory;
-    });
+    if (!searchTerm.trim()) return categoryPool;
+    return rankedNews as typeof categoryPool;
+  }, [categoryPool, searchTerm, rankedNews]);
 
-    const term = searchTerm.trim();
-    if (term) {
-      pool = rankLocalizedSearch(
-        pool as Record<string, unknown>[],
-        term,
-        NEWS_PICKER_SEARCH_FIELDS,
-        50
-      ) as typeof pool;
-    }
-
-    return pool;
-  }, [newsItems, activeFilter, searchTerm]);
+  if (loading) {
+    return <PageLoadingScreen titleKey="news.loadingList" />;
+  }
 
   return (
     <div className="relative flex flex-col h-screen w-full overflow-hidden max-w-md mx-auto bg-background-dark font-display">
 
-      {/* Header */}
-      <header className="flex-none z-20 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 px-4 pt-safe pb-2">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={onMenuClick}
-            className="flex items-center justify-center w-10 h-10 rounded-full text-content bg-overlay/5 hover:bg-overlay/10 shadow-sm border border-overlay/10 transition-colors -ml-2"
-          >
-            <span className="material-symbols-outlined text-[24px]">menu</span>
-          </button>
-
-          {!isSearching ? (
-            <>
-              <h2 className="text-xl font-bold leading-tight tracking-tight text-content flex-1 text-center">{t('news.title')}</h2>
-              <button
-                onClick={() => setIsSearching(true)}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-overlay/5 text-content hover:bg-primary/10 transition-colors -mr-2"
-              >
-                <span className="material-symbols-outlined text-[24px]">search</span>
-              </button>
-            </>
+      <StickyGlassHeader
+        onMenuClick={onMenuClick}
+        showLogo={false}
+        center={
+          !isSearching ? (
+            <h2 className="text-xl font-bold leading-tight tracking-tight text-content text-center">{t('news.title')}</h2>
           ) : (
-            <div className="flex-1 flex items-center bg-surface-dark rounded-xl px-3 ml-2 -mr-2">
-              <span className="material-symbols-outlined text-content-muted text-[20px] mr-2">search</span>
+            <div className="flex items-center bg-surface-dark rounded-xl px-3 w-full">
+              <span className="material-symbols-outlined text-content-muted text-[20px] mr-2 shrink-0">search</span>
               <input
                 autoFocus
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder={t('news.searchPlaceholder')}
-                className="flex-1 bg-transparent py-2 text-sm text-content outline-none"
+                className="flex-1 min-w-0 bg-transparent py-2 text-sm text-content outline-none"
               />
-              <button onClick={() => { setIsSearching(false); setSearchTerm(''); }}>
+              <button type="button" onClick={() => { setIsSearching(false); setSearchTerm(''); }}>
                 <span className="material-symbols-outlined text-content-muted text-[20px]">close</span>
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          )
+        }
+        right={
+          !isSearching ? (
+            <StickyHeaderActionButton
+              icon="search"
+              onClick={() => setIsSearching(true)}
+              label={t('news.searchPlaceholder')}
+            />
+          ) : undefined
+        }
+      >
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           {Object.entries(filterLabels).map(([key, label]) => (
             <button
               key={key}
@@ -126,14 +127,12 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             </button>
           ))}
         </div>
-      </header>
+      </StickyGlassHeader>
 
       {/* Main Content */}
       <main className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-5 no-scrollbar ${BOTTOM_NAV_SCROLL_PADDING}`}>
 
-        {loading ? (
-          <MediaListSkeleton count={4} />
-        ) : filteredNews.length > 0 ? (
+        {filteredNews.length > 0 ? (
           <>
             {/* News List */}
             {filteredNews.map((item) => {

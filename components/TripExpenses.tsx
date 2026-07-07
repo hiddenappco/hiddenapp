@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language } from '../types/core';
 import { Trip, Expense, TripCurrency, ExpenseCategory } from '../types/trips';
-import { useTripExpenses, useTripActivity, canEditTrip } from '../hooks/useFirestore';
+import { useTripExpenses, canEditTrip } from '../hooks/useFirestore';
 import { useTranslation } from '../hooks/useTranslation';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -12,10 +12,12 @@ import { TripSyncBanner } from './trips/TripSyncBanner';
 import { TripConflictHint } from './trips/TripConflictHint';
 import { TripGroupPanel } from './trips/TripGroupPanel';
 import { TripBalances } from './trips/TripBalances';
-import { TripActivityFeed } from './trips/TripActivityFeed';
 import { CurrencyPicker } from './trips/CurrencyPicker';
 import { makeTempId } from '../services/tripLedgerStore';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
+import { DirectCommunityExpenseFields } from './trips/DirectCommunityExpenseFields';
+import type { ExpenseDirectCommunity } from '../types/trips';
 
 const MAX_PAST_TRIPS = TRIP_LEDGER_LIMITS.MAX_PAST_TRIPS;
 
@@ -32,6 +34,7 @@ interface TripExpensesProps {
   ) => void;
   onFinishTrip: (total: number) => void;
   onOpenConverter: () => void;
+  onOpenDocuments?: () => void;
   pastTripCount?: number;
   pendingCount?: number;
   syncing?: boolean;
@@ -89,6 +92,12 @@ const ExpenseCard: React.FC<{
               {formatForeign(expense.amountOriginal, expense.currency)}
             </p>
           )}
+          {expense.directCommunity && (
+            <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px]">volunteer_activism</span>
+              {t('esg.expenseTagged')}
+            </p>
+          )}
           {trip.type === 'group' && expense.paidByMemberId && (
             <p className="text-[10px] text-content-subtle truncate">
               {getMemberName(expense.paidByMemberId)}
@@ -117,6 +126,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   onDeleteExpense,
   onFinishTrip,
   onOpenConverter,
+  onOpenDocuments,
   pastTripCount = 0,
   pendingCount = 0,
   syncing = false,
@@ -128,10 +138,6 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   const isOnline = useNetworkStatus();
   const { rates } = useExchangeRates();
   const { expenses: rawExpenses } = useTripExpenses(trip.id, isOnline);
-  const { activity, loading: activityLoading } = useTripActivity(
-    trip.type === 'group' ? trip.id : undefined,
-    isOnline
-  );
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const canEdit = canEditTrip(trip, userId);
   const isOwner = trip.ownerId === userId || trip.userId === userId;
@@ -154,6 +160,10 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   const allMemberIds = memberList.map((m) => m.uid);
   const [paidByMemberId, setPaidByMemberId] = useState(userId || trip.userId);
   const [splitAmong, setSplitAmong] = useState<string[]>(allMemberIds);
+  const [dcEnabled, setDcEnabled] = useState(false);
+  const [dcRefugioId, setDcRefugioId] = useState('');
+  const [dcCouponId, setDcCouponId] = useState('');
+  const [dcPayload, setDcPayload] = useState<ExpenseDirectCommunity | null>(null);
 
   const getMemberName = (uid: string) =>
     memberList.find((m) => m.uid === uid)?.displayName || t('trips.traveler');
@@ -161,6 +171,10 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   const openAddModal = () => {
     setPaidByMemberId(userId || trip.userId);
     setSplitAmong(allMemberIds);
+    setDcEnabled(false);
+    setDcRefugioId('');
+    setDcCouponId('');
+    setDcPayload(null);
     setIsAddModalOpen(true);
   };
 
@@ -184,6 +198,8 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
     if (!newAmount || !canEdit) return;
     const parsed = parseFloat(newAmount.replace(/,/g, ''));
     if (!parsed || parsed <= 0) return;
+    const dcActive = newCategory === 'lodging' && dcEnabled;
+    if (dcActive && !dcPayload) return;
 
     const { amountCOP, rate, rateDate } = convertToCop(parsed, inputCurrency, rates);
     const tempId = makeTempId('temp_exp');
@@ -201,6 +217,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
       time: t('trips.justNow'),
       paidByMemberId: isGroup ? paidByMemberId : userId,
       splitAmong: isGroup ? splitAmong : undefined,
+      directCommunity: dcActive && dcPayload ? dcPayload : undefined,
       pendingSync: !isOnline,
       localOnly: !isOnline,
     };
@@ -209,6 +226,10 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
     setIsAddModalOpen(false);
     setNewAmount('');
     setNewNote('');
+    setDcEnabled(false);
+    setDcRefugioId('');
+    setDcCouponId('');
+    setDcPayload(null);
   };
 
   const handleDelete = (expenseId: string, amount: number, note?: string, category?: ExpenseCategory) => {
@@ -228,26 +249,21 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
   return (
     <div className="bg-background-dark font-display antialiased text-content h-screen w-full flex flex-col overflow-hidden relative">
 
-      <header className="sticky top-0 z-30 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/5 transition-colors">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBack}
-            className="touch-target text-content flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-          </button>
-          <div className="flex flex-col items-start max-w-[150px]">
+      <StickyGlassHeader
+        onBack={onBack}
+        showLogo={!userId || trip.type !== 'group'}
+        center={
+          <div className="flex flex-col items-center min-w-0">
             <span className="text-[10px] font-bold text-content-muted uppercase tracking-widest">{t('trips.activeTripLabel')}</span>
-            <h2 className="text-content text-sm font-bold leading-tight truncate w-full">{trip.name}</h2>
+            <h2 className="text-sm font-bold text-content leading-tight truncate max-w-full">{trip.name}</h2>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {trip.type === 'group' && userId && (
+        }
+        right={
+          trip.type === 'group' && userId ? (
             <TripGroupPanel trip={trip} currentUid={userId} isOwner={isOwner} />
-          )}
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       <TripSyncBanner pendingCount={pendingCount} syncing={syncing} isOnline={isOnline} />
       <TripConflictHint
@@ -256,7 +272,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
         visible={!isOnline || pendingCount > 0 || reconcileHint}
       />
 
-      <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-24">
+      <main className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col gap-6 pb-[calc(6rem+var(--safe-bottom))]">
 
         <button
           onClick={onOpenConverter}
@@ -278,6 +294,22 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
           </div>
           <span className="material-symbols-outlined text-content-muted">chevron_right</span>
         </button>
+
+        {onOpenDocuments && (
+          <button
+            onClick={onOpenDocuments}
+            className="touch-target flex items-center justify-between px-4 py-3.5 rounded-2xl bg-overlay/5 border border-overlay/10 hover:border-budget-primary/30 transition-colors min-h-[3.25rem] w-full"
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-budget-primary">folder</span>
+              <div className="text-left">
+                <p className="text-xs font-bold text-content">{t('trips.documentsTitle')}</p>
+                <p className="text-[10px] text-content-muted">{t('trips.documentsSubtitle')}</p>
+              </div>
+            </div>
+            <span className="material-symbols-outlined text-content-muted">chevron_right</span>
+          </button>
+        )}
 
         {!canEdit && (
           <p className="text-center text-xs text-content-muted bg-overlay/5 py-2 rounded-xl">
@@ -317,10 +349,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
         </div>
 
         {trip.type === 'group' && (
-          <>
-            <TripBalances trip={trip} expenses={firestoreExpenses} currentUid={userId} />
-            <TripActivityFeed activity={activity} loading={activityLoading} />
-          </>
+          <TripBalances trip={trip} expenses={firestoreExpenses} currentUid={userId} />
         )}
 
         <div className="flex flex-col gap-4">
@@ -388,7 +417,7 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
       {isAddModalOpen && (
         <div className="absolute inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="absolute inset-0" onClick={() => setIsAddModalOpen(false)} />
-          <div className="bg-surface-dark rounded-t-[32px] p-6 pb-8 w-full animate-slide-up relative shadow-2xl border-t border-overlay/5 max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface-dark rounded-t-[32px] p-6 pb-[calc(2rem+var(--safe-bottom))] w-full animate-slide-up relative shadow-2xl border-t border-overlay/5 max-h-[90vh] overflow-y-auto">
             <div className="w-12 h-1.5 bg-overlay/10 rounded-full mx-auto mb-6" />
             <h3 className="text-xl font-bold text-content mb-6 text-center">{t('trips.newExpense')}</h3>
 
@@ -454,6 +483,24 @@ export const TripExpenses: React.FC<TripExpensesProps> = ({
                   className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium text-content placeholder:text-content-subtle"
                 />
               </div>
+
+              {newCategory === 'lodging' && (
+                <DirectCommunityExpenseFields
+                  amountCop={
+                    newAmount
+                      ? convertToCop(parseFloat(newAmount.replace(/,/g, '')) || 0, inputCurrency, rates)
+                          .amountCOP
+                      : 0
+                  }
+                  enabled={dcEnabled}
+                  onEnabledChange={setDcEnabled}
+                  refugioId={dcRefugioId}
+                  onRefugioIdChange={setDcRefugioId}
+                  couponId={dcCouponId}
+                  onCouponIdChange={setDcCouponId}
+                  onDirectCommunityChange={setDcPayload}
+                />
+              )}
 
               {trip.type === 'group' && memberList.length > 0 && (
                 <>

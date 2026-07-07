@@ -6,7 +6,8 @@ import { normalizeImage } from '../utils/imageHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { PageDetailSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 
 interface NewsDetailProps {
   article?: NewsArticle;
@@ -21,7 +22,7 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
   const { data: fetchedArticle, loading } = useNewsArticle(finalId);
   const article = propArticle || fetchedArticle;
 
-  if (loading && !article) return <PageDetailSkeleton />;
+  if (loading && !article) return <PageLoadingScreen titleKey="news.loading" />;
   if (!article && !loading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content">{t('news.notFound')}</div>;
 
   if (!article) return null;
@@ -52,6 +53,13 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
 
   return (
     <div className="bg-background-dark font-display text-content h-screen w-full flex flex-col relative overflow-y-auto no-scrollbar">
+      <StickyGlassHeader
+        onBack={onBack}
+        title={displayTitle}
+        showLogo={false}
+        right={<StickyHeaderActionButton icon="share" onClick={handleShare} label="Share" />}
+      />
+
       <div className="relative w-full h-[45vh] shrink-0">
         <div className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar">
           {article.images && article.images.length > 0 ? (
@@ -75,21 +83,6 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
           )}
         </div>
 
-        <div className="absolute top-0 left-0 w-full p-4 pt-safe flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none z-20">
-          <button
-            onClick={onBack}
-            className="pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white border border-overlay/10 hover:bg-black/40 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-          </button>
-          <button
-            onClick={handleShare}
-            className="pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white border border-overlay/10 hover:bg-black/40 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[22px]">share</span>
-          </button>
-        </div>
-
         <div className="absolute bottom-0 left-0 w-full px-5 pb-8 pointer-events-none">
           <span className="pointer-events-auto px-3 py-1 bg-primary rounded-lg text-xs font-bold text-white shadow-sm uppercase tracking-wide mb-3 inline-block">
             {article.category}
@@ -108,7 +101,7 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({ article: propArticle, on
         </div>
       </div>
 
-      <div className="px-5 py-6 space-y-6 pb-24">
+      <div className="px-5 py-6 space-y-6 pb-[calc(6rem+var(--safe-bottom))]">
         <p className="text-lg font-medium text-content-secondary leading-relaxed border-l-4 border-primary pl-4">
           {displaySummary}
         </p>

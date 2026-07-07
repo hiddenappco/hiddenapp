@@ -1,15 +1,20 @@
-import type { Expense, Trip, TripActivityEntry } from '../types/trips';
+import type { Expense, Trip, TripActivityEntry, TripDocument } from '../types/trips';
 import type { ExchangeRates } from '../types/trips';
 import { TRIP_LEDGER_LIMITS } from '../config/constants';
 
 const DB_NAME = 'hidden_trip_ledger';
-const DB_VERSION = 2;
+// v4: ensures the `documents` object store exists for clients whose DB was
+// already at v3 before the store was added to the schema (upgrade is idempotent).
+const DB_VERSION = 4;
 
 export type OutboxOp =
     | 'add_expense'
     | 'delete_expense'
     | 'create_trip'
-    | 'finish_trip';
+    | 'finish_trip'
+    | 'add_document'
+    | 'rename_document'
+    | 'delete_document';
 
 export interface OutboxEntry {
     id: string;
@@ -42,6 +47,10 @@ function openDb(): Promise<IDBDatabase> {
             }
             if (!db.objectStoreNames.contains('activity')) {
                 const store = db.createObjectStore('activity', { keyPath: 'id' });
+                store.createIndex('tripId', 'tripId', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('documents')) {
+                const store = db.createObjectStore('documents', { keyPath: 'id' });
                 store.createIndex('tripId', 'tripId', { unique: false });
             }
         };
@@ -142,8 +151,8 @@ export async function removeTripMirror(tripId: string): Promise<void> {
     await withStore('trips', 'readwrite', (store) => store.delete(tripId));
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(['expenses', 'activity'], 'readwrite');
-        for (const storeName of ['expenses', 'activity'] as const) {
+        const tx = db.transaction(['expenses', 'activity', 'documents'], 'readwrite');
+        for (const storeName of ['expenses', 'activity', 'documents'] as const) {
             const store = tx.objectStore(storeName);
             const index = store.index('tripId');
             const range = IDBKeyRange.only(tripId);
@@ -327,4 +336,77 @@ export async function prunePendingActivityForExpense(tripId: string, expenseId: 
     const mirror = await getActivityMirror(tripId);
     const kept = mirror.filter((e) => e.expenseId !== expenseId || !e.pendingSync);
     await cacheActivityMirror(tripId, kept);
+}
+
+type StoredDocument = TripDocument & { tripId: string };
+
+export async function cacheDocumentsMirror(tripId: string, documents: TripDocument[]): Promise<void> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('documents', 'readwrite');
+        const store = tx.objectStore('documents');
+        const index = store.index('tripId');
+        const range = IDBKeyRange.only(tripId);
+        const nextIds = new Set(documents.map((d) => d.id));
+        const cursorReq = index.openCursor(range);
+        cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (cursor) {
+                if (!nextIds.has(String((cursor.value as { id?: unknown }).id))) {
+                    store.delete(cursor.primaryKey);
+                }
+                cursor.continue();
+            }
+        };
+        for (const docRow of documents) {
+            store.put({ ...docRow, tripId } satisfies StoredDocument);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+export async function getDocumentsMirror(tripId: string): Promise<TripDocument[]> {
+    const db = await openDb();
+    // Guard against a DB that predates the `documents` store (e.g. a blocked
+    // upgrade because another tab holds an older connection open). Returning
+    // empty keeps the UI working instead of throwing an uncaught NotFoundError.
+    if (!db.objectStoreNames.contains('documents')) {
+        return [];
+    }
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('documents', 'readonly');
+        const index = tx.objectStore('documents').index('tripId');
+        const req = index.getAll(tripId);
+        req.onsuccess = () => {
+            const rows = (req.result || []) as StoredDocument[];
+            resolve(
+                rows
+                    .filter((d) => !d.deleted)
+                    .sort((a, b) => b.createdAt - a.createdAt)
+            );
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+export async function upsertDocumentMirror(document: TripDocument): Promise<void> {
+    await withStore('documents', 'readwrite', (store) =>
+        store.put({ ...document, tripId: document.tripId } satisfies StoredDocument)
+    );
+}
+
+export async function removeDocumentMirror(tripId: string, documentId: string): Promise<void> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('documents', 'readwrite');
+        const store = tx.objectStore('documents');
+        const req = store.get(documentId);
+        req.onsuccess = () => {
+            const row = req.result as StoredDocument | undefined;
+            if (row?.tripId === tripId) store.delete(documentId);
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
 }

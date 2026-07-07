@@ -6,6 +6,7 @@ interface DestinationActionsProps {
     onPremiumClick?: () => void;
     isPremium: boolean;
     pdfLoading?: boolean;
+    pdfSizeMb?: string;
     texts: {
         downloadPdf: string;
         downloadPremium: string;
@@ -22,12 +23,15 @@ export const DestinationActions: React.FC<DestinationActionsProps> = ({
     onPremiumClick,
     isPremium,
     pdfLoading = false,
+    pdfSizeMb,
     texts,
 }) => {
     const pdfLabel = isPremium
         ? pdfLoading
             ? texts.pdfGenerating || texts.downloadPdf
-            : texts.downloadPdf
+            : pdfSizeMb
+              ? `${texts.downloadPdf} (~${pdfSizeMb} MB)`
+              : texts.downloadPdf
         : texts.downloadPremium;
 
     const handlePdfClick = () => {
@@ -52,16 +56,6 @@ export const DestinationActions: React.FC<DestinationActionsProps> = ({
                         : 'bg-gradient-to-br from-primary/15 via-surface-dark to-amber-500/10 text-content border border-primary/35 hover:border-primary/55 hover:from-primary/20 shadow-[0_0_20px_rgba(255,108,82,0.12)]'
                 } ${pdfLoading ? 'opacity-70 cursor-wait' : ''}`}
             >
-                {!isPremium && (
-                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-primary/20 border border-primary/30 px-1.5 py-0.5">
-                        <span className="material-symbols-outlined text-[10px] text-primary leading-none">
-                            workspace_premium
-                        </span>
-                        <span className="text-[8px] font-black uppercase tracking-wider text-primary leading-none">
-                            {texts.pdfPremiumBadge || 'Premium'}
-                        </span>
-                    </span>
-                )}
                 <span className="material-symbols-outlined text-[20px] shrink-0">
                     {pdfLoading ? 'hourglass_empty' : isPremium ? 'description' : 'workspace_premium'}
                 </span>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Language } from '../types/core';
 import { useTranslation } from '../hooks/useTranslation';
-import { SearchListSkeleton } from './ui/ContentSkeleton';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 import { useAuth } from './layout/AuthProvider';
 import { useUserFavorites, toggleFavorite, useIsFavorite } from '../hooks/useFirestore';
 
@@ -23,33 +24,14 @@ export const SavedCoupons: React.FC<SavedCouponsProps> = ({
   const { user } = useAuth();
   const { data: coupons, loading } = useUserFavorites(user?.uid, 'coupon');
 
-  if (loading) return (
-    <div className="h-screen w-full bg-background-dark p-4 pt-safe">
-      <SearchListSkeleton count={4} />
-    </div>
-  );
+  if (loading) return <PageLoadingScreen titleKey="saved.loading" />;
 
   return (
-    <div className="bg-background-dark font-display text-content antialiased h-screen w-full overflow-y-auto no-scrollbar">
-      <div className="relative flex min-h-full w-full flex-col overflow-x-hidden max-w-md mx-auto bg-background-dark shadow-xl">
+    <div className="bg-background-dark font-display text-content antialiased h-screen w-full flex flex-col overflow-hidden">
+      <div className="relative flex h-full w-full flex-col overflow-x-hidden max-w-md mx-auto bg-background-dark shadow-xl">
+        <StickyGlassHeader onBack={onBack} title={t('saved.couponsTitle')} titleLarge />
 
-        {/* Header */}
-        <header className="sticky top-0 z-50 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/5 transition-colors">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onBack}
-              className="text-content flex size-10 shrink-0 items-center justify-center cursor-pointer transition-opacity hover:opacity-70"
-            >
-              <span className="material-symbols-outlined text-2xl">arrow_back</span>
-            </button>
-            <h2 className="text-content text-lg font-bold leading-tight tracking-tight">
-              {t('saved.couponsTitle')}
-            </h2>
-          </div>
-          <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain" />
-        </header>
-
-        <main className="flex-1 pb-8 px-4">
+        <main className="flex-1 overflow-y-auto no-scrollbar pb-[calc(2rem+var(--safe-bottom))] px-4">
 
           {/* Segmented Control */}
           <div className="pt-4 mb-6">

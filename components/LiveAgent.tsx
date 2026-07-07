@@ -32,6 +32,7 @@ import { LiveCallQuotaBar } from './live/LiveCallQuotaBar';
 import { useTranslation } from '../hooks/useTranslation';
 import { FeatureCoachmark } from './ui/FeatureCoachmark';
 import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 // ─── Elegant Call Sound Utilities (Web Audio API — no external files) ─────────
 const playCallSound = (type: 'connect' | 'hangup') => {
@@ -326,22 +327,18 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
                     <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-600/3 rounded-full blur-[100px]"></div>
                 </div>
 
-                {/* Header */}
-                <header className="sticky top-0 z-30 flex items-center justify-between bg-background-dark/80 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
-                    <button
-                        onClick={onBack}
-                        className="touch-target flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
-                    >
-                        <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-                    </button>
-                    <div className="flex flex-col items-center">
-                        <span className="text-sm font-bold text-content">{department?.name || agentName}</span>
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-                            {t('live.voiceAgent')}
-                        </span>
-                    </div>
-                    <div className="size-10"></div>
-                </header>
+                <StickyGlassHeader
+                    onBack={onBack}
+                    showLogo={false}
+                    center={
+                        <div className="flex flex-col items-center">
+                            <span className="text-sm font-bold text-content">{department?.name || agentName}</span>
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                                {t('live.voiceAgent')}
+                            </span>
+                        </div>
+                    }
+                />
 
                 {liveCoachmark.visible && (
                     <div className="px-4 pt-3 z-20">
@@ -432,50 +429,49 @@ export const LiveAgent: React.FC<LiveAgentProps> = ({ language, onBack }) => {
                 <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-600/3 rounded-full blur-[100px]"></div>
             </div>
 
-            {/* Header */}
-            <header className="sticky top-0 z-30 flex items-center justify-between bg-background-dark/80 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5">
-                <button
-                    onClick={handleHangUp}
-                    className="touch-target flex shrink-0 items-center justify-center rounded-full hover:bg-overlay/10 transition-colors text-content"
-                >
-                    <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-                </button>
-                <div className="flex flex-col items-center">
-                    <span className="text-sm font-bold text-content">{department?.name || agentName}</span>
-                    <AnimatePresence mode="wait">
-                        {liveState === 'connecting' ? (
-                            <motion.span
-                                key="connecting"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-1"
-                            >
-                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
-                                {texts.connecting}
-                            </motion.span>
-                        ) : (
-                            <motion.span
-                                key="connected"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="text-[10px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-1"
-                            >
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                                {texts.connected}
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                </div>
-                <div className="size-10 flex items-center justify-end">
-                    {liveState === 'connected' && (
-                        <span className="text-[9px] font-bold text-primary tabular-nums">
-                            {liveSessionSeconds > 0 ? `${Math.floor(liveSessionSeconds / 60)}:${(liveSessionSeconds % 60).toString().padStart(2, '0')}` : ''}
+            <StickyGlassHeader
+                onBack={handleHangUp}
+                showLogo={false}
+                center={
+                    <div className="flex flex-col items-center">
+                        <span className="text-sm font-bold text-content">{department?.name || agentName}</span>
+                        <AnimatePresence mode="wait">
+                            {liveState === 'connecting' ? (
+                                <motion.span
+                                    key="connecting"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-1"
+                                >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                                    {texts.connecting}
+                                </motion.span>
+                            ) : (
+                                <motion.span
+                                    key="connected"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="text-[10px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-1"
+                                >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                    {texts.connected}
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                }
+                right={
+                    liveState === 'connected' ? (
+                        <span className="text-[9px] font-bold text-primary tabular-nums min-w-[2.5rem] text-right">
+                            {liveSessionSeconds > 0
+                                ? `${Math.floor(liveSessionSeconds / 60)}:${(liveSessionSeconds % 60).toString().padStart(2, '0')}`
+                                : ''}
                         </span>
-                    )}
-                </div>
-            </header>
+                    ) : undefined
+                }
+            />
 
             {liveState === 'connected' && (
                 <div className="px-4 z-20 -mt-1">

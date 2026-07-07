@@ -128,6 +128,26 @@ function expeditionPdfStyles(): string {
             margin-top: 8px;
             letter-spacing: 0.02em;
         }
+        .travel-segment {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: #64748b;
+            margin: 3px 0 0;
+            line-height: 1.45;
+            display: flex;
+            align-items: center;
+        }
+        .travel-segments {
+            margin-top: 8px;
+        }
+        .seg-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
         .refugio-card {
             background: rgba(99,102,241,0.06);
             border: 1px solid rgba(99,102,241,0.18);
@@ -235,6 +255,62 @@ function renderRefugioEsg(refugio: Row, lang: PdfLanguage): string {
     </div>`;
 }
 
+// Chromium in Cloud Functions (@sparticuz/chromium) ships no emoji font, so we
+// use font-independent colored dots to differentiate travel modes in the PDF.
+function segmentPdfColor(kind: string): string {
+    switch (kind) {
+        case 'driving':
+            return '#60a5fa';
+        case 'walking':
+            return '#34d399';
+        case 'transit':
+            return '#fbbf24';
+        case 'boat':
+            return '#38bdf8';
+        case 'horse':
+            return '#f59e0b';
+        default:
+            return '#94a3b8';
+    }
+}
+
+function formatSegmentLinePdf(seg: Row): string {
+    const mode = String(seg.mode || '').trim();
+    const dur = String(seg.durationText || '').trim();
+    const dist = String(seg.distanceText || '').trim();
+    if (mode && dur) {
+        const base = `${dur} · ${mode}`;
+        return dist ? `${base} (${dist})` : base;
+    }
+    if (dur) return dist ? `${dur} · ${dist}` : dur;
+    return mode;
+}
+
+function renderStopTravelHtml(s: Row, lang: PdfLanguage): string {
+    const L = LABELS[lang];
+    const segments = Array.isArray(s.travelSegments) ? (s.travelSegments as Row[]) : [];
+    if (segments.length > 0) {
+        const lines = segments
+            .map((seg) => {
+                const color = segmentPdfColor(String(seg.kind || ''));
+                const text = formatSegmentLinePdf(seg);
+                if (!text) return '';
+                return `<p class="travel-segment"><span class="seg-dot" style="background:${color}"></span>${escapeHtml(text)}</p>`;
+            })
+            .filter(Boolean)
+            .join('');
+        if (lines) return `<div class="travel-segments"><div class="card-label">${L.travel}</div>${lines}</div>`;
+    }
+
+    const travel = s.travel as Row | null;
+    const travelParts = [travel?.durationText, travel?.distanceText]
+        .map((v) => String(v || '').trim())
+        .filter(Boolean);
+    return travelParts.length > 0
+        ? `<p class="travel-line">${L.travel}: ${escapeHtml(travelParts.join(' · '))}</p>`
+        : '';
+}
+
 function renderDay(day: Row, lang: PdfLanguage): string {
     const L = LABELS[lang];
     const dayNum = Number(day.day) || 0;
@@ -247,19 +323,12 @@ function renderDay(day: Row, lang: PdfLanguage): string {
 
     const stopsHtml = stops
         .map((s) => {
-            const travel = s.travel as Row | null;
-            const travelParts = [travel?.durationText, travel?.distanceText]
-                .map((v) => String(v || '').trim())
-                .filter(Boolean);
-            const travelLine =
-                travelParts.length > 0
-                    ? `<p class="travel-line">${L.travel}: ${escapeHtml(travelParts.join(' · '))}</p>`
-                    : '';
+            const travelHtml = renderStopTravelHtml(s, lang);
             return `<div class="stop-card">
                 <div class="card-label">${L.stops}</div>
                 <div class="stop-name">${escapeHtml(String(s.name || ''))}</div>
                 ${s.plan ? `<p class="stop-plan">${escapeHtml(String(s.plan))}</p>` : ''}
-                ${travelLine}
+                ${travelHtml}
             </div>`;
         })
         .join('');

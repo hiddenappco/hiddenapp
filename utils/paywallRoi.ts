@@ -1,10 +1,12 @@
+import { PREMIUM_PRICE_COP } from '../config/premiumPricing';
 import type { Coupon, Destination, PricingItem } from '../types/content';
 
-/** USD list price for Trip Pass — aligned with `Premium.tsx` fallback. */
 export const TRIP_PASS_USD = 4.99;
+export const TRIP_PASS_COP = PREMIUM_PRICE_COP.trip;
+export const MONTHLY_PASS_COP = PREMIUM_PRICE_COP.monthly;
 
-/** Legacy COP anchor for coupon savings math (catalog prices are in COP). */
-export const TRIP_PASS_COP = Math.round(TRIP_PASS_USD * 3_600);
+const LAST_DESTINATION_ID_KEY = 'hidden_last_destination_id';
+const LAST_DEPARTMENT_ID_KEY = 'hidden_last_department_id';
 
 /** Conservative anchor when no `pricingGuide` is linked to the coupon. */
 const DEFAULT_ANCHOR_COP = 120_000;
@@ -19,6 +21,27 @@ export interface PaywallRoiEstimate {
     passPriceCop: number;
     /** savingsCop - passPriceCop (positive = net gain after pass cost) */
     netCop: number;
+    /** When the estimate was scoped to a department (premium page). */
+    departmentId?: string;
+    departmentName?: string;
+}
+
+export interface PaywallRoiPickOptions {
+    locationHint?: string;
+    destinationId?: string;
+    departmentId?: string;
+    /** When true, only coupons tied to destinations in `departmentId`. */
+    departmentOnly?: boolean;
+}
+
+export interface LastVisitedDestinationContext {
+    destinationId?: string;
+    departmentId?: string;
+}
+
+function findDestination(destinations: Destination[], id?: string): Destination | undefined {
+    if (!id) return undefined;
+    return destinations.find((d) => d.id === id || d.customId === id);
 }
 
 function parseDiscountPercent(discount: string): number | null {
@@ -57,7 +80,7 @@ function lodgingAnchorFromGuide(guide: PricingItem[] | undefined): number | null
 
 function anchorCopForCoupon(coupon: Coupon, destinations: Destination[]): { anchor: number; confidence: SavingsConfidence } {
     if (coupon.destinationId) {
-        const dest = destinations.find((d) => d.id === coupon.destinationId);
+        const dest = findDestination(destinations, coupon.destinationId);
         const fromGuide = lodgingAnchorFromGuide(dest?.pricingGuide);
         if (fromGuide) return { anchor: fromGuide, confidence: 'from' };
     }
@@ -104,13 +127,24 @@ function locationMatchesCoupon(coupon: Coupon, locationHint?: string): boolean {
     );
 }
 
+function couponMatchesDepartment(
+    coupon: Coupon,
+    destinations: Destination[],
+    departmentId?: string
+): boolean {
+    if (!departmentId) return true;
+    if (!coupon.destinationId) return false;
+    const dest = findDestination(destinations, coupon.destinationId);
+    return dest?.departmentId === departmentId;
+}
+
 /**
  * Picks the premium coupon with the highest estimated savings that clears the pass price.
  */
 export function pickPaywallRoiEstimate(
     coupons: Coupon[],
     destinations: Destination[],
-    options?: { locationHint?: string; destinationId?: string }
+    options?: PaywallRoiPickOptions
 ): PaywallRoiEstimate | null {
     const premium = coupons.filter((c) => c.isPremium);
     if (premium.length === 0) return null;
@@ -120,12 +154,23 @@ export function pickPaywallRoiEstimate(
     let bestScore = -1;
 
     for (const coupon of premium) {
+        if (options?.departmentOnly && options.departmentId) {
+            if (!couponMatchesDepartment(coupon, destinations, options.departmentId)) continue;
+        }
+
         const meta = estimateWithMeta(coupon, destinations);
         if (!meta || meta.savingsCop < passPriceCop) continue;
 
+        const dest = findDestination(destinations, coupon.destinationId);
         const contextBoost =
             (coupon.featuredCoupon ? 2 : 0) +
             (options?.destinationId && coupon.destinationId === options.destinationId ? 3 : 0) +
+            (options?.destinationId &&
+            dest &&
+            (dest.id === options.destinationId || dest.customId === options.destinationId)
+                ? 3
+                : 0) +
+            (options?.departmentId && dest?.departmentId === options.departmentId ? 2 : 0) +
             (locationMatchesCoupon(coupon, options?.locationHint) ? 2 : 0);
 
         const score = meta.savingsCop + contextBoost * 1_000;
@@ -139,9 +184,33 @@ export function pickPaywallRoiEstimate(
                 confidence: meta.confidence,
                 passPriceCop,
                 netCop: meta.savingsCop - passPriceCop,
+                departmentId: options?.departmentId,
             };
         }
     }
 
     return best;
+}
+
+export function recordLastVisitedDestination(destination: {
+    id: string;
+    departmentId: string;
+}): void {
+    try {
+        localStorage.setItem(LAST_DESTINATION_ID_KEY, destination.id);
+        localStorage.setItem(LAST_DEPARTMENT_ID_KEY, destination.departmentId);
+    } catch {
+        /* private mode / quota */
+    }
+}
+
+export function readLastVisitedDestinationContext(): LastVisitedDestinationContext {
+    try {
+        return {
+            destinationId: localStorage.getItem(LAST_DESTINATION_ID_KEY) || undefined,
+            departmentId: localStorage.getItem(LAST_DEPARTMENT_ID_KEY) || undefined,
+        };
+    } catch {
+        return {};
+    }
 }

@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { Language } from '../types/core';
+import { AppEvent } from '../types/content';
 import { useEvents, useIsFavorite, toggleFavorite } from '../hooks/useFirestore';
 import { useAuth } from './layout/AuthProvider';
 import { useTranslation } from '../hooks/useTranslation';
-import { matchesLocalizedSearch } from '../utils/localizedContent';
-import { EVENT_SEARCH_FIELDS } from '../utils/localizeCatalog';
-import { MediaListSkeleton } from './ui/ContentSkeleton';
+import { useLocalizedSearch } from '../hooks/useLocalizedSearch';
+import { EVENT_PICKER_SEARCH_FIELDS } from '../utils/localizeCatalog';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface FairsCalendarProps {
   language: Language;
   onMenuClick: () => void;
   onFairClick: (fairId: string) => void;
+}
+
+type ParsedEvent = AppEvent & { _parsedDate: Date };
+
+function parseEventDate(dStr: string): Date {
+  if (!dStr || !dStr.includes('/')) return new Date(8640000000000000);
+  const [d, m, y] = dStr.split('/').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 export const FairsCalendar: React.FC<FairsCalendarProps> = ({
@@ -41,45 +51,27 @@ export const FairsCalendar: React.FC<FairsCalendarProps> = ({
     dec: t('fairCalendar.monthDec'),
   };
 
-  // Filter logic
   const monthMap: Record<string, string> = {
     jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
     jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
   };
 
-  // Filter logic
-  const filteredEvents = React.useMemo(() => {
+  const calendarPool = React.useMemo(() => {
     const now = new Date();
-    now.setHours(0, 0, 0, 0); // Start of today
+    now.setHours(0, 0, 0, 0);
 
     const oneYearFromNow = new Date();
     oneYearFromNow.setFullYear(now.getFullYear() + 1);
 
-    // Helper to parse DD/MM/YYYY
-    const parseDate = (dStr: string) => {
-      if (!dStr || !dStr.includes('/')) return new Date(8640000000000000); // Far future
-      const [d, m, y] = dStr.split('/').map(Number);
-      return new Date(y, m - 1, d);
-    };
-
-    let result = events
-      .map(event => ({
+    return events
+      .map((event) => ({
         ...event,
-        _parsedDate: parseDate(event.beginningDate || event.date)
+        _parsedDate: parseEventDate(event.beginningDate || event.date),
       }))
-      .filter(event => {
-        // 1. Time range (Today -> 1 Year)
+      .filter((event) => {
         if (event._parsedDate < now) return false;
         if (event._parsedDate > oneYearFromNow) return false;
 
-        // 2. Search Term Filter
-        if (searchTerm) {
-          if (!matchesLocalizedSearch(event as Record<string, unknown>, searchTerm, [...EVENT_SEARCH_FIELDS])) {
-            return false;
-          }
-        }
-
-        // 3. Month Filter
         if (selectedMonth) {
           const targetMonth = monthMap[selectedMonth];
           const dateToUse = event.beginningDate || event.date;
@@ -89,75 +81,68 @@ export const FairsCalendar: React.FC<FairsCalendarProps> = ({
         }
 
         return true;
-      })
-      .sort((a, b) => a._parsedDate.getTime() - b._parsedDate.getTime());
+      }) as ParsedEvent[];
+  }, [events, selectedMonth]);
 
-    // Limit to 10 consecutive fairs
+  const rankedEvents = useLocalizedSearch(
+    calendarPool as Record<string, unknown>[],
+    searchTerm,
+    EVENT_PICKER_SEARCH_FIELDS,
+    { limit: 50 }
+  );
+
+  const filteredEvents = React.useMemo(() => {
+    let result: ParsedEvent[];
+
+    if (searchTerm.trim()) {
+      result = rankedEvents as unknown as ParsedEvent[];
+    } else {
+      result = [...calendarPool].sort((a, b) => a._parsedDate.getTime() - b._parsedDate.getTime());
+    }
+
     return result.slice(0, 10);
-  }, [events, searchTerm, selectedMonth]);
+  }, [calendarPool, searchTerm, rankedEvents]);
 
   const monthKeysList = monthKeys;
+
+  if (loading) {
+    return <PageLoadingScreen titleKey="fairCalendar.loading" />;
+  }
 
   return (
     <div className="bg-background-dark text-content font-display h-screen w-full flex flex-col antialiased selection:bg-primary selection:text-white overflow-hidden">
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background-dark/95 backdrop-blur-md border-b border-overlay/5 transition-colors duration-300 shrink-0">
-        <div className="flex items-center justify-between px-4 pt-safe pb-3 h-auto min-h-[4rem]">
-          <button
-            onClick={onMenuClick}
-            className="flex size-10 items-center justify-center rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-secondary/90 shadow-sm border border-overlay/10 transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[20px]">menu</span>
-          </button>
-          <h1 className="text-lg font-bold tracking-tight text-center flex-1 text-content px-2">{t('fairCalendar.title')}</h1>
-          <div className="flex items-center justify-center w-10 h-10">
-            <img src="/assets/ui/logo.png" alt="Hidden Logo" className="w-8 h-8 object-contain" />
-          </div>
+      <StickyGlassHeader onMenuClick={onMenuClick} title={t('fairCalendar.title')} titleLarge>
+        <div className="relative group">
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-content-muted group-focus-within:text-primary transition-colors">
+            search
+          </span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('fairCalendar.searchPlaceholder')}
+            className="w-full h-12 pl-12 pr-4 bg-surface-dark border border-overlay/10 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-content-muted"
+          />
         </div>
-      </header>
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 mask-linear-fade">
+          {Object.entries(months).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedMonth(selectedMonth === key ? null : key)}
+              className={`flex-none px-4 py-2 rounded-full border font-medium text-sm transition-colors active:scale-95 ${selectedMonth === key ? 'bg-primary text-white border-primary' : 'bg-surface-dark border-overlay/10 text-content-secondary hover:border-primary hover:text-primary'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </StickyGlassHeader>
 
       {/* Main Content Scrollable */}
-      <main className="flex-1 w-full overflow-y-auto no-scrollbar pb-24">
-
-        {/* Search and Filters Container */}
-        <div className="px-4 py-6 space-y-4">
-
-          {/* Search Bar */}
-          <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-content-muted group-focus-within:text-primary transition-colors">
-              search
-            </span>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('fairCalendar.searchPlaceholder')}
-              className="w-full h-12 pl-12 pr-4 bg-surface-dark border border-overlay/10 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-content-muted"
-            />
-          </div>
-
-          {/* Month Chips */}
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mask-linear-fade">
-            {Object.entries(months).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedMonth(selectedMonth === key ? null : key)}
-                className={`flex-none px-4 py-2 rounded-full border font-medium text-sm transition-colors active:scale-95 ${selectedMonth === key ? 'bg-primary text-white border-primary' : 'bg-surface-dark border-overlay/10 text-content-secondary hover:border-primary hover:text-primary'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="px-4">
+      <main className="flex-1 w-full overflow-y-auto no-scrollbar pb-[calc(6rem+var(--safe-bottom))]">
+        <div className="px-4 py-4">
           <h3 className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider mb-4 pl-1">{t('fairCalendar.upcoming')}</h3>
 
-          {loading ? (
-            <MediaListSkeleton count={3} />
-          ) : (
             <div className="flex flex-col relative">
               {/* Timeline Vertical Line */}
               <div className="absolute left-[23px] top-4 bottom-0 w-[2px] bg-overlay/10 z-0"></div>
@@ -224,9 +209,8 @@ export const FairsCalendar: React.FC<FairsCalendarProps> = ({
               {/* Line Ending */}
               <div className="absolute left-[23px] bottom-0 h-16 w-[2px] bg-gradient-to-b from-overlay/10 to-transparent z-0"></div>
             </div>
-          )}
 
-          {!loading && filteredEvents.length === 0 && (
+          {filteredEvents.length === 0 && (
             <div className="text-center py-20 opacity-50">
               <span className="material-symbols-outlined text-4xl mb-2">event_busy</span>
               <p>{t('fairCalendar.noResults')}</p>

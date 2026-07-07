@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
+import { StickyGlassHeader } from './ui/StickyGlassHeader';
 
 interface OffGridManualProps {
   onBack: () => void;
@@ -59,22 +60,10 @@ export const OffGridManual: React.FC<OffGridManualProps> = ({ onBack }) => {
   ];
 
   return (
-    <div className="bg-background-dark font-display text-content antialiased h-full w-full flex flex-col overflow-y-auto no-scrollbar relative selection:bg-primary selection:text-white">
+    <div className="bg-background-dark font-display text-content antialiased h-full w-full flex flex-col overflow-hidden relative selection:bg-primary selection:text-white">
+      <StickyGlassHeader onBack={onBack} title={t('vault.manualTitle')} titleLarge showLogo={false} />
 
-      <header className="sticky top-0 z-50 flex items-center gap-3 bg-background-dark/90 dark:bg-[#05111e]/90 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5 shrink-0">
-        <button
-          onClick={onBack}
-          className="flex items-center justify-center size-10 rounded-full text-white bg-[#0f2c4c] hover:bg-[#0a1f35] shadow-lg border border-overlay/10 transition-colors shrink-0"
-          aria-label="Back"
-        >
-          <span className="material-symbols-outlined text-[22px]">arrow_back</span>
-        </button>
-        <h2 className="flex-1 min-w-0 text-base font-bold leading-tight tracking-tight text-content truncate">
-          {t('vault.manualTitle')}
-        </h2>
-      </header>
-
-      <main className="p-5 flex flex-col gap-6 pb-[calc(4rem+env(safe-area-inset-bottom,1.5rem))]">
+      <main className="flex-1 overflow-y-auto no-scrollbar p-5 flex flex-col gap-6 pb-[calc(4rem+var(--safe-bottom))]">
 
         <section className="relative overflow-hidden rounded-[30px] bg-surface-dark dark:bg-gradient-to-br dark:from-[#0a1f35] dark:to-[#12385c] p-6 border border-overlay/10 shadow-lg dark:shadow-black/30 text-center">
           <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(16,185,129,0.5) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />

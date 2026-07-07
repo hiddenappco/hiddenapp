@@ -40,7 +40,7 @@ RULES:
 - Use ONLY destinationId values from the catalog. NEVER invent ids.
 - NEVER select destinations marked closed or operationalStatus red.
 - Honor mustVisitDestinationIds when present — include ALL of them.
-- PRIMARY source for duration, access, combinations, and time windows: each destination's planningNotes (sections DURACIÓN, ACCESO, HORARIOS, COMBINAR).
+- PRIMARY source for duration, access, combinations, and time windows: each destination's planningNotes (sections TIEMPOS DE ACCESO / ACCESS TIMES, DURACIÓN, ACCESO, HORARIOS, COMBINAR). In TIEMPOS DE ACCESO, each leg names the real local mode (brujita, lancha, caballo, motocarro, hike, etc.) and its duration — do not assume only car + walk.
 - Respect groundMobility from the request:
   - public_transport: exclude or deprioritize destinations whose planningNotes say vehicle-only; prefer hubs reachable by bus/colectivo; assume fixed departure/return times.
   - private_vehicle: day-trips and flexible schedules are viable when planningNotes allow.
@@ -89,7 +89,7 @@ Assign destinations to days minimizing zig-zag travel and respecting logistics r
 
 RULES:
 - Every selected destination appears EXACTLY once across the whole trip.
-- Read planningNotes for each stop: DURACIÓN, ACCESO, HORARIOS/RESTRICCIONES, COMBINAR — obey departure times, last bus/brujita/lancha windows, and "do not combine" rules.
+- Read planningNotes for each stop: TIEMPOS DE ACCESO / ACCESS TIMES (each leg: local mode + duration), DURACIÓN, ACCESO, HORARIOS/RESTRICCIONES, COMBINAR — obey departure times, last bus/brujita/lancha windows, and "do not combine" rules.
 - groundMobility public_transport: plan around bus/colectivo schedules — fewer stops per day, buffer time at terminals, no night arrivals/departures at remote sites; day-trips from distant cities only when planningNotes explicitly allow with early departure.
 - groundMobility private_vehicle: Google Routes driving times are a reasonable baseline between road-accessible points.
 - groundMobility mixed: driving to hub, then respect local public/foot/boat legs from planningNotes.
@@ -197,6 +197,7 @@ RULES:
 - Ground claims in provided data: activities, gettingThere, planningNotes, pricingGuide, packing.
 - Mention groundMobility in travel tips when public_transport or mixed: bus terminals, first/last departure, cash for colectivos.
 - When Google Routes legs are provided, note they assume private driving — add buffer for public transport per planningNotes.
+- Travel segments (driving + catalog access legs) are attached server-side per stop from planningNotes TIEMPOS DE ACCESO — do NOT invent walk/drive durations in stop plans.
 - Mention coupons/events when they apply; include coupon codes from catalog data.
 - When COUPONS ASSIGNED BY DAY lists coupons for a day, reference them in that day's tips or stop plans.
 - Days with multiple stops: write a calm morning/afternoon flow — do not rush the traveler.

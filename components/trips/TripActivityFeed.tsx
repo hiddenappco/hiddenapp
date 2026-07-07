@@ -31,6 +31,10 @@ function activityIcon(kind: TripActivityEntry['kind']): string {
             return 'remove_circle';
         case 'member_joined':
             return 'group_add';
+        case 'document_added':
+            return 'upload_file';
+        case 'document_deleted':
+            return 'scan_delete';
         default:
             return 'history';
     }
@@ -62,6 +66,12 @@ export const TripActivityFeed: React.FC<TripActivityFeedProps> = ({ activity, lo
                     params.note = entry.note || categoryLabel || t('trips.activityExpenseFallback');
                 } else if (entry.kind === 'member_joined') {
                     messageKey = 'trips.activityMemberJoined';
+                } else if (entry.kind === 'document_added') {
+                    messageKey = 'trips.activityDocumentAdded';
+                    params.doc = entry.documentName || t('trips.documentsTitle');
+                } else if (entry.kind === 'document_deleted') {
+                    messageKey = 'trips.activityDocumentDeleted';
+                    params.doc = entry.documentName || t('trips.documentsTitle');
                 }
                 return {
                     id: entry.id,
@@ -76,7 +86,8 @@ export const TripActivityFeed: React.FC<TripActivityFeedProps> = ({ activity, lo
 
     if (loading && lines.length === 0) {
         return (
-            <section className="rounded-2xl border border-overlay/10 bg-surface-dark/50 p-4">
+            <section className="rounded-2xl border border-overlay/10 bg-overlay/5 p-4">
+                <h3 className="text-sm font-bold text-content mb-1">{t('trips.activityTitle')}</h3>
                 <p className="text-xs text-content-muted animate-pulse">{t('common.loading')}</p>
             </section>
         );
@@ -84,7 +95,7 @@ export const TripActivityFeed: React.FC<TripActivityFeedProps> = ({ activity, lo
 
     if (lines.length === 0) {
         return (
-            <section className="rounded-2xl border border-overlay/10 bg-surface-dark/50 p-4">
+            <section className="rounded-2xl border border-overlay/10 bg-overlay/5 p-4">
                 <h3 className="text-sm font-bold text-content mb-1">{t('trips.activityTitle')}</h3>
                 <p className="text-xs text-content-muted">{t('trips.activityEmpty')}</p>
             </section>
@@ -92,12 +103,17 @@ export const TripActivityFeed: React.FC<TripActivityFeedProps> = ({ activity, lo
     }
 
     return (
-        <section className="rounded-2xl border border-overlay/10 bg-surface-dark/50 overflow-hidden">
+        <section className="rounded-2xl border border-overlay/10 bg-overlay/5 overflow-hidden">
             <div className="px-4 py-3 border-b border-overlay/10">
                 <h3 className="text-sm font-bold text-content">{t('trips.activityTitle')}</h3>
                 <p className="text-[10px] text-content-muted mt-0.5">{t('trips.activitySubtitle')}</p>
             </div>
-            <ul className="max-h-56 overflow-y-auto no-scrollbar divide-y divide-overlay/5">
+            {/* No inner max-height/scroll: nesting a scroll region here can get its
+                available height miscalculated by ancestor containers (e.g. the
+                desktop "phone simulator" CSS frame in index.css), silently
+                clipping the last entry. The outer page scroll already handles
+                overflow when there are many entries. */}
+            <ul className="divide-y divide-overlay/5">
                 {lines.map((line) => (
                     <li key={line.id} className="flex items-start gap-3 px-4 py-3">
                         <span className="material-symbols-outlined text-[18px] text-budget-primary shrink-0 mt-0.5">

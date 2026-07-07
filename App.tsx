@@ -25,12 +25,14 @@ import {
   setActiveTripIdLocal,
 } from './services/tripLedgerStore';
 import { TRIP_HISTORY_FULL, TRIP_LEDGER_LIMITS } from './config/constants';
+import { deleteTripDocumentsForTrip } from './services/tripDocumentFileStore';
 
 import { AuthProvider, useAuth } from './components/layout/AuthProvider';
 import { RevenueCatProvider } from './components/layout/RevenueCatProvider';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppRoutes } from './components/layout/AppRoutes';
+import { LanguagePackChangeBanner } from './components/layout/LanguagePackChangeBanner';
 
 import { useCapacitorHardware } from './hooks/useCapacitorHardware';
 import { useEnvironmentalShieldLifecycle } from './hooks/useEnvironmentalShieldLifecycle';
@@ -206,6 +208,7 @@ const AppContent: React.FC = () => {
     try {
       await deleteTrip(tripId);
       await removeTripMirror(tripId);
+      await deleteTripDocumentsForTrip(tripId).catch(() => undefined);
     } catch (err) {
       console.error('Error deleting trip:', err);
     }
@@ -245,7 +248,9 @@ const AppContent: React.FC = () => {
     );
 
   return (
-    <AppRoutes
+    <>
+      <LanguagePackChangeBanner />
+      <AppRoutes
       user={user}
       userProfile={userProfile}
       activeTrip={activeTrip}
@@ -270,6 +275,7 @@ const AppContent: React.FC = () => {
       displayName={displayName}
       profileLoading={profileLoading}
     />
+    </>
   );
 };
 

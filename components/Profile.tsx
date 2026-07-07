@@ -6,9 +6,12 @@ import { useAuth } from './layout/AuthProvider';
 import { useUserProfile, useDepartments, useDestinations } from '../hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
 import { ExplorerProgress } from './ExplorerProgress';
+import { PageLoadingScreen } from './ui/PageLoadingScreen';
+import { StickyGlassHeader, StickyHeaderActionButton } from './ui/StickyGlassHeader';
 import { useHardwareBackHandler } from '../hooks/useHardwareBackHandler';
 import { ProfileUserIdentityCards } from './profile/ProfileUserIdentityCards';
 import { ProfileUserIdBadge } from './profile/ProfileUserIdBadge';
+import { DirectCommunityImpact } from './profile/DirectCommunityImpact';
 
 interface ProfileProps {
   language: Language;
@@ -60,37 +63,31 @@ export const Profile: React.FC<ProfileProps> = ({
     locationStr = `${profile.city || ''}${profile.city ? ', ' : ''}${profile.department}`;
   }
 
-  if (isLoading) return <div className="h-screen w-full flex items-center justify-center bg-background-dark text-content-subtle">
-    <div className="flex flex-col items-center gap-4">
-      <div className="size-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-      <p className="text-sm font-medium animate-pulse">{t('profile.preparing')}</p>
-    </div>
-  </div>;
+  if (isLoading) {
+    return <PageLoadingScreen titleKey="profile.preparing" />;
+  }
 
   return (
     <div className="bg-background-dark font-display text-content antialiased h-screen w-full flex flex-col overflow-hidden relative selection:bg-primary selection:text-white">
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe border-b border-overlay/5 transition-colors shrink-0">
-        <button
-          onClick={onMenuClick}
-          className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-[#0a1f35] shadow-sm border border-overlay/10 transition-colors active:scale-95"
-        >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-        <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center text-content">{t('profile.title')}</h2>
-        <div className="size-10 flex items-center justify-center">
+      <StickyGlassHeader
+        onMenuClick={onMenuClick}
+        title={t('profile.title')}
+        titleLarge
+        showLogo={false}
+        right={
           <button
             onClick={onSettingsClick}
-            className="flex items-center justify-center size-10 rounded-full hover:bg-overlay/10 transition-colors text-content"
+            className="touch-target flex size-10 items-center justify-center rounded-lg bg-overlay/5 border border-overlay/10 hover:bg-overlay/10 transition-colors text-content"
+            aria-label="Settings"
           >
-            <span className="material-symbols-outlined">settings</span>
+            <span className="material-symbols-outlined text-[20px]">settings</span>
           </button>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto no-scrollbar p-5 flex flex-col gap-8 pb-[calc(8rem+env(safe-area-inset-bottom,1.5rem))]">
+      <main className="flex-1 overflow-y-auto no-scrollbar p-5 flex flex-col gap-8 pb-[calc(8rem+var(--safe-bottom))]">
 
         {/* Profile Hero */}
         <div className="flex flex-col items-center gap-3 py-2">
@@ -158,6 +155,8 @@ export const Profile: React.FC<ProfileProps> = ({
         <ProfileUserIdBadge userId={user?.uid} />
 
         <ProfileUserIdentityCards profile={profile} onPremiumClick={onPremiumClick} />
+
+        <DirectCommunityImpact totalCop={profile?.directInjectionTotalCop ?? 0} />
 
         {/* Progreso del Explorador */}
         <ExplorerProgress

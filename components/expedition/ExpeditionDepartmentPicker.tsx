@@ -16,7 +16,7 @@ import { setLastDepartmentId } from '../../utils/lastDepartment';
 
 import { isExpeditionPlannerLocked } from '../../utils/expeditionPlanner';
 
-import { DepartmentListSkeleton } from '../ui/ContentSkeleton';
+import { PageLoadingScreen } from '../ui/PageLoadingScreen';
 
 import { ExpeditionPreviousPlans } from './ExpeditionPreviousPlans';
 
@@ -27,6 +27,7 @@ import { FeatureCoachmark } from '../ui/FeatureCoachmark';
 import { useFeatureTooltip } from '../../hooks/useFeatureTooltip';
 
 import { useHardwareBackHandler } from '../../hooks/useHardwareBackHandler';
+import { StickyGlassHeader } from '../ui/StickyGlassHeader';
 
 import { computeExpeditionQuotaDisplay } from '../../utils/premiumAccess';
 
@@ -178,49 +179,33 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
 
 
 
+    if (loading || plansLoading) {
+
+        return <PageLoadingScreen titleKey="expedition.loadingPicker" />;
+
+    }
+
+
+
     return (
 
         <div className="flex flex-col h-screen bg-background-dark text-content overflow-hidden">
 
-            <header className="sticky top-0 z-50 shrink-0 flex items-center bg-background-dark/95 backdrop-blur-md px-4 pb-2 pt-safe justify-between border-b border-overlay/10">
-
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-
-                    <button
-
-                        type="button"
-
-                        onClick={onMenuClick}
-
-                        className="flex items-center justify-center size-10 rounded-full text-content-secondary dark:text-white bg-surface-dark dark:bg-secondary hover:bg-overlay/10 dark:hover:bg-[#0a1f35] shadow-sm border border-overlay/10 transition-colors active:scale-95 shrink-0"
-
-                    >
-
-                        <span className="material-symbols-outlined text-2xl">menu</span>
-
-                    </button>
-
-                    <div className="min-w-0 flex-1">
-
+            <StickyGlassHeader
+                onMenuClick={onMenuClick}
+                center={
+                    <div className="text-left min-w-0">
                         <p className="text-[9px] font-black uppercase tracking-widest text-primary">
-
                             {t('expedition.hubTitle')}
-
                         </p>
-
                         <h1 className="font-bold text-base truncate">{t('expedition.pickDepartmentTitle')}</h1>
-
                     </div>
-
-                </div>
-
-                <img src="/assets/ui/logo.png" alt="Hidden Logo" className="h-8 object-contain shrink-0 ml-2" />
-
-            </header>
+                }
+            />
 
 
 
-            <div className="flex-1 overflow-y-auto px-4 py-5 no-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] no-scrollbar">
 
                 {hubCoachmark.visible && (
                     <FeatureCoachmark
@@ -331,12 +316,6 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
 
 
 
-                {loading ? (
-
-                    <DepartmentListSkeleton count={4} className="[&>div]:h-[120px]" />
-
-                ) : (
-
                     <div className="flex flex-col gap-3">
 
                         {sorted.map((dept) => {
@@ -432,8 +411,6 @@ export const ExpeditionDepartmentPicker: React.FC<ExpeditionDepartmentPickerProp
                         })}
 
                     </div>
-
-                )}
 
 
 

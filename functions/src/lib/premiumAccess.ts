@@ -28,18 +28,23 @@ export function parseFirestoreDate(
     return null;
 }
 
-/** Hackathon evaluators: guest profile is treated as full Premium until post-hackathon. */
+/** When `true`, guests get full Premium (hackathon demos). Production: `false`. */
+export const GUEST_HACKATHON_PREMIUM = false;
+
+/** Hackathon evaluators only — not active when `GUEST_HACKATHON_PREMIUM` is false. */
 export function isHackathonGuest(data: UserPremiumFields | null | undefined): boolean {
-    return data?.isGuest === true;
+    return GUEST_HACKATHON_PREMIUM && data?.isGuest === true;
 }
 
 /**
- * Active paid Premium (or hackathon guest).
- * Respects `premiumExpiresAt` for trip pass expiry.
+ * Active paid Premium. `isPremium` is the SINGLE source of truth for every
+ * account — guest, registered, whatever `userType`. Never special-case
+ * `isGuest` here: an admin can grant/revoke Premium for a guest doc directly
+ * in Rowy/Firestore and every server check must reflect it immediately.
+ * Respects `premiumExpiresAt` for timed-plan expiry (empty = no expiry).
  */
 export function hasActivePremium(data: UserPremiumFields | null | undefined): boolean {
     if (!data) return false;
-    if (isHackathonGuest(data)) return true;
     if (data.isPremium !== true) return false;
 
     const expires = getPremiumExpiryDate(data.premiumExpiresAt);
@@ -49,7 +54,7 @@ export function hasActivePremium(data: UserPremiumFields | null | undefined): bo
 
 /** Trip pass = the `trip_pass` plan (legacy: any finite `premiumExpiresAt` window ~10 days). */
 export function isTripPassPlan(data: UserPremiumFields | null | undefined): boolean {
-    if (!hasActivePremium(data) || isHackathonGuest(data)) return false;
+    if (!hasActivePremium(data)) return false;
     const plan = String(data?.premiumPlan || "").toLowerCase();
     if (plan === "trip_pass") return true;
     if (plan === "monthly" || plan === "annual" || plan === "lifetime") return false;

@@ -22,12 +22,14 @@ import { getBudgetAgent, getCuratorAgent, getLogisticsAgent, getWriterAgent } fr
 import type { ExpeditionBudgetEstimate, ExpeditionDoc, ExpeditionRequest, GroundMobility } from './types';
 import { GROUND_MOBILITY_VALUES } from './types';
 import { validateExpeditionPlan } from './validatePlan';
+import { assessMustVisitFeasibility, buildFeasibilityNote } from '../../lib/expeditionFeasibility';
 import { expeditionMessage } from './messages';
 import {
     assignCouponsToPlan,
     assignDepartmentCoupons,
     flattenCouponWidgets,
 } from './couponWidgets';
+import { buildStopTravelSegments, summarizeTravelLegacy } from '../../lib/expeditionTravelSegments';
 
 type Row = Record<string, unknown>;
 
@@ -180,6 +182,24 @@ export async function runExpeditionPipeline(expeditionId: string): Promise<void>
         if (missingMustVisit.length > 0) {
             const extra = await getDestinationsByIds(scope, missingMustVisit);
             for (const row of extra) destById.set(String(row.id), row);
+        }
+
+        const mustVisitIds = request.mustVisitDestinationIds ?? [];
+        if (mustVisitIds.length > 0) {
+            const feasibility = assessMustVisitFeasibility(
+                request.days,
+                mustVisitIds,
+                mustVisitIds.map((id) => destById.get(id)).filter(Boolean) as Row[]
+            );
+            if (!feasibility.ok) {
+                await setStatus('error', {
+                    error: 'REQUEST_NOT_FEASIBLE',
+                    note: buildFeasibilityNote(feasibility, language),
+                    suggestedDays: feasibility.suggestedDays,
+                    issues: feasibility.issues,
+                });
+                return;
+            }
         }
 
         const curatorCatalog = buildCuratorCatalog(openDestinations);
@@ -476,11 +496,21 @@ VALIDATION NOTES: ${validation.note || 'ok'}`;
                         : String(writerStops[idx - 1]?.destinationId || '') || null;
                 if (prevId) travel = legs[`${prevId}→${stopId}`] ?? null;
 
+                const destination = destById.get(stopId);
+                const travelSegments = destination
+                    ? buildStopTravelSegments(travel, destination, language)
+                    : [];
+                const travelSummary =
+                    travelSegments.length > 0
+                        ? summarizeTravelLegacy(travelSegments)
+                        : travel;
+
                 return {
                     destinationId: stopId,
-                    name: String(s.name || destById.get(stopId)?.title || ''),
+                    name: String(s.name || destination?.title || ''),
                     plan: String(s.plan || ''),
-                    travel,
+                    travel: travelSummary,
+                    travelSegments,
                 };
             });
 

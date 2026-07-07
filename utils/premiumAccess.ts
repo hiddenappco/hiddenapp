@@ -6,7 +6,6 @@ import {
 } from '../config/premiumLimits';
 import {
     extractRawIsPremium,
-    isGuestProfile,
     normalizeIsPremium,
 } from './userIdentity';
 import { getPremiumExpiryDate } from './premiumDuration';
@@ -34,10 +33,14 @@ export function parseProfileDate(
     return getPremiumExpiryDate(raw);
 }
 
-/** Hackathon guest = full Premium until post-hackathon (see GUEST_USER_PROFILE_FIELDS). */
+/**
+ * `isPremium` in Firestore is the SINGLE source of truth — guest, registered,
+ * whatever `userType`. Do not special-case `isGuest` here: an admin can
+ * grant/revoke Premium for any user doc directly and it must apply immediately.
+ * `premiumExpiresAt` empty = no expiry; a finite `end` in the past deactivates it.
+ */
 export function hasActivePremium(profile: PremiumProfileFields | null | undefined): boolean {
     if (!profile) return false;
-    if (isGuestProfile(profile)) return true;
     const record = profile as Record<string, unknown>;
     if (!normalizeIsPremium(extractRawIsPremium(record), record.role)) return false;
     const expires = parseProfileDate(profile.premiumExpiresAt);
@@ -46,7 +49,7 @@ export function hasActivePremium(profile: PremiumProfileFields | null | undefine
 }
 
 export function isTripPassPlan(profile: PremiumProfileFields | null | undefined): boolean {
-    if (!hasActivePremium(profile) || isGuestProfile(profile)) return false;
+    if (!hasActivePremium(profile)) return false;
     const plan = String(profile?.premiumPlan || '').toLowerCase();
     if (plan === 'trip_pass') return true;
     if (plan === 'monthly' || plan === 'annual' || plan === 'lifetime') return false;
@@ -55,7 +58,6 @@ export function isTripPassPlan(profile: PremiumProfileFields | null | undefined)
 }
 
 export function getExpeditionQuotaLimit(profile: PremiumProfileFields | null | undefined): number {
-    if (isGuestProfile(profile)) return EXPEDITION_MONTHLY_QUOTA;
     if (!hasActivePremium(profile)) return 0;
     return isTripPassPlan(profile) ? EXPEDITION_PASS_QUOTA : EXPEDITION_MONTHLY_QUOTA;
 }

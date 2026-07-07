@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useTranslation } from '../../hooks/useTranslation';
+import { PactGateLoading } from './PactGateLoading';
 
 interface PactGateProps {
     pactAccepted?: boolean;
@@ -18,14 +18,9 @@ export const PactGate: React.FC<PactGateProps> = ({
     children,
 }) => {
     const location = useLocation();
-    const { t } = useTranslation();
 
     if (!profileLoaded) {
-        return (
-            <div className="h-screen w-full bg-background-dark text-content flex items-center justify-center font-display font-medium">
-                {t('common.loading')}
-            </div>
-        );
+        return <PactGateLoading />;
     }
 
     if (pactAccepted !== true && location.pathname !== '/pact') {

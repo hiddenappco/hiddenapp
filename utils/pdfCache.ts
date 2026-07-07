@@ -1,3 +1,5 @@
+import { DESTINATION_PDF_TEMPLATE_VERSION } from '../config/pdf';
+
 export type PdfExpiryValue = { toDate?: () => Date } | string | Date | undefined;
 
 export function isPdfStillValid(pdfUrl?: string, pdfExpiresAt?: PdfExpiryValue): boolean {
@@ -13,6 +15,7 @@ export interface DestinationPdfCacheLangEntry {
     url?: string;
     expiresAt?: PdfExpiryValue;
     fingerprint?: string;
+    templateVersion?: number;
 }
 
 export type DestinationPdfCache = {
@@ -22,9 +25,11 @@ export type DestinationPdfCache = {
 
 export function readDestinationPdfCacheUrl(
     pdfCache: DestinationPdfCache | undefined,
-    lang: 'es' | 'en'
+    lang: 'es' | 'en',
+    templateVersion: number = DESTINATION_PDF_TEMPLATE_VERSION
 ): string | undefined {
     const entry = pdfCache?.[lang];
     if (!entry?.url || !isPdfStillValid(entry.url, entry.expiresAt)) return undefined;
+    if ((entry.templateVersion ?? 0) !== templateVersion) return undefined;
     return entry.url;
 }

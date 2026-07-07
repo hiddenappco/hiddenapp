@@ -60,6 +60,14 @@ export const TRIP_LEDGER_LIMITS = {
     MAX_PAST_TRIPS: 10,
 } as const;
 
+/** Documentos de viaje (tickets, PDFs, recibos) — Premium. */
+export const TRIP_DOCUMENT_LIMITS = {
+    MAX_FILE_BYTES: 20 * 1024 * 1024,
+    MAX_USER_BYTES: 2 * 1024 * 1024 * 1024,
+    LOCAL_CACHE_GRACE_DAYS: 14,
+    ALLOWED_MIME_PREFIXES: ['image/', 'application/pdf'] as const,
+} as const;
+
 /** Planificador — itinerarios guardados por usuario (Firestore `expeditions`). */
 export const EXPEDITION_HISTORY_LIMIT = 20;
 export const EXPEDITION_HISTORY_FULL = 'EXPEDITION_HISTORY_FULL';

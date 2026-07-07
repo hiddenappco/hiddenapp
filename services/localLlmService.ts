@@ -5,8 +5,8 @@
  * 
  * Architecture (dual offline product — see TAREA_4_ARQUITECTURA_OFFLINE_DUAL.md):
  * 1. Primary Engine (WebGPU + MediaPipe): Gemma 2B IT GPU int4 on-device via `@mediapipe/tasks-genai`.
- * 2. Fallback Engine (Guided local search): Structured RAG responder — default for all devices;
- *    used when Gemma is not installed, WebGPU is unavailable, or inference is not wired yet.
+ * 2. Fallback Engine (Guided local search): Structured RAG responder — default when Gemma
+ *    is not installed, WebGPU is unavailable, inference times out, or the model errors.
  * 
  * Both engines consume the same RAG context from the local SQLite database
  * and present responses through the same UI, but the fallback engine
@@ -24,7 +24,13 @@ import {
   generateGemmaResponse,
   sanitizeGemmaOutput,
 } from './gemmaEngine';
-import { isGemmaModelReady, resolveGemmaModelAssetPath } from './gemmaModelStore';
+import {
+  GEMMA_INVALID_FORMAT_ERROR,
+  isGemmaModelReady,
+  markGemmaModelInvalid,
+  resolveGemmaModelAssetPath,
+} from './gemmaModelStore';
+import { GEMMA_CONFIG } from '../config/gemma';
 
 const getLocale = (language: Language): TranslationType =>
   language === Language.English ? en : es;
@@ -101,16 +107,97 @@ export interface RagContext {
   rawText: string; // The truncated context string injected into the prompt
 }
 
+export type FallbackReason = 'no_gemma' | 'timeout' | 'inference_error' | 'empty_output';
+
 export interface LlmResponse {
   text: string;
   engineUsed: EngineMode;
   ragContext: RagContext | null;
+  fallbackReason?: FallbackReason;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const MAX_CONTEXT_CHARS = 2000;
 const SQL_RESULT_LIMIT = 3;
+const FALLBACK_CATALOG_LIMIT = 3;
+
+/** Limits injected snippets for Gemma (department briefing is kept when present). */
+export function capRagForInference(
+  ctx: RagContext | null,
+  language: Language,
+  maxChunks: number = GEMMA_CONFIG.ragChunkLimit
+): RagContext | null {
+  if (!ctx) return null;
+
+  let budget = maxChunks;
+  const protocols = ctx.protocols.slice(0, budget);
+  budget -= protocols.length;
+  const destinations = ctx.destinations.slice(0, Math.max(0, budget));
+  budget -= destinations.length;
+  const refugios = ctx.refugios.slice(0, Math.max(0, budget));
+  budget -= refugios.length;
+  const coupons = ctx.coupons.slice(0, Math.max(0, budget));
+  budget -= coupons.length;
+  const events = ctx.events.slice(0, Math.max(0, budget));
+
+  const departmentRow = ctx.department
+    ? {
+        name: ctx.department.name,
+        subtitle: ctx.department.subtitle,
+        description: ctx.department.description,
+        safetyNote: ctx.department.safetyNote,
+        logistics: ctx.department.logistics,
+        seasonality: ctx.department.seasonality,
+        tips: ctx.department.tips,
+      }
+    : null;
+
+  return buildRagContext(
+    protocols,
+    destinations.map((d) => ({
+      title: d.title,
+      description: d.description,
+      location: d.location,
+      aiTip: d.aiTip,
+      activities: d.activities,
+      gettingThere: d.gettingThere,
+      pricingGuide: d.pricing,
+      packingSummary: d.packingSummary,
+      packingGuide: d.packingItems,
+      planningNotes: d.planningNotes,
+      suggestedDaysMin: d.suggestedDaysMin,
+      suggestedDaysMax: d.suggestedDaysMax,
+      regionCluster: d.regionCluster,
+    })),
+    refugios.map((r) => ({
+      name: r.name,
+      tagline: r.tagline,
+      description: r.description,
+      location: r.location,
+    })),
+    coupons.map((c) => ({
+      title: c.title,
+      description: c.description,
+      discount: c.discount,
+      location: c.location,
+      validity: c.validity,
+      coupon_code: c.couponCode,
+      redemptionInstructions: c.redemptionInstructions,
+      destinationId: c.destinationId,
+    })),
+    events.map((e) => ({
+      name: e.name,
+      subtitle: e.subtitle,
+      description: e.description,
+      location: e.location,
+      date: e.date,
+      tips: e.tips,
+    })),
+    language,
+    departmentRow
+  );
+}
 
 /** Resolves `field_en` when pack language is English, else the Spanish base column. */
 function localizedColumn(field: string, lang: 'es' | 'en'): string {
@@ -1015,6 +1102,34 @@ export async function detectEngineCapability(
   return 'fallback';
 }
 
+// ─── Small talk / greeting detection ────────────────────────────────────────
+
+const GREETING_TOKENS = new Set([
+  'hola', 'holi', 'holis', 'ola', 'hey', 'buenas', 'buenos', 'dias', 'días',
+  'tardes', 'noches', 'saludos', 'que', 'qué', 'tal', 'como', 'cómo', 'estas',
+  'estás', 'va', 'hi', 'hello', 'hiya', 'yo', 'good', 'morning', 'afternoon',
+  'evening', 'thanks', 'thank', 'you', 'gracias', 'ok', 'okay', 'vale', 'listo',
+  'genial', 'perfecto', 'adios', 'adiós', 'chao', 'bye', 'goodbye',
+]);
+
+/**
+ * True when a message is only a greeting / pleasantry (e.g. "hola", "hola hola",
+ * "buenos días", "thanks"). These should get a friendly reply instead of dumping
+ * the whole offline catalog.
+ */
+function isPureGreeting(message: string): boolean {
+  const cleaned = message
+    .trim()
+    .toLowerCase()
+    .replace(/[!¡.,¿?;:]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned || cleaned.length > 28) return false;
+  const tokens = cleaned.split(' ');
+  if (tokens.length > 4) return false;
+  return tokens.every((tok) => GREETING_TOKENS.has(tok));
+}
+
 // ─── Fallback Engine ────────────────────────────────────────────────────────
 
 /**
@@ -1025,27 +1140,39 @@ export async function detectEngineCapability(
 export function generateFallbackResponse(
   userMessage: string,
   ragContext: RagContext | null,
-  language: Language
+  language: Language,
+  options?: { reason?: FallbackReason }
 ): string {
   const llm = getLocale(language).vault.llm;
+  const capped = ragContext
+    ? capRagForInference(ragContext, language, FALLBACK_CATALOG_LIMIT)
+    : null;
 
   if (
-    !ragContext ||
-    (ragContext.protocols.length === 0 &&
-      !ragContext.department &&
-      ragContext.destinations.length === 0 &&
-      ragContext.refugios.length === 0 &&
-      ragContext.coupons.length === 0 &&
-      ragContext.events.length === 0)
+    !capped ||
+    (capped.protocols.length === 0 &&
+      !capped.department &&
+      capped.destinations.length === 0 &&
+      capped.refugios.length === 0 &&
+      capped.coupons.length === 0 &&
+      capped.events.length === 0)
   ) {
     return llm.noResults.replace('{query}', userMessage);
   }
 
   let response = '';
 
-  if (ragContext.department) {
+  if (options?.reason === 'timeout') {
+    response += `${llm.fallbackTimeoutIntro}\n\n`;
+  } else if (options?.reason === 'inference_error' || options?.reason === 'empty_output') {
+    response += `${llm.fallbackErrorIntro}\n\n`;
+  } else {
+    response += `${llm.fallbackNoModelIntro}\n\n`;
+  }
+
+  if (capped.department) {
     response += `${llm.departmentHeader}\n\n`;
-    const dept = ragContext.department;
+    const dept = capped.department;
     response += `**${dept.name}**${dept.subtitle ? ` — _${dept.subtitle}_` : ''}\n`;
     if (dept.description) response += `${dept.description}\n`;
     if (dept.safetyNote) response += `\n${llm.safetyLabel} ${dept.safetyNote}\n`;
@@ -1053,16 +1180,16 @@ export function generateFallbackResponse(
     response += `\n`;
   }
 
-  if (ragContext.protocols.length > 0) {
+  if (capped.protocols.length > 0) {
     response += `${llm.protocolsHeader}\n\n`;
-    for (const p of ragContext.protocols) {
+    for (const p of capped.protocols) {
       response += `**${p.title}**${p.category ? ` _(${p.category})_` : ''}\n${p.content}\n\n---\n\n`;
     }
   }
 
-  if (ragContext.destinations.length > 0) {
+  if (capped.destinations.length > 0) {
     response += `${llm.destinationsHeader}\n\n`;
-    for (const d of ragContext.destinations) {
+    for (const d of capped.destinations) {
       response += `**${d.title}**${d.location ? ` — _${d.location}_` : ''}\n${d.description}\n`;
       if (d.activities && d.activities.length > 0) {
         response += `\n${llm.activitiesLabel}\n`;
@@ -1098,16 +1225,16 @@ export function generateFallbackResponse(
     }
   }
 
-  if (ragContext.refugios.length > 0) {
+  if (capped.refugios.length > 0) {
     response += `${llm.refugiosHeader}\n\n`;
-    for (const r of ragContext.refugios) {
+    for (const r of capped.refugios) {
       response += `**${r.name}**${r.tagline ? ` — _${r.tagline}_` : ''}${r.location ? ` · ${r.location}` : ''}\n${r.description}\n\n`;
     }
   }
 
-  if (ragContext.coupons.length > 0) {
+  if (capped.coupons.length > 0) {
     response += `${llm.couponsHeader}\n\n`;
-    for (const c of ragContext.coupons) {
+    for (const c of capped.coupons) {
       response += `**${c.title}**${c.discount ? ` — _${c.discount}_` : ''}${c.location ? ` · ${c.location}` : ''}\n`;
       if (c.description) response += `${c.description}\n`;
       if (c.validity) response += `_${c.validity}_\n`;
@@ -1117,9 +1244,9 @@ export function generateFallbackResponse(
     }
   }
 
-  if (ragContext.events.length > 0) {
+  if (capped.events.length > 0) {
     response += `${llm.eventsHeader}\n\n`;
-    for (const e of ragContext.events) {
+    for (const e of capped.events) {
       response += `**${e.name}**${e.subtitle ? ` — _${e.subtitle}_` : ''}${e.date ? ` · ${e.date}` : ''}${e.location ? ` · ${e.location}` : ''}\n`;
       if (e.description) response += `${e.description}\n`;
       if (e.tips) response += `${llm.aiTipLabel} ${e.tips}\n`;
@@ -1127,7 +1254,11 @@ export function generateFallbackResponse(
     }
   }
 
-  response += llm.quickSearchFooter;
+  if (options?.reason === 'no_gemma' || !options?.reason) {
+    response += llm.quickSearchFooter;
+  } else if (options.reason === 'timeout') {
+    response += llm.fallbackTimeoutFooter;
+  }
 
   return response.trim();
 }
@@ -1164,7 +1295,24 @@ export class LocalLlmService {
       this.modelAssetPath = null;
       disposeGemmaSession();
       this.isReady = true;
-      console.error('[LocalLLM] Gemma init failed, falling back:', err);
+
+      // A format/model mismatch means the file on disk is corrupt or incompatible.
+      // Invalidate the install so the UI prompts a clean reinstall instead of
+      // failing silently on every session.
+      if (/no model format|model format matched|GEMMA_MODEL_INVALID_FORMAT/i.test(message)) {
+        this.error = GEMMA_INVALID_FORMAT_ERROR;
+        console.error(
+          '[LocalLLM] Model file is corrupt or incompatible. Invalidating install so it can be reinstalled.',
+          err
+        );
+        try {
+          await markGemmaModelInvalid();
+        } catch (cleanupErr) {
+          console.warn('[LocalLLM] Failed to clean up invalid model:', cleanupErr);
+        }
+      } else {
+        console.error('[LocalLLM] Gemma init failed, falling back:', err);
+      }
     } finally {
       this.isLoading = false;
     }
@@ -1202,11 +1350,22 @@ export class LocalLlmService {
     language: Language,
     onPartial?: (chunk: string) => void
   ): Promise<LlmResponse> {
+    // Greetings / small talk get a warm reply instead of a catalog dump.
+    if (isPureGreeting(userMessage)) {
+      return {
+        text: getLocale(language).vault.llm.greetingReply,
+        engineUsed: this.engineMode,
+        ragContext: null,
+      };
+    }
+
+    const cappedForGemma = ragContext
+      ? capRagForInference(ragContext, language, GEMMA_CONFIG.ragChunkLimit)
+      : null;
+
     if (this.engineMode === 'gemma' && this.modelAssetPath) {
       try {
-        const prompt = assemblePrompt(userMessage, ragContext, language);
-        // MediaPipe streams *incremental* chunks; accumulate them so the UI
-        // shows the growing answer instead of only the latest token.
+        const prompt = assemblePrompt(userMessage, cappedForGemma, language);
         let streamed = '';
         const raw = await generateGemmaResponse(
           this.modelAssetPath,
@@ -1218,21 +1377,41 @@ export class LocalLlmService {
                   onPartial(sanitizeGemmaOutput(streamed));
                 }
               }
-            : undefined
+            : undefined,
+          GEMMA_CONFIG.inferenceTimeoutMs
         );
         const text = sanitizeGemmaOutput(raw || streamed);
         if (text.length > 0) {
           return { text, engineUsed: 'gemma', ragContext };
         }
+        console.warn('[LocalLLM] Gemma returned empty output, using catalog fallback.');
+        return {
+          text: generateFallbackResponse(userMessage, ragContext, language, {
+            reason: 'empty_output',
+          }),
+          engineUsed: 'fallback',
+          ragContext,
+          fallbackReason: 'empty_output',
+        };
       } catch (err) {
-        console.error('[LocalLLM] Gemma inference failed, using fallback:', err);
+        const isTimeout =
+          err instanceof Error && err.message === 'GEMMA_INFERENCE_TIMEOUT';
+        const reason: FallbackReason = isTimeout ? 'timeout' : 'inference_error';
+        console.error(`[LocalLLM] Gemma inference failed (${reason}), using fallback:`, err);
+        return {
+          text: generateFallbackResponse(userMessage, ragContext, language, { reason }),
+          engineUsed: 'fallback',
+          ragContext,
+          fallbackReason: reason,
+        };
       }
     }
 
     return {
-      text: generateFallbackResponse(userMessage, ragContext, language),
+      text: generateFallbackResponse(userMessage, ragContext, language, { reason: 'no_gemma' }),
       engineUsed: 'fallback',
       ragContext,
+      fallbackReason: 'no_gemma',
     };
   }
 }

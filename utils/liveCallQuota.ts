@@ -4,6 +4,7 @@ import {
     LIVE_TRIAL_SECONDS,
 } from '../config/premiumLimits';
 import { hasActivePremium, parseProfileDate, type PremiumProfileFields } from './premiumAccess';
+import { GUEST_HACKATHON_PREMIUM } from './guestAccess';
 import { isGuestProfile } from './userIdentity';
 
 export interface LiveCallUsageRaw {
@@ -31,7 +32,7 @@ export function computeLiveCallQuota(
 ): LiveCallQuotaState {
     const now = Date.now();
 
-    if (isGuestProfile(profile)) {
+    if (GUEST_HACKATHON_PREMIUM && isGuestProfile(profile)) {
         const periodEndsAt = new Date(now + LIVE_PERIOD_MS);
         return {
             periodStart: new Date(now),

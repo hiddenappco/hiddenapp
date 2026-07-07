@@ -17,5 +17,13 @@ export const GEMMA_CONFIG = {
     /** Download + installed size (same for direct `.bin`) */
     approxDownloadMb: 1292,
     approxSizeMb: 1292,
+    /** Shown in UI copy (~1.29 GB) */
+    approxDownloadGb: 1.29,
+    /** Minimum device RAM for on-device Gemma inference (WebGPU) */
+    minRamGb: 4,
+    /** P1-OFF-02 — abort inference and fall back to catalog if exceeded */
+    inferenceTimeoutMs: 8_000,
+    /** Max catalog snippets injected into the Gemma prompt (department briefing excluded) */
+    ragChunkLimit: 3,
     firestoreConfigDoc: 'gemmaModel',
 } as const;
